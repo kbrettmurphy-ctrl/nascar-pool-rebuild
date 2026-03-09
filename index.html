@@ -160,7 +160,7 @@ async function loadAssignments(raceId) {
           ${assignments.map(a => `
             <div class="assignment-line">
               <strong>Driver ${a.assignment_slot}:</strong>
-              ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
+              ${a.driver_name ?? "Ain't no qualifying yet, Dick Trickle."}${a.car_number ? ` (#${a.car_number})` : ""}
               <div class="muted">
                 Assigned qualifying position: ${a.qualifying_position}
               </div>
