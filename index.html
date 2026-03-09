@@ -177,6 +177,10 @@
           }
         );
 
+        if (!data || data.every(r => r.average_finish === null)) {
+          return;
+        }
+
         if (!response.ok) {
           const text = await response.text();
           throw new Error(`Failed to load assignments: ${text}`);
@@ -342,8 +346,66 @@
       }
     }
 
+    async function loadScores(raceId) {
+
+      const status = document.getElementById("status");
+      const container = document.getElementById("results");
+
+      status.textContent = "Loading scores...";
+      container.innerHTML = "";
+
+      try {
+
+        const { data, error } = await supabase
+          .from("player_race_scores")
+          .select("*")
+          .eq("race_id", raceId)
+          .order("average_finish", { ascending: true, nullsFirst: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          status.textContent = "No scores available.";
+          return;
+        }
+
+        status.textContent = "";
+
+        container.innerHTML = data.map(row => `
+          <div style="margin-bottom:14px;border-bottom:1px solid #333;padding-bottom:10px">
+
+            <strong>${row.player_name}</strong>
+
+            <div style="margin-top:4px">
+              ${row.driver_1_name ?? "—"}
+              ${row.driver_1_car_number ? `(#${row.driver_1_car_number})` : ""}
+              — finish: ${row.driver_1_finish ?? "—"}
+            </div>
+
+            <div>
+              ${row.driver_2_name ?? "—"}
+              ${row.driver_2_car_number ? `(#${row.driver_2_car_number})` : ""}
+              — finish: ${row.driver_2_finish ?? "—"}
+            </div>
+
+            <div style="margin-top:4px;color:#9ad">
+              Avg Finish: ${row.average_finish ?? "—"}
+            </div>
+
+          </div>
+        `).join("");
+
+      } catch (err) {
+
+        console.error(err);
+        status.textContent = `Error: ${err.message || err}`;
+
+      }
+    }
+
     raceSelect.addEventListener("change", () => {
       loadAssignments(raceSelect.value);
+      loadScores(raceSelect.value);
     });
 
     generateAssignmentsBtn.addEventListener("click", generateAssignmentsForSelectedRace);
