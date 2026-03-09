@@ -62,36 +62,47 @@
     const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function loadAssignments() {
+      const status = document.getElementById("status");
+      const container = document.getElementById("results");
 
-      const { data, error } = await supabase
-        .from('resolved_assignments')
-        .select('*')
-        .order('player_name')
+      status.textContent = "Loading assignments...";
 
-      if (error) {
-        console.error(error)
-        return
+      try {
+        const { data, error } = await supabase
+          .from("resolved_assignments")
+          .select("*")
+          .order("player_name");
+
+        if (error) {
+          throw error;
+        }
+    
+        if (!data || data.length === 0) {
+          status.textContent = "No assignments found.";
+          return;
+        }
+
+        status.textContent = "";
+
+        container.innerHTML = data.map(row => `
+          <div style="margin-bottom:10px">
+            <strong>${row.player_name}</strong><br>
+            Race: ${row.race_name}<br>
+            Slot: ${row.assignment_slot}<br>
+            Position: ${row.qualifying_position}<br>
+            Driver: ${row.driver_name ?? "Not resolved yet"}${row.car_number ? ` (#${row.car_number})` : ""}
+          </div>
+        `).join("");
+      } catch (err) {
+        console.error(err);
+        status.textContent = `Error: ${err.message || err}`;
       }
-
-      const container = document.getElementById("results")
-
-      container.innerHTML = data.map(row => `
-        <div style="margin-bottom:10px">
-          <strong>${row.player_name}</strong><br>
-          Race: ${row.race_name}<br>
-          Slot: ${row.assignment_slot}<br>
-          Position: ${row.qualifying_position}<br>
-          Driver: ${row.driver_name} (#${row.car_number})
-        </div>
-      `).join("")
-
     }
 
-    loadAssignments()
-
+    loadAssignments();
   </script>
 </body>
 </html>
