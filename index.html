@@ -61,108 +61,137 @@
   </style>
 </head>
 <body>
+  
   <div class="card">
     <h1>NASCAR Pool Rebuild</h1>
     <p class="small">Resolved race assignments powered by Supabase.</p>
-
+    <label for="raceSelect">Select Race:</label>
+    <select id="raceSelect"></select>
     <div id="status">Loading assignments...</div>
     <div id="results"></div>
   </div>
 
   <script>
-    const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
 
-    async function loadAssignments() {
-      const status = document.getElementById("status");
-      const results = document.getElementById("results");
+const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
 
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=season_year.asc,race_number.asc,player_name.asc,assignment_slot.asc`,
-          {
-            method: "GET",
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
+async function loadRaces() {
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-
-        if (!data || data.length === 0) {
-          status.textContent = "No assignments found.";
-          return;
-        }
-
-        status.textContent = "";
-
-        const races = {};
-
-        data.forEach(row => {
-          const raceKey = `${row.season_year}-${row.race_number}-${row.race_name}`;
-
-          if (!races[raceKey]) {
-            races[raceKey] = {
-              race_name: row.race_name,
-              race_number: row.race_number,
-              season_year: row.season_year,
-              players: {}
-            };
-          }
-
-          if (!races[raceKey].players[row.player_name]) {
-            races[raceKey].players[row.player_name] = [];
-          }
-
-          races[raceKey].players[row.player_name].push({
-            assignment_slot: row.assignment_slot,
-            qualifying_position: row.qualifying_position,
-            driver_name: row.driver_name,
-            car_number: row.car_number
-          });
-        });
-
-        const raceHtml = Object.values(races).map(race => {
-          const playerHtml = Object.entries(race.players).map(([playerName, assignments]) => {
-            const sortedAssignments = assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
-
-            return `
-              <div class="player-block">
-                <h3>${playerName}</h3>
-                ${sortedAssignments.map(a => `
-                  <div class="assignment-line">
-                    <strong>Driver ${a.assignment_slot}:</strong>
-                    ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
-                    <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
-                  </div>
-                `).join("")}
-              </div>
-            `;
-          }).join("");
-
-          return `
-            <div class="race-block">
-              <h2>Race ${race.race_number}: ${race.race_name}</h2>
-              ${playerHtml}
-            </div>
-          `;
-        }).join("");
-
-        results.innerHTML = raceHtml;
-      } catch (err) {
-        console.error(err);
-        status.innerHTML = `<div class="error">Error: ${err.message || err}</div>`;
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,
+    {
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`
       }
     }
+  );
 
-    loadAssignments();
-  </script>
+  const races = await response.json();
+
+  const select = document.getElementById("raceSelect");
+
+  races.forEach(race => {
+
+    const option = document.createElement("option");
+
+    option.value = race.id;
+    option.textContent = `Race ${race.race_number}: ${race.race_name}`;
+
+    select.appendChild(option);
+
+  });
+
+  if (races.length > 0) {
+    loadAssignments(races[0].id);
+  }
+
+}
+
+async function loadAssignments(raceId) {
+
+  const status = document.getElementById("status");
+  const results = document.getElementById("results");
+
+  status.textContent = "Loading assignments...";
+
+  try {
+
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
+      {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data || data.length === 0) {
+      status.textContent = "No assignments found.";
+      results.innerHTML = "";
+      return;
+    }
+
+    status.textContent = "";
+
+    const players = {};
+
+    data.forEach(row => {
+
+      if (!players[row.player_name]) {
+        players[row.player_name] = [];
+      }
+
+      players[row.player_name].push(row);
+
+    });
+
+    const html = Object.entries(players).map(([player, assignments]) => {
+
+      assignments.sort((a,b) => a.assignment_slot - b.assignment_slot);
+
+      return `
+        <div class="player-block">
+          <h3>${player}</h3>
+          ${assignments.map(a => `
+            <div class="assignment-line">
+              <strong>Driver ${a.assignment_slot}:</strong>
+              ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
+              <div class="muted">
+                Assigned qualifying position: ${a.qualifying_position}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }).join("");
+
+    results.innerHTML = html;
+
+  } catch(err) {
+
+    status.innerHTML = `<div class="error">${err.message}</div>`;
+
+  }
+
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  loadRaces();
+
+  document.getElementById("raceSelect").addEventListener("change", (e) => {
+
+    loadAssignments(e.target.value);
+
+  });
+
+});
+
+</script>
 </body>
 </html>
