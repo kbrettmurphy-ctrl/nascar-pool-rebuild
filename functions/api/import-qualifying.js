@@ -56,19 +56,19 @@ export async function onRequestPost(context) {
 
     // 3) Match your DB race_number to NASCAR points-race order
     const targetRace = cupRaces[race.race_number - 1];
-    if (!targetRace) {
-      return json({ ok: false, error: `Could not map race_number ${race.race_number} to NASCAR race list` }, 400);
-    }
+if (!targetRace) {
+  return json({ ok: false, error: `Could not map race_number ${race.race_number} to NASCAR race list` }, 400);
+}
 
-    const weekendUrl =
-      targetRace.weekend_feed ||
-      targetRace.weekend_feed_url ||
-      targetRace.race_feed_url ||
-      targetRace.feed_url;
+const nascarYear = race.season_year;
+const nascarSeriesId = 1; // Cup
+const targetRaceId = targetRace.race_id;
 
-    if (!weekendUrl) {
-      return json({ ok: false, error: "Could not find weekend feed URL for race" }, 502);
-    }
+if (!targetRaceId) {
+  return json({ ok: false, error: "Resolved NASCAR race is missing race_id" }, 502);
+}
+
+const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}/${targetRaceId}/weekend-feed.json`;
 
     // 4) Fetch weekend feed
     const weekendResp = await fetch(weekendUrl, {
