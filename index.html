@@ -63,7 +63,7 @@
 
       try {
         const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=player_name.asc`,
+          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=player_name.asc,assignment_slot.asc`,
           {
             method: "GET",
             headers: {
@@ -87,13 +87,42 @@
 
         status.textContent = "";
 
-        results.innerHTML = data.map(row => `
+        const grouped = {};
+
+        data.forEach(row => {
+          const key = `${row.race_name}|||${row.player_name}`;
+
+          if (!grouped[key]) {
+            grouped[key] = {
+              race_name: row.race_name,
+              player_name: row.player_name,
+              assignments: []
+            };
+          }
+
+          grouped[key].assignments.push({
+            assignment_slot: row.assignment_slot,
+            qualifying_position: row.qualifying_position,
+            driver_name: row.driver_name,
+            car_number: row.car_number
+          });
+        });
+
+        const groupedArray = Object.values(grouped);
+
+        results.innerHTML = groupedArray.map(group => `
           <div class="assignment">
-            <strong>${row.player_name}</strong><br>
-            Race: ${row.race_name}<br>
-            Slot: ${row.assignment_slot}<br>
-            Position: ${row.qualifying_position}<br>
-            Driver: ${row.driver_name ?? "Not resolved yet"}${row.car_number ? ` (#${row.car_number})` : ""}
+            <strong style="font-size: 1.25rem;">${group.player_name}</strong><br>
+            <span style="color:#bbb;">Race: ${group.race_name}</span>
+            <div style="margin-top: 10px;">
+              ${group.assignments.map(a => `
+                <div style="margin-bottom: 10px;">
+                  <strong>Driver ${a.assignment_slot}:</strong>
+                  ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}<br>
+                  <span style="color:#bbb;">Assigned qualifying position: ${a.qualifying_position}</span>
+                </div>
+              `).join("")}
+            </div>
           </div>
         `).join("");
       } catch (err) {
