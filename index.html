@@ -102,6 +102,7 @@
       <select id="raceSelect"></select>
       <button id="generateAssignmentsBtn" type="button">Generate Assignments</button>
       <button id="importQualBtn" type="button">Import Qualifying</button>
+      <button id="importResultsBtn" type="button">Import Results</button>
     </div>
 
     <div id="actionStatus"></div>
@@ -117,6 +118,7 @@
     const raceSelect = document.getElementById("raceSelect");
     const generateAssignmentsBtn = document.getElementById("generateAssignmentsBtn");
     const importQualBtn = document.getElementById("importQualBtn");
+    const importResultsBtn = document.getElementById("importResultsBtn");
     const statusEl = document.getElementById("status");
     const resultsEl = document.getElementById("results");
     const actionStatusEl = document.getElementById("actionStatus");
@@ -303,12 +305,50 @@
       }
     }
 
+    async function importResultsForSelectedRace() {
+      const raceId = Number(raceSelect.value);
+
+      if (!raceId) {
+        actionStatusEl.textContent = "Pick a race first.";
+        return;
+      }
+
+      importResultsBtn.disabled = true;
+      actionStatusEl.textContent = "Importing results...";
+
+      try {
+        const response = await fetch("/api/import-results", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-key": ADMIN_KEY
+          },
+          body: JSON.stringify({ raceId })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          throw new Error(JSON.stringify(result));
+        }
+
+        actionStatusEl.textContent =
+          `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+      } catch (err) {
+        console.error(err);
+        actionStatusEl.innerHTML = `<span class="error">Import results failed: ${err.message || err}</span>`;
+      } finally {
+        importResultsBtn.disabled = false;
+      }
+    }
+
     raceSelect.addEventListener("change", () => {
       loadAssignments(raceSelect.value);
     });
 
     generateAssignmentsBtn.addEventListener("click", generateAssignmentsForSelectedRace);
     importQualBtn.addEventListener("click", importQualifyingForSelectedRace);
+    importResultsBtn.addEventListener("click", importResultsForSelectedRace);
 
     loadRaces();
   </script>
