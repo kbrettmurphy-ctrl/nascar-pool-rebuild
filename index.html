@@ -152,8 +152,9 @@
         });
 
         if (races.length > 0) {
-          await loadAssignments(raceSelect.value);
-        } else {
+  await loadAssignments(raceSelect.value);
+  await loadScores(raceSelect.value);
+} else {
           statusEl.textContent = "No races found.";
         }
       } catch (err) {
@@ -163,69 +164,65 @@
     }
 
     async function loadAssignments(raceId) {
-      statusEl.textContent = "Loading assignments...";
-      resultsEl.innerHTML = "";
+  statusEl.textContent = "Loading assignments...";
+  resultsEl.innerHTML = "";
 
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
-
-        if (!data || data.every(r => r.average_finish === null)) {
-          return;
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
+      {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
         }
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load assignments: ${text}`);
-        }
-
-        const data = await response.json();
-
-        if (!data || data.length === 0) {
-          statusEl.textContent = "No assignments found for this race.";
-          return;
-        }
-
-        const players = {};
-
-        data.forEach(row => {
-          if (!players[row.player_name]) {
-            players[row.player_name] = [];
-          }
-          players[row.player_name].push(row);
-        });
-
-        const html = Object.entries(players).map(([playerName, assignments]) => {
-          assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
-
-          return `
-            <div class="player-block">
-              <h3>${playerName}</h3>
-              ${assignments.map(a => `
-                <div class="assignment-line">
-                  <strong>Driver ${a.assignment_slot}:</strong>
-                  ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
-                  <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
-                </div>
-              `).join("")}
-            </div>
-          `;
-        }).join("");
-
-        statusEl.textContent = "";
-        resultsEl.innerHTML = html;
-      } catch (err) {
-        console.error(err);
-        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
       }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to load assignments: ${text}`);
     }
+
+    const data = await response.json();
+
+    if (!data || data.length === 0) {
+      statusEl.textContent = "No assignments found for this race.";
+      return;
+    }
+
+    const players = {};
+
+    data.forEach(row => {
+      if (!players[row.player_name]) {
+        players[row.player_name] = [];
+      }
+      players[row.player_name].push(row);
+    });
+
+    const html = Object.entries(players).map(([playerName, assignments]) => {
+      assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
+
+      return `
+        <div class="player-block">
+          <h3>${playerName}</h3>
+          ${assignments.map(a => `
+            <div class="assignment-line">
+              <strong>Driver ${a.assignment_slot}:</strong>
+              ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
+              <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }).join("");
+
+    statusEl.textContent = "";
+    resultsEl.innerHTML = html;
+  } catch (err) {
+    console.error(err);
+    statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
+  }
+}
 
     async function generateAssignmentsForSelectedRace() {
       const raceId = Number(raceSelect.value);
@@ -301,6 +298,7 @@
           `Run used: ${result.chosenRunName}`;
 
         await loadAssignments(raceId);
+        await loadScores(raceId);
       } catch (err) {
         console.error(err);
         actionStatusEl.innerHTML = `<span class="error">Import failed: ${err.message || err}</span>`;
@@ -337,7 +335,9 @@
         }
 
         actionStatusEl.textContent =
-          `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+  `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+
+await loadScores(raceId);
       } catch (err) {
         console.error(err);
         actionStatusEl.innerHTML = `<span class="error">Import results failed: ${err.message || err}</span>`;
@@ -347,61 +347,60 @@
     }
 
     async function loadScores(raceId) {
-
-      const status = document.getElementById("status");
-      const container = document.getElementById("results");
-
-      status.textContent = "Loading scores...";
-      container.innerHTML = "";
-
-      try {
-
-        const { data, error } = await supabase
-          .from("player_race_scores")
-          .select("*")
-          .eq("race_id", raceId)
-          .order("average_finish", { ascending: true, nullsFirst: false });
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          status.textContent = "No scores available.";
-          return;
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,
+      {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
         }
-
-        status.textContent = "";
-
-        container.innerHTML = data.map(row => `
-          <div style="margin-bottom:14px;border-bottom:1px solid #333;padding-bottom:10px">
-
-            <strong>${row.player_name}</strong>
-
-            <div style="margin-top:4px">
-              ${row.driver_1_name ?? "—"}
-              ${row.driver_1_car_number ? `(#${row.driver_1_car_number})` : ""}
-              — finish: ${row.driver_1_finish ?? "—"}
-            </div>
-
-            <div>
-              ${row.driver_2_name ?? "—"}
-              ${row.driver_2_car_number ? `(#${row.driver_2_car_number})` : ""}
-              — finish: ${row.driver_2_finish ?? "—"}
-            </div>
-
-            <div style="margin-top:4px;color:#9ad">
-              Avg Finish: ${row.average_finish ?? "—"}
-            </div>
-
-          </div>
-        `).join("");
-
-      } catch (err) {
-
-        console.error(err);
-        status.textContent = `Error: ${err.message || err}`;
-
       }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to load scores: ${text}`);
     }
+
+    const data = await response.json();
+
+    if (!data || data.length === 0 || data.every(r => r.average_finish === null)) {
+      return;
+    }
+
+    resultsEl.innerHTML = data.map(row => `
+      <div class="player-block">
+        <h3>${row.player_name}</h3>
+
+        <div class="assignment-line">
+          <strong>Driver 1:</strong>
+          ${row.driver_1_name ?? "—"}${row.driver_1_car_number ? ` (#${row.driver_1_car_number})` : ""}
+          <div class="muted">
+            Qualifying position: ${row.driver_1_qualifying_position ?? "—"} | Finish: ${row.driver_1_finish ?? "—"}
+          </div>
+        </div>
+
+        <div class="assignment-line">
+          <strong>Driver 2:</strong>
+          ${row.driver_2_name ?? "—"}${row.driver_2_car_number ? ` (#${row.driver_2_car_number})` : ""}
+          <div class="muted">
+            Qualifying position: ${row.driver_2_qualifying_position ?? "—"} | Finish: ${row.driver_2_finish ?? "—"}
+          </div>
+        </div>
+
+        <div style="margin-top:8px;color:#9ad;">
+          <strong>Avg Finish:</strong> ${row.average_finish ?? "—"}
+        </div>
+      </div>
+    `).join("");
+
+    statusEl.textContent = "";
+  } catch (err) {
+    console.error(err);
+    actionStatusEl.innerHTML = `<span class="error">Load scores failed: ${err.message || err}</span>`;
+  }
+}
 
     raceSelect.addEventListener("change", () => {
       loadAssignments(raceSelect.value);
