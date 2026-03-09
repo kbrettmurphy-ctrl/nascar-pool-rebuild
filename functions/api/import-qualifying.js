@@ -1,274 +1,306 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NASCAR Pool Rebuild</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 40px;
-      background: #111;
-      color: #f5f5f5;
+export async function onRequestPost(context) {
+  try {
+    const { request, env } = context;
+
+    // Simple admin protection
+    const adminKey = request.headers.get("x-admin-key");
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+      return json({ ok: false, error: "Unauthorized" }, 401);
     }
 
-    .card {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 24px;
-      border: 1px solid #444;
-      border-radius: 12px;
-      background: #1b1b1b;
+    const body = await request.json();
+    const raceId = Number(body?.raceId);
+
+    if (!Number.isInteger(raceId)) {
+      return json({ ok: false, error: "raceId is required" }, 400);
     }
 
-    h1, h2, h3 {
-      margin-top: 0;
-    }
-
-    .small {
-      color: #bbb;
-    }
-
-    .error {
-      color: #ff8a8a;
-      white-space: pre-wrap;
-    }
-
-    .controls {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 18px 0 20px;
-    }
-
-    select, button {
-      font: inherit;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #444;
-    }
-
-    select {
-      background: #222;
-      color: #f5f5f5;
-      min-width: 280px;
-    }
-
-    button {
-      background: #2d5ea8;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .player-block {
-      margin-top: 16px;
-      padding: 14px;
-      background: #222;
-      border-radius: 10px;
-      border: 1px solid #333;
-    }
-
-    .assignment-line {
-      margin-top: 8px;
-      color: #ddd;
-    }
-
-    .muted {
-      color: #aaa;
-      font-size: 0.95rem;
-    }
-
-    #actionStatus {
-      margin-top: 10px;
-      color: #bbb;
-      white-space: pre-wrap;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>NASCAR Pool Rebuild</h1>
-    <p class="small">Same frontend direction. New backend.</p>
-
-    <div class="controls">
-      <label for="raceSelect">Race:</label>
-      <select id="raceSelect"></select>
-      <button id="importQualBtn" type="button">Import Qualifying</button>
-    </div>
-
-    <div id="actionStatus"></div>
-    <div id="status">Loading assignments...</div>
-    <div id="results"></div>
-  </div>
-
-  <script>
-    const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
-    const ADMIN_KEY = "BMurf1083!@";
-
-    const raceSelect = document.getElementById("raceSelect");
-    const importQualBtn = document.getElementById("importQualBtn");
-    const statusEl = document.getElementById("status");
-    const resultsEl = document.getElementById("results");
-    const actionStatusEl = document.getElementById("actionStatus");
-
-    async function loadRaces() {
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load races: ${text}`);
-        }
-
-        const races = await response.json();
-
-        raceSelect.innerHTML = "";
-
-        races.forEach(race => {
-          const option = document.createElement("option");
-          option.value = race.id;
-          option.textContent = `Race ${race.race_number}: ${race.race_name}`;
-          raceSelect.appendChild(option);
-        });
-
-        if (races.length > 0) {
-          await loadAssignments(raceSelect.value);
-        } else {
-          statusEl.textContent = "No races found.";
-        }
-      } catch (err) {
-        console.error(err);
-        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
+    // 1) Load race metadata from Supabase
+    const raceRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
       }
+    );
+
+    const raceRows = await raceRes.json();
+    if (!raceRes.ok || !Array.isArray(raceRows) || !raceRows.length) {
+      return json({ ok: false, error: "Race not found" }, 404);
     }
 
-    async function loadAssignments(raceId) {
-      statusEl.textContent = "Loading assignments...";
-      resultsEl.innerHTML = "";
+    const race = raceRows[0];
 
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load assignments: ${text}`);
-        }
-
-        const data = await response.json();
-
-        if (!data || data.length === 0) {
-          statusEl.textContent = "No assignments found for this race.";
-          return;
-        }
-
-        const players = {};
-
-        data.forEach(row => {
-          if (!players[row.player_name]) {
-            players[row.player_name] = [];
-          }
-          players[row.player_name].push(row);
-        });
-
-        const html = Object.entries(players).map(([playerName, assignments]) => {
-          assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
-
-          return `
-            <div class="player-block">
-              <h3>${playerName}</h3>
-              ${assignments.map(a => `
-                <div class="assignment-line">
-                  <strong>Driver ${a.assignment_slot}:</strong>
-                  ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
-                  <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
-                </div>
-              `).join("")}
-            </div>
-          `;
-        }).join("");
-
-        statusEl.textContent = "";
-        resultsEl.innerHTML = html;
-      } catch (err) {
-        console.error(err);
-        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
-      }
-    }
-
-    async function importQualifyingForSelectedRace() {
-      const raceId = Number(raceSelect.value);
-
-      if (!raceId) {
-        actionStatusEl.textContent = "Pick a race first.";
-        return;
-      }
-
-      importQualBtn.disabled = true;
-      actionStatusEl.textContent = "Importing qualifying...";
-      statusEl.textContent = "Refreshing assignments...";
-      resultsEl.innerHTML = "";
-
-      try {
-        const response = await fetch("/api/import-qualifying", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": ADMIN_KEY
-          },
-          body: JSON.stringify({ raceId })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.ok) {
-          throw new Error(JSON.stringify(result));
-        }
-
-        actionStatusEl.textContent =
-          `Imported qualifying for ${result.raceName}. ` +
-          `Rows written: ${result.rowsWritten}. ` +
-          `Run used: ${result.chosenRunName}`;
-
-        await loadAssignments(raceId);
-      } catch (err) {
-        console.error(err);
-        actionStatusEl.innerHTML = `<span class="error">Import failed: ${err.message || err}</span>`;
-      } finally {
-        importQualBtn.disabled = false;
-      }
-    }
-
-    raceSelect.addEventListener("change", () => {
-      loadAssignments(raceSelect.value);
+    // 2) Fetch NASCAR race list
+    const raceListUrl = `https://cf.nascar.com/cacher/${race.season_year}/race_list_basic.json`;
+    const raceListResp = await fetch(raceListUrl, {
+      headers: {
+        Accept: "application/json",
+        Referer: "https://www.nascar.com/",
+        "User-Agent": "Mozilla/5.0",
+      },
     });
 
-    importQualBtn.addEventListener("click", importQualifyingForSelectedRace);
+    if (!raceListResp.ok) {
+      return json({ ok: false, error: `Race list fetch failed: ${raceListResp.status}` }, 502);
+    }
 
-    loadRaces();
-  </script>
-</body>
-</html>
+    const raceListJson = await raceListResp.json();
+    const allCupRaces = Array.isArray(raceListJson?.series_1) ? raceListJson.series_1 : [];
+
+    if (!allCupRaces.length) {
+      return json({ ok: false, error: "No Cup races found in NASCAR race list" }, 502);
+    }
+
+    // 3) Match DB race_number to NASCAR POINTS-race order
+    const cupPointsRaces = allCupRaces
+      .slice()
+      .sort((a, b) => {
+        const da = Date.parse(
+          a?.race_date ?? a?.date_scheduled ?? a?.start_time ?? a?.start_date ?? ""
+        ) || 0;
+        const db = Date.parse(
+          b?.race_date ?? b?.date_scheduled ?? b?.start_time ?? b?.start_date ?? ""
+        ) || 0;
+        return da - db;
+      })
+      .filter((r) => {
+        const typeId = Number(r?.race_type_id ?? r?.RaceTypeId ?? r?.raceTypeId);
+        const typeName = String(
+          r?.race_type_name ?? r?.RaceTypeName ?? r?.raceTypeName ?? ""
+        ).toLowerCase();
+        const name = String(r?.race_name ?? r?.name ?? "").toLowerCase();
+
+        if (Number.isFinite(typeId)) {
+          if (typeId === 1) return true;
+          if (!name) return false;
+        }
+
+        if (typeName.includes("exhibition")) return false;
+        if (name.includes("clash")) return false;
+        if (name.includes("duel")) return false;
+        if (name.includes("all-star")) return false;
+        if (name.includes("shootout")) return false;
+        if (name.includes("exhibition")) return false;
+
+        return true;
+      });
+
+    const targetRace = cupPointsRaces[race.race_number - 1];
+    if (!targetRace) {
+      return json(
+        { ok: false, error: `Could not map race_number ${race.race_number} to NASCAR points race list` },
+        400
+      );
+    }
+
+    const nascarYear = race.season_year;
+    const nascarSeriesId = 1; // Cup
+    const targetRaceId = targetRace.race_id;
+
+    if (!targetRaceId) {
+      return json({ ok: false, error: "Resolved NASCAR race is missing race_id" }, 502);
+    }
+
+    const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}/${targetRaceId}/weekend-feed.json`;
+
+    // 4) Fetch weekend feed
+    const weekendResp = await fetch(weekendUrl, {
+      headers: {
+        Accept: "application/json",
+        Referer: "https://www.nascar.com/",
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    if (!weekendResp.ok) {
+      return json({ ok: false, error: `Weekend feed fetch failed: ${weekendResp.status}` }, 502);
+    }
+
+    const weekendJson = await weekendResp.json();
+    const runs = Array.isArray(weekendJson?.weekend_runs) ? weekendJson.weekend_runs : [];
+
+    if (!runs.length) {
+      return json({ ok: false, error: "No weekend_runs found in NASCAR feed" }, 502);
+    }
+
+    // 5) Pick the best lineup run, mirroring GAS logic
+    // Prefer StartPos/start_pos/starting_position, otherwise fallback to a qualifying run
+    const scoredRuns = runs.map((run) => {
+      const name = String(run?.run_name || run?.name || "").toLowerCase();
+      const results = Array.isArray(run?.results) ? run.results : [];
+      const keys = results[0] ? Object.keys(results[0]) : [];
+
+      const hasStartPos =
+        keys.includes("starting_position") ||
+        keys.includes("start_pos") ||
+        keys.includes("StartPos");
+
+      let score = 0;
+      if (results.length >= 10) score += 5;
+      if (hasStartPos) score += 50;
+      if (name.includes("starting")) score += 20;
+      if (name.includes("qualifying")) score += 10;
+
+      return { run, score, hasStartPos };
+    });
+
+    scoredRuns.sort((a, b) => b.score - a.score);
+    const chosenRun = scoredRuns[0]?.run;
+    const chosenResults = Array.isArray(chosenRun?.results) ? chosenRun.results : [];
+
+    if (!chosenResults.length) {
+      return json({ ok: false, error: "Chosen NASCAR run has no results" }, 502);
+    }
+
+    // 6) Normalize chosen run into qualifying_position + driver_name
+    const normalized = chosenResults
+      .map((row) => {
+        const driverName =
+          row?.driver_fullname ||
+          row?.driver_full_name ||
+          row?.DriverNameTag ||
+          (row?.DriverFirstName && row?.DriverLastName
+            ? `${row.DriverFirstName} ${row.DriverLastName}`
+            : "") ||
+          row?.driver_name ||
+          row?.display_name ||
+          row?.name ||
+          "";
+
+        const pos =
+          row?.StartPos ??
+          row?.start_pos ??
+          row?.starting_position ??
+          row?.finishing_position ??
+          row?.FinishPos ??
+          row?.FinPos;
+
+        return {
+          driver_name: String(driverName || "").trim(),
+          qualifying_position: Number(pos),
+        };
+      })
+      .filter(
+        (x) =>
+          x.driver_name &&
+          Number.isFinite(x.qualifying_position) &&
+          x.qualifying_position >= 1 &&
+          x.qualifying_position <= 40
+      )
+      .sort((a, b) => a.qualifying_position - b.qualifying_position);
+
+    if (!normalized.length) {
+      return json({ ok: false, error: "No usable qualifying rows found" }, 502);
+    }
+
+    // 7) Load drivers from Supabase
+    const driversRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/drivers?select=id,name`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+      }
+    );
+
+    const drivers = await driversRes.json();
+    if (!driversRes.ok || !Array.isArray(drivers)) {
+      return json({ ok: false, error: "Could not load drivers from Supabase" }, 500);
+    }
+
+    const driverMap = new Map(
+      drivers.map((d) => [normalizeName(d.name), { id: d.id, name: d.name }])
+    );
+
+    const inserts = [];
+    const unmatched = [];
+
+    for (const row of normalized) {
+      const match = driverMap.get(normalizeName(row.driver_name));
+      if (!match) {
+        unmatched.push(row.driver_name);
+        continue;
+      }
+
+      inserts.push({
+        race_id: raceId,
+        qualifying_position: row.qualifying_position,
+        driver_id: match.id,
+      });
+    }
+
+    if (!inserts.length) {
+      return json({ ok: false, error: "No qualifying rows matched drivers table", unmatched }, 400);
+    }
+
+    // 8) Clear old qualifying results for this race
+    const deleteResp = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/qualifying_results?race_id=eq.${raceId}`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+      }
+    );
+
+    if (!deleteResp.ok) {
+      const t = await deleteResp.text();
+      return json({ ok: false, error: `Failed clearing old qualifying rows: ${t}` }, 500);
+    }
+
+    // 9) Insert new rows
+    const insertResp = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/qualifying_results`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+        body: JSON.stringify(inserts),
+      }
+    );
+
+    const inserted = await insertResp.json();
+
+    if (!insertResp.ok) {
+      return json({ ok: false, error: inserted }, 500);
+    }
+
+    return json({
+      ok: true,
+      raceId,
+      raceName: race.race_name,
+      rowsWritten: inserted.length,
+      unmatched,
+      chosenRunName: chosenRun?.run_name || chosenRun?.name || "",
+      resolvedNascarRaceId: targetRaceId,
+      resolvedNascarRaceName: targetRace?.race_name || targetRace?.name || "",
+    });
+  } catch (err) {
+    return json({ ok: false, error: err.message || String(err) }, 500);
+  }
+}
+
+function normalizeName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
