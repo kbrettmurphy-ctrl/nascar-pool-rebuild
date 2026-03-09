@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NASCAR Pool Rebuild</title>
@@ -44,7 +45,7 @@
     }
   </style>
 </head>
-<body>
+<body>  
   <div class="card">
     <h1>NASCAR Pool Rebuild</h1>
     <p>The new app skeleton is live.</p>
@@ -54,46 +55,42 @@
     <div id="status">Loading players...</div>
     <ul id="playerList"></ul>
   </div>
-
+  <div id="results"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
 
-    const statusEl = document.getElementById("status");
-    const playerListEl = document.getElementById("playerList");
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-    async function loadPlayers() {
-      try {
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    async function loadAssignments() {
 
-        const { data, error } = await client
-          .from("players")
-          .select("id, name, active, created_at")
-          .order("id", { ascending: true });
+      const { data, error } = await supabase
+        .from('resolved_assignments')
+        .select('*')
+        .order('player_name')
 
-        if (error) {
-          throw error;
-        }
-
-        statusEl.textContent = "";
-
-        if (!data || data.length === 0) {
-          statusEl.textContent = "No players found.";
-          return;
-        }
-
-        data.forEach((player) => {
-          const li = document.createElement("li");
-          li.textContent = `${player.id}: ${player.name} (${player.active ? "active" : "inactive"})`;
-          playerListEl.appendChild(li);
-        });
-      } catch (err) {
-        statusEl.innerHTML = `<div class="error">Error loading players:\n${err.message || err}</div>`;
+      if (error) {
+        console.error(error)
+        return
       }
+
+      const container = document.getElementById("results")
+
+      container.innerHTML = data.map(row => `
+        <div style="margin-bottom:10px">
+          <strong>${row.player_name}</strong><br>
+          Race: ${row.race_name}<br>
+          Slot: ${row.assignment_slot}<br>
+          Position: ${row.qualifying_position}<br>
+          Driver: ${row.driver_name} (#${row.car_number})
+        </div>
+      `).join("")
+
     }
 
-    loadPlayers();
+    loadAssignments()
+
   </script>
 </body>
 </html>
