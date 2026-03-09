@@ -48,27 +48,63 @@ export async function onRequestPost(context) {
     }
 
     const raceListJson = await raceListResp.json();
-    const cupRaces = Array.isArray(raceListJson?.series_1) ? raceListJson.series_1 : [];
+    const allCupRaces = Array.isArray(raceListJson?.series_1) ? raceListJson.series_1 : [];
 
-    if (!cupRaces.length) {
+    if (!allCupRaces.length) {
       return json({ ok: false, error: "No Cup races found in NASCAR race list" }, 502);
     }
 
-    // 3) Match your DB race_number to NASCAR points-race order
-    const targetRace = cupRaces[race.race_number - 1];
-if (!targetRace) {
-  return json({ ok: false, error: `Could not map race_number ${race.race_number} to NASCAR race list` }, 400);
-}
+    // 3) Match DB race_number to NASCAR POINTS-race order
+    const cupPointsRaces = allCupRaces
+      .slice()
+      .sort((a, b) => {
+        const da = Date.parse(
+          a?.race_date ?? a?.date_scheduled ?? a?.start_time ?? a?.start_date ?? ""
+        ) || 0;
+        const db = Date.parse(
+          b?.race_date ?? b?.date_scheduled ?? b?.start_time ?? b?.start_date ?? ""
+        ) || 0;
+        return da - db;
+      })
+      .filter((r) => {
+        const typeId = Number(r?.race_type_id ?? r?.RaceTypeId ?? r?.raceTypeId);
+        const typeName = String(
+          r?.race_type_name ?? r?.RaceTypeName ?? r?.raceTypeName ?? ""
+        ).toLowerCase();
+        const name = String(r?.race_name ?? r?.name ?? "").toLowerCase();
 
-const nascarYear = race.season_year;
-const nascarSeriesId = 1; // Cup
-const targetRaceId = targetRace.race_id;
+        if (Number.isFinite(typeId)) {
+          if (typeId === 1) return true;
+          if (!name) return false;
+        }
 
-if (!targetRaceId) {
-  return json({ ok: false, error: "Resolved NASCAR race is missing race_id" }, 502);
-}
+        if (typeName.includes("exhibition")) return false;
+        if (name.includes("clash")) return false;
+        if (name.includes("duel")) return false;
+        if (name.includes("all-star")) return false;
+        if (name.includes("shootout")) return false;
+        if (name.includes("exhibition")) return false;
 
-const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}/${targetRaceId}/weekend-feed.json`;
+        return true;
+      });
+
+    const targetRace = cupPointsRaces[race.race_number - 1];
+    if (!targetRace) {
+      return json(
+        { ok: false, error: `Could not map race_number ${race.race_number} to NASCAR points race list` },
+        400
+      );
+    }
+
+    const nascarYear = race.season_year;
+    const nascarSeriesId = 1; // Cup
+    const targetRaceId = targetRace.race_id;
+
+    if (!targetRaceId) {
+      return json({ ok: false, error: "Resolved NASCAR race is missing race_id" }, 502);
+    }
+
+    const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}/${targetRaceId}/weekend-feed.json`;
 
     // 4) Fetch weekend feed
     const weekendResp = await fetch(weekendUrl, {
@@ -90,8 +126,8 @@ const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}
       return json({ ok: false, error: "No weekend_runs found in NASCAR feed" }, 502);
     }
 
-    // 5) Pick the best lineup run, mirroring your GAS logic:
-    // prefer StartPos/start_pos/starting_position, otherwise fallback to a qualifying run
+    // 5) Pick the best lineup run, mirroring GAS logic
+    // Prefer StartPos/start_pos/starting_position, otherwise fallback to a qualifying run
     const scoredRuns = runs.map((run) => {
       const name = String(run?.run_name || run?.name || "").toLowerCase();
       const results = Array.isArray(run?.results) ? run.results : [];
@@ -123,8 +159,13 @@ const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}
     const normalized = chosenResults
       .map((row) => {
         const driverName =
-          row?.driver_name ||
+          row?.driver_fullname ||
+          row?.driver_full_name ||
           row?.DriverNameTag ||
+          (row?.DriverFirstName && row?.DriverLastName
+            ? `${row.DriverFirstName} ${row.DriverLastName}`
+            : "") ||
+          row?.driver_name ||
           row?.display_name ||
           row?.name ||
           "";
@@ -241,6 +282,8 @@ const weekendUrl = `https://cf.nascar.com/cacher/${nascarYear}/${nascarSeriesId}
       rowsWritten: inserted.length,
       unmatched,
       chosenRunName: chosenRun?.run_name || chosenRun?.name || "",
+      resolvedNascarRaceId: targetRaceId,
+      resolvedNascarRaceName: targetRace?.race_name || targetRace?.name || "",
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
