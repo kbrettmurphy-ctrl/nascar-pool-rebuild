@@ -100,6 +100,7 @@
     <div class="controls">
       <label for="raceSelect">Race:</label>
       <select id="raceSelect"></select>
+      <button id="generateAssignmentsBtn" type="button">Generate Assignments</button>
       <button id="importQualBtn" type="button">Import Qualifying</button>
     </div>
 
@@ -114,6 +115,7 @@
     const ADMIN_KEY = "BMurf1083!@";
 
     const raceSelect = document.getElementById("raceSelect");
+    const generateAssignmentsBtn = document.getElementById("generateAssignmentsBtn");
     const importQualBtn = document.getElementById("importQualBtn");
     const statusEl = document.getElementById("status");
     const resultsEl = document.getElementById("results");
@@ -219,6 +221,45 @@
       }
     }
 
+    async function generateAssignmentsForSelectedRace() {
+      const raceId = Number(raceSelect.value);
+
+      if (!raceId) {
+        actionStatusEl.textContent = "Pick a race first.";
+        return;
+      }
+
+      generateAssignmentsBtn.disabled = true;
+      actionStatusEl.textContent = "Generating assignments...";
+      statusEl.textContent = "Refreshing assignments...";
+      resultsEl.innerHTML = "";
+
+      try {
+        const response = await fetch("/api/generate-assignments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-key": ADMIN_KEY
+          },
+          body: JSON.stringify({ raceId })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+           throw new Error(JSON.stringify(result));
+        }
+
+        actionStatusEl.textContent = result.message;
+        await loadAssignments(raceId);
+      } catch (err) {
+        console.error(err);
+        actionStatusEl.innerHTML = `<span class="error">Generate failed: ${err.message || err}</span>`;
+      } finally {
+        generateAssignmentsBtn.disabled = false;
+      }
+    }
+
     async function importQualifyingForSelectedRace() {
       const raceId = Number(raceSelect.value);
 
@@ -266,6 +307,7 @@
       loadAssignments(raceSelect.value);
     });
 
+    generateAssignmentsBtn.addEventListener("click", generateAssignmentsForSelectedRace);
     importQualBtn.addEventListener("click", importQualifyingForSelectedRace);
 
     loadRaces();
