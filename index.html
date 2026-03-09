@@ -1,16 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>NASCAR Pool Rebuild</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NASCAR Pool Rebuild</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background: #111;
+      color: #f5f5f5;
+    }
+
+    .card {
+      max-width: 800px;
+      margin: 60px auto;
+      padding: 24px;
+      border: 1px solid #444;
+      border-radius: 12px;
+      background: #1b1b1b;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    .small {
+      color: #bbb;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin: 8px 0;
+    }
+
+    .error {
+      color: #ff8a8a;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
+<body>
+  <div class="card">
+    <h1>NASCAR Pool Rebuild</h1>
+    <p>The new app skeleton is live.</p>
+    <p class="small">Phase 2: Reading players from Supabase.</p>
 
-<body style="font-family: Arial; background:#111; color:white; text-align:center; padding-top:100px;">
+    <h2>Players</h2>
+    <div id="status">Loading players...</div>
+    <ul id="playerList"></ul>
+  </div>
 
-<h1>NASCAR Pool Rebuild</h1>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://adhqnjqixwfcruwrffh.supabase.co";
+    const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
 
-<p>If you can see this, the new project skeleton exists.</p>
+    const statusEl = document.getElementById("status");
+    const playerListEl = document.getElementById("playerList");
 
-<p><p>Phase 1 progress. Cloudflare deploy test.</p></p>
+    async function loadPlayers() {
+      try {
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const { data, error } = await client
+          .from("players")
+          .select("id, name, active, created_at")
+          .order("id", { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        statusEl.textContent = "";
+
+        if (!data || data.length === 0) {
+          statusEl.textContent = "No players found.";
+          return;
+        }
+
+        data.forEach((player) => {
+          const li = document.createElement("li");
+          li.textContent = `${player.id}: ${player.name} (${player.active ? "active" : "inactive"})`;
+          playerListEl.appendChild(li);
+        });
+      } catch (err) {
+        statusEl.innerHTML = `<div class="error">Error loading players:\n${err.message || err}</div>`;
+      }
+    }
+
+    loadPlayers();
+  </script>
 </body>
 </html>
