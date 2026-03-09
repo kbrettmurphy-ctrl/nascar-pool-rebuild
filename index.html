@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NASCAR Pool Rebuild</title>
@@ -31,55 +30,56 @@
       color: #bbb;
     }
 
-    ul {
-      padding-left: 20px;
-    }
-
-    li {
-      margin: 8px 0;
-    }
-
     .error {
       color: #ff8a8a;
       white-space: pre-wrap;
     }
 
+    .assignment {
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
+    }
   </style>
 </head>
-<body>  
+<body>
   <div class="card">
     <h1>NASCAR Pool Rebuild</h1>
     <p>The new app skeleton is live.</p>
-    <p class="small">Phase 2: Reading players from Supabase.</p>
+    <p class="small">Phase 3: Reading resolved assignments from Supabase.</p>
 
     <h2>Resolved Assignments</h2>
-    <div id="status">Loading players...</div>
-    <ul id="playerList"></ul>
+    <div id="status">Loading assignments...</div>
+    <div id="results"></div>
   </div>
-  <div id="results"></div>
 
   <script>
     const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
     const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     async function loadAssignments() {
       const status = document.getElementById("status");
-      const container = document.getElementById("results");
-
-      status.textContent = "Loading assignments...";
+      const results = document.getElementById("results");
 
       try {
-        const { data, error } = await supabase
-          .from("resolved_assignments")
-          .select("*")
-          .order("player_name");
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=player_name.asc`,
+          {
+            method: "GET",
+            headers: {
+              "apikey": SUPABASE_KEY,
+              "Authorization": `Bearer ${SUPABASE_KEY}`
+            }
+          }
+        );
 
-        if (error) {
-          throw error;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
-    
+
+        const data = await response.json();
+
         if (!data || data.length === 0) {
           status.textContent = "No assignments found.";
           return;
@@ -87,8 +87,8 @@
 
         status.textContent = "";
 
-        container.innerHTML = data.map(row => `
-          <div style="margin-bottom:10px">
+        results.innerHTML = data.map(row => `
+          <div class="assignment">
             <strong>${row.player_name}</strong><br>
             Race: ${row.race_name}<br>
             Slot: ${row.assignment_slot}<br>
@@ -98,7 +98,7 @@
         `).join("");
       } catch (err) {
         console.error(err);
-        status.textContent = `Error: ${err.message || err}`;
+        status.innerHTML = `<div class="error">Error: ${err.message || err}</div>`;
       }
     }
 
