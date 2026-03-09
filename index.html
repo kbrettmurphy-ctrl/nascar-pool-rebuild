@@ -14,15 +14,15 @@
     }
 
     .card {
-      max-width: 800px;
-      margin: 60px auto;
+      max-width: 900px;
+      margin: 40px auto;
       padding: 24px;
       border: 1px solid #444;
       border-radius: 12px;
       background: #1b1b1b;
     }
 
-    h1 {
+    h1, h2, h3 {
       margin-top: 0;
     }
 
@@ -35,20 +35,36 @@
       white-space: pre-wrap;
     }
 
-    .assignment {
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid #333;
+    .race-block {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+
+    .player-block {
+      margin-top: 16px;
+      padding: 14px;
+      background: #222;
+      border-radius: 10px;
+      border: 1px solid #333;
+    }
+
+    .assignment-line {
+      margin-top: 8px;
+      color: #ddd;
+    }
+
+    .muted {
+      color: #aaa;
+      font-size: 0.95rem;
     }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>NASCAR Pool Rebuild</h1>
-    <p>The new app skeleton is live.</p>
     <p class="small">Resolved race assignments powered by Supabase.</p>
 
-    <h2>Resolved Assignments</h2>
     <div id="status">Loading assignments...</div>
     <div id="results"></div>
   </div>
@@ -63,7 +79,7 @@
 
       try {
         const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=player_name.asc,assignment_slot.asc`,
+          `${SUPABASE_URL}/rest/v1/resolved_assignments?select=*&order=season_year.asc,race_number.asc,player_name.asc,assignment_slot.asc`,
           {
             method: "GET",
             headers: {
@@ -87,20 +103,25 @@
 
         status.textContent = "";
 
-        const grouped = {};
+        const races = {};
 
         data.forEach(row => {
-          const key = `${row.race_name}|||${row.player_name}`;
+          const raceKey = `${row.season_year}-${row.race_number}-${row.race_name}`;
 
-          if (!grouped[key]) {
-            grouped[key] = {
+          if (!races[raceKey]) {
+            races[raceKey] = {
               race_name: row.race_name,
-              player_name: row.player_name,
-              assignments: []
+              race_number: row.race_number,
+              season_year: row.season_year,
+              players: {}
             };
           }
 
-          grouped[key].assignments.push({
+          if (!races[raceKey].players[row.player_name]) {
+            races[raceKey].players[row.player_name] = [];
+          }
+
+          races[raceKey].players[row.player_name].push({
             assignment_slot: row.assignment_slot,
             qualifying_position: row.qualifying_position,
             driver_name: row.driver_name,
@@ -108,23 +129,33 @@
           });
         });
 
-        const groupedArray = Object.values(grouped);
+        const raceHtml = Object.values(races).map(race => {
+          const playerHtml = Object.entries(race.players).map(([playerName, assignments]) => {
+            const sortedAssignments = assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
 
-        results.innerHTML = groupedArray.map(group => `
-          <div class="assignment">
-            <strong style="font-size: 1.25rem;">${group.player_name}</strong><br>
-            <span style="color:#bbb;">Race: ${group.race_name}</span>
-            <div style="margin-top: 10px;">
-              ${group.assignments.map(a => `
-                <div style="margin-bottom: 10px;">
-                  <strong>Driver ${a.assignment_slot}:</strong>
-                  ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}<br>
-                  <span style="color:#bbb;">Assigned qualifying position: ${a.qualifying_position}</span>
-                </div>
-              `).join("")}
+            return `
+              <div class="player-block">
+                <h3>${playerName}</h3>
+                ${sortedAssignments.map(a => `
+                  <div class="assignment-line">
+                    <strong>Driver ${a.assignment_slot}:</strong>
+                    ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
+                    <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
+                  </div>
+                `).join("")}
+              </div>
+            `;
+          }).join("");
+
+          return `
+            <div class="race-block">
+              <h2>Race ${race.race_number}: ${race.race_name}</h2>
+              ${playerHtml}
             </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
+
+        results.innerHTML = raceHtml;
       } catch (err) {
         console.error(err);
         status.innerHTML = `<div class="error">Error: ${err.message || err}</div>`;
