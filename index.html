@@ -452,8 +452,16 @@ await loadScores(raceId);
 
 });
 
-loadRaces();
-loadTournaments();
+async function init(){
+
+await loadRaces();
+await loadTournaments();
+await loadSwissMatchups();
+await loadSwissStandings();
+
+}
+
+init();
 
 </script>
 
