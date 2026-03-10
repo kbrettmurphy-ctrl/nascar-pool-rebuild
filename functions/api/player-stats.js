@@ -25,7 +25,6 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    // Pull all scored matchup rows
     const matchupRows = await getJson(
       `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&order=tournament_id.asc,round_number.asc`
     );
@@ -40,9 +39,8 @@ export async function onRequestGet(context) {
           Name: String(playerName || "").trim(),
           W: 0,
           L: 0,
-          Matches: 0,
-          Avg: 0,
-          avg_sum: 0
+          avg_sum: 0,
+          match_count: 0
         });
       }
       return statsMap.get(key);
@@ -59,8 +57,8 @@ export async function onRequestGet(context) {
       const a2 = Number(row.player2_avg);
       const winnerId = Number(row.winner_id);
 
-      p1.Matches += 1;
-      p2.Matches += 1;
+      p1.match_count += 1;
+      p2.match_count += 1;
 
       if (Number.isFinite(a1)) p1.avg_sum += a1;
       if (Number.isFinite(a2)) p2.avg_sum += a2;
@@ -76,25 +74,32 @@ export async function onRequestGet(context) {
 
     const overall = Array.from(statsMap.values()).map(r => {
       const avg =
-        r.Matches > 0 && Number.isFinite(r.avg_sum)
-          ? Number((r.avg_sum / r.Matches).toFixed(2))
+        r.match_count > 0 && Number.isFinite(r.avg_sum)
+          ? Number((r.avg_sum / r.match_count).toFixed(2))
           : null;
 
+      const winPct =
+        r.match_count > 0
+          ? Number(((r.W / r.match_count) * 100).toFixed(1))
+          : 0;
+
       return {
-        Rank: 0, // filled after sorting
+        Rank: 0,
         Name: r.Name,
         W: r.W,
         L: r.L,
-        Matches: r.Matches,
+        "W%": winPct,
         Avg: avg
       };
     });
 
     overall.sort((a, b) => {
       if (b.W !== a.W) return b.W - a.W;
+
       const aAvg = Number.isFinite(a.Avg) ? a.Avg : 9999;
       const bAvg = Number.isFinite(b.Avg) ? b.Avg : 9999;
       if (aAvg !== bAvg) return aAvg - bAvg;
+
       return String(a.Name).localeCompare(String(b.Name));
     });
 
@@ -105,7 +110,7 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       data: {
-        overallHeaders: ["Rank", "Name", "W", "L", "Matches", "Avg"],
+        overallHeaders: ["Rank", "Name", "W", "L", "W%", "Avg"],
         overall,
         tournamentHeaders: [],
         tournaments: {}
