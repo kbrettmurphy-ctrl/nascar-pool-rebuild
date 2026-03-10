@@ -1,541 +1,3462 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>NASCAR Pool Rebuild</title>
+  <meta charset="utf-8" />
+  <base target="_top">
 
-<style>
-body{
-  font-family:Arial,sans-serif;
-  margin:0;
-  padding:40px;
-  background:#111;
-  color:#f5f5f5;
-}
+  <!-- ✅ Correct viewport (prevents iOS weird scaling + supports safe-area) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-.card{
-  max-width:900px;
-  margin:40px auto;
-  padding:24px;
-  border:1px solid #444;
-  border-radius:12px;
-  background:#1b1b1b;
-}
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
 
-h1,h2,h3{
-  margin-top:0;
-}
+  <title>NASCAR Pool 2026</title>
 
-.small{
-  color:#bbb;
-}
+  <style>
+  /************************************************************
+   * NASCAR Pool 2026 — Player Portal CSS
+   * Cleaned + structured. No visual/behavior changes.
+   ************************************************************/
 
-.error{
-  color:#ff8a8a;
-  white-space:pre-wrap;
-}
+  /* =========================
+   * 0) LAYOUT STABILITY FIXES
+   * ========================= */
+  html{
+    /* Prevents the “page shifts when scrollbar appears” nonsense */
+    scrollbar-gutter: stable;
+  }
+  @supports not (scrollbar-gutter: stable){
+    /* Fallback: always reserve a scrollbar lane (desktop) */
+    html{ overflow-y: scroll; }
+  }
 
-.controls{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  flex-wrap:wrap;
-  margin:18px 0 20px;
-}
+  /* =========================
+   * 1) THEME TOKENS (VARS)
+   * ========================= */
+  :root{
+    /* --- legacy/optional (currently unused, kept for future sanity) --- */
+    --cardA: 0.78;
+    --microA: 0.72;
+    --cardBg: rgba(255,255,255,var(--cardA));
+    --microBg: rgba(255,255,255,var(--microA));
+    --stroke:#e5e7eb;
+    --ink:#0f172a;
+    --nav:#000000;
+    --nav2:#111827;
+    --black:#000000;
+    --btnPrimary: var(--red);
+    --btnSecondary: var(--blue);
+    --tight:10px;
+    --nano:6px;
 
-select,button{
-  font:inherit;
-  padding:10px 12px;
-  border-radius:8px;
-  border:1px solid #444;
-}
+    /* --- core theme --- */
+    --bg:#020b12;
+    --card:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    --text:#ffffff;
+    --muted:rgba(255,255,255,.72);
+    --line:rgba(255,255,255,.12);
 
-select{
-  background:#222;
-  color:#f5f5f5;
-  min-width:165px;
-}
+    /* NASCAR colors */
+    --blue:#007AC2;
+    --red:#E4002B;
+    --redfade:#E4002B66;
+    --yellow:#FFD659;
+    --danger: var(--red);
+    --green:#4DD21D;
+    --greenfade:#4DD21DBF;
 
-button{
-  background:#2d5ea8;
-  color:white;
-  cursor:pointer;
-}
+    /* sizing */
+    --pad:12px;
+    --radius:16px;
+    --radius2:14px;
 
-button:disabled{
-  opacity:0.6;
-  cursor:not-allowed;
-}
+    --h2:24px;
+    --big:20px;
+    --body:14px;
 
-.player-block{
-  margin-top:16px;
-  padding:14px;
-  background:#222;
-  border-radius:10px;
-  border:1px solid #333;
-}
+    --micro:8px;
 
-.assignment-line{
-  margin-top:8px;
-  color:#ddd;
-}
+    /* My Matchup tight mode */
+    --mmPad:6px;
+    --mmGap:6px;
+    --mmHeaderGap:4px;
 
-.muted{
-  color:#aaa;
-  font-size:.95rem;
-}
+    /* iOS bottom bar fix vars */
+    --vvb:0px;
+    --navH:75px;
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
+    /* watermark */
+    --wmShift:0px;
 
-th,td{
-  padding:8px;
-  border-bottom:1px solid #333;
-  text-align:left;
-}
+    /* reusable “glass” colors */
+    --glassBlue14: rgba(0,122,194,.14);
+    --glassBlue20: rgba(0,122,194,.20);
+    --glassBlue22: rgba(0,122,194,.22);
+    --glassBlue42: rgba(0,122,194,.42);
+    --glassBlue55: rgba(0,122,194,.55);
 
-#actionStatus{
-  margin-top:10px;
-  color:#bbb;
-  white-space:pre-wrap;
-}
+    --white06: rgba(255,255,255,.06);
+    --white10: rgba(255,255,255,.10);
+    --white12: rgba(255,255,255,.12);
+    --white14: rgba(255,255,255,.14);
 
-.section{
-  margin-top:28px;
-}
-</style>
+    --black75: rgba(0,0,0,.75);
+    --winnerGreen: #16a34a;
+  }
+
+  *{ box-sizing:border-box; }
+
+  /* =========================
+   * 2) PAGE BASE
+   * ========================= */
+  body{
+    font-size: var(--body);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    padding: var(--pad);
+    max-width: 808px;
+    margin: 0 auto;
+    background: var(--bg);
+    color: var(--text);
+
+    /* keeps nav visible even with iOS toolbar */
+    padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + var(--vvb));
+
+    /* watermark layout helpers */
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  h2{ margin:0 0 6px 0; font-size: var(--h2); letter-spacing:-0.3px; }
+
+  /* watermark background */
+  body::before{
+    content:"";
+    position: fixed;
+    inset: 0;
+    background-image: url("nascar-logo.png");
+    background-repeat: no-repeat;
+    background-size: 300px;
+    background-position: 50% calc(50% + var(--wmShift));
+    opacity: 0.2;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* =========================
+   * 3) COMMON UI ELEMENTS
+   * ========================= */
+  .sub{
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 6px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 8px;
+    border-radius:999px;
+    background: rgba(255,214,89,.14);
+    border:1px solid rgba(255,214,89,.40);
+    color: var(--yellow);
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .card{
+    position: relative;
+    z-index: 3; /* above sponsor */
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin: 6px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .topActions{
+    display:flex;
+    gap:6px;
+    width:100%;
+    margin: 6px 0;
+  }
+
+  button{
+    border: 1px solid var(--line);
+    cursor:pointer;
+    font-weight:700;
+    border-radius: 12px;
+    padding: 6px 6px;
+    font-size: 12px;
+  }
+  button.primary{
+    border: 1px solid rgba(255,255,255,.32);
+    background:#020b12;
+    color:#fff;
+    margin-top: 3px;
+  }
+  button.secondary{ background:#334155; color:#fff; }
+  button.topactions{
+    background: rgba(228, 0, 43, .4);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  button:disabled{ opacity:.55; cursor:not-allowed; }
+
+  label{
+    display:block;
+    font-size:13px;
+    margin:10px 0 6px;
+    color: rgba(255,255,255,.9);
+  }
+  select, input{
+    width:fit-content;
+    font-size:14px;
+    color: var(--text);
+    padding: var(--mmPad);
+    border-radius: 12px;
+    border:1px solid var(--line);
+    background: var(--glassBlue14);
+  }
+
+  .big{ font-size: var(--big); font-weight:900; letter-spacing:-0.2px; }
+  .muted{ color: var(--muted); font-size:13px; }
+
+  .status{ margin-top:10px; font-size: var(--body); white-space: pre-wrap; }
+  #duesStatus{ white-space: normal; }
+  #standingsArea{ white-space: normal; }
+
+  /* =========================
+   * 3.5) TOP HEADER / SUB / TOP BAR (no inline spelunking)
+   * ========================= */
+  .titleRow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+    position:relative;
+    z-index:3;
+  }
+
+  .titleRow h2{ margin:0; }
+
+  .easterEgg{
+    opacity:0.03;
+    font-size:5px;
+    color: var(--muted);
+    margin-left: 50px;
+    white-space: nowrap;
+  }
+
+  #welcomeName{
+    text-align:right;
+    font-weight:800;
+    color: var(--muted);
+    font-size:13px;
+
+    /* You said no wrap. This obeys. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 52%;
+  }
+
+  .subRow{
+    position:relative;
+    z-index:3;
+  }
+
+  .subRowRight{
+    margin-left:auto;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+
+  .topBar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    position:relative;
+    z-index:3;
+  }
+
+  .topBarRight{
+    margin-left:auto;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+
+  /* =========================
+   * 3.6) SPOILER TOGGLE (dedicated section, because we’re civilized)
+   * ========================= */
+  .spoilerToggle{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    height:30px;            /* lock button height */
+    border-radius:12px;
+    background: rgba(0,122,194,.16);
+    border:1px solid var(--line);
+    color: var(--text);
+    cursor:pointer;
+  }
+
+  /* remove this entirely */
+  /* .spoilerToggle .label{ margin-right:42px; } */
+
+  .spoilerToggle .label{
+    font-weight:900;
+    /*transform:translateY(-1.5px);*/
+  }
+
+  .spoilerToggle .track{
+    position:relative;
+    width:54px;
+    height:20px;            /* taller */
+    border-radius:999px;
+    background: rgba(0,0,0,.35);
+    border:1px solid var(--line);
+    overflow:hidden; /* <-- keeps ON/OFF inside the pill */
+  }
+
+  .spoilerToggle .thumb{
+    position:absolute;
+    top:2px;
+    left:3px;
+    width:14px;
+    height:14px;            /* taller */
+    border-radius:999px;
+  }
+
+  .spoilerToggle .state{
+    color: var(--muted);
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    font-weight:800;
+    font-size:11px;
+    letter-spacing:.3px;
+    pointer-events:none;
+    padding:0 6px;
+    line-height:1;
+    /*transform:translateY(-1px);   /* <-- nudge upward */
+  }
+
+  /* thumb right => text left */
+  .spoilerToggle[aria-checked="true"] .state{
+    justify-content:flex-start;
+    padding-right:20px; /* reserve space so text doesn't go under the thumb */
+  }
+
+  /* thumb left => text right */
+  .spoilerToggle[aria-checked="false"] .state{
+    justify-content:flex-end;
+    padding-left:20px; /* reserve space so text doesn't go under the thumb */
+  }  
+
+  /* =========================
+   * 4) CURRENT RACE VIEW
+   * ========================= */
+  .raceHeaderRow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+  }
+  #currentHeader{ font-size: var(--big); font-weight:900; letter-spacing:-0.2px; }
+  #currentSub{ font-size:13px; color: var(--muted); }
+
+  .matchupCard{
+    border:1px solid var(--line);
+    border-radius: var(--radius2);
+    background: var(--glassBlue14);
+    padding: var(--micro);
+    margin-top: 8px;
+  }
+
+  .matchupCard.youRow{
+    background: var(--glassBlue42);
+    border: 2px solid var(--glassBlue55);
+  }
+  .matchupRow{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items:center;
+  }
+
+  .side{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:0;
+  }
+  .side.right{ text-align:right; align-items:flex-end; }
+
+  /* --- Player name: keep original styling + allow absolute pill anchoring --- */
+  .pName{
+    font-weight:900;
+    font-size:15px;
+    line-height:1.1;
+    margin:0;
+
+    /* keep centering behavior */
+    position:relative;
+    display:inline-block;
+
+    /* KEY FIX: do NOT clip the pill */
+    overflow:visible;
+  }
+
+  .nameWrap{
+    position:relative;         /* pill anchor */
+    display:inline-block;
+    max-width:100%;
+    overflow:visible;          /* IMPORTANT: do NOT clip the pill */
+    vertical-align:middle;
+  }
+
+  /* ellipsis belongs on the TEXT only */
+  .nameText{
+    display:inline-block;
+    max-width:100%;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    vertical-align:middle;
+  }
+
+  .pMeta{
+    font-size:12px;
+    color: var(--yellow);
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .driverWinner{
+    color: var(--winnerGreen);
+    font-weight: 800;
+  }
+
+  .driverWinner .winFlag{
+    display:inline-block;
+    margin-right: 4px;
+    font-size: 12px;
+    line-height: 1;
+    transform: translateY(-1px);
+    opacity: 0.95;
+  }
+
+  .vsBadge{
+    font-weight:800;
+    font-size:10px;
+    padding:2px 2px;
+    border-radius:5px;
+    background:#e5e7eb;
+    color:#111;
+    letter-spacing:0.4px;
+  }
+
+  /* --- WIN pill: absolutely positioned so it NEVER pushes name --- */
+  .winPill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:2px 6px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.4px;
+    color: var(--winnerGreen);
+    border:1px solid rgba(22,163,74,.35);
+    background: rgba(22,163,74,.12);
+
+    position:absolute;
+    top:50%;
+    left:100%;
+    transform: translate(6px, -50%);
+    white-space:nowrap;
+    margin:0;
+  }
+
+  /* >=700px: right column pill goes inward (left of the name) */
+  @media (min-width:700px){
+    .side.right .nameWrap .winPill{
+      left:auto;
+      right:100%;
+      transform: translate(-6px, -50%);
+    }
+  }
+  @media (max-width:700px){
+    .matchupRow{ grid-template-columns:1fr; gap:6px; text-align:center; }
+    .side.right{ text-align:center; align-items:center; }
+    .vsBadge{ margin:2px auto; }
+    .pMeta{ white-space:normal; }
+    #welcomeName{ max-width: 100%; }
+  }
+
+  .elimItem{ font-size:14px; color: var(--muted); margin-top:4px; }
+
+  /* =========================
+   * 5) BRACKET
+   * ========================= */
+  .bracketGrid{
+    display:grid;
+    grid-template-columns: repeat(4, 185px);
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+    gap:6px;
+    width:100%;
+  }
+
+  .bracketCol{
+    min-width:0;
+    border:1px solid var(--line);
+    border-radius: 12px;
+    background: var(--glassBlue14); /* keep as-is */
+    padding: 6px;
+  }
+
+  .bracketHdr{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:6px;
+    margin-bottom:6px;
+  }
+
+  .roundTag{
+    display:inline-block;
+    font-weight:900;
+    font-size:10px;
+    letter-spacing:.5px;
+    padding:3px 7px;
+    border-radius:999px;
+    background: rgba(255,214,89,.14);
+    border:1px solid rgba(255,214,89,.14);
+    color: var(--yellow);
+    line-height:1;
+  }
+
+  .raceTag{
+    display:inline-block;
+    font-weight:800;
+    font-size:10px;
+    letter-spacing:.5px;
+    padding:3px 7px;
+    border-radius:999px;
+    background: rgba(255,255,255,.10);
+    border:1px solid rgba(255,214,89,.14);
+    color: var(--muted);
+    line-height:1;
+  }
+
+  .title{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .race{
+    font-size:11px;
+    color: var(--muted);
+    font-weight:800;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    min-width:0;
+  }
+
+  .ticket{
+    border:1px solid var(--line);
+    border-radius: 12px;
+    color:#fff;
+    overflow:hidden;
+    margin: 4px 0;
+  }
+
+  .ticketRow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    padding:5px 7px;
+    min-width:0;
+  }
+  .ticketRow + .ticketRow{
+    border-top:1px solid rgba(255,255,255,0.10);
+  }
+
+  .sideLeft{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex: 1 1 auto;
+    min-width:0;
+    overflow:hidden;
+    font-weight:900;
+    font-size:11px;
+    line-height:1.1;
+  }
+
+  .nameText{
+    flex: 1 1 auto;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    display:block;
+  }
+
+  .seedBadge{
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:18px;
+    height:16px;
+    padding:0 5px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.12);
+    font-size:10px;
+    font-weight:900;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sideRight{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex: 0 0 auto;
+  }
+
+  .winSlot{
+    width:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .winDot{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background: var(--winnerGreen);
+    box-shadow: 0 0 0 2px rgba(22,163,74,0.18);
+  }
+
+  .raceDot{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background: var(--blue);
+    box-shadow: 0 0 0 2px rgba(0,122,194,0.18);
+  }
+
+  .legendRow{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+
+  .bracketLegend{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:11px;
+    font-weight:400;
+    color: var(--muted);
+    white-space:nowrap;
+  }
+
+  .legendItem{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+
+  .legendSep{
+    opacity:.5;
+  }
+
+  .avgBox{
+    font-variant-numeric: tabular-nums;
+    font-weight:900;
+    font-size:11px;
+    padding:3px 7px;
+    border-radius:10px;
+    background: rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.12);
+    line-height:1;
+  }
+
+  .noAvg{
+    font-weight:900;
+    opacity:.7;
+    font-size:11px;
+    padding:3px 7px;
+    line-height:1;
+  }
+
+  .bracketWrap{ position: relative; margin-top:10px; }
+
+  .bracketSticky{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display:none !important;
+    gap:10px;
+    padding: 6px 10px;
+    margin: 0 0 6px 0;
+    background: var(--black75);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+
+  .bracketSticky .chip{
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--white12);
+    background: var(--white06);
+    font-size:11px;
+    font-weight:900;
+    color: var(--text);
+    scroll-snap-align: start;
+  }
+
+  .bracketSticky .chip .small{
+    font-size:10px;
+    font-weight:800;
+    color: var(--muted);
+  }
+
+  .bracketFade{
+    pointer-events:none;
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:18px;
+    z-index:15;
+    border-radius: 12px; /* matches .ticket */
+  }
+  .bracketFade.left{
+    left:0;
+    background: linear-gradient(90deg, var(--glassBlue14) 0%, rgba(0,122,194,0) 100%);
+  }
+  .bracketFade.right{
+    right:0;
+    background: linear-gradient(270deg, var(--glassBlue14) 0%, rgba(0,122,194,0) 100%);
+  }
+
+  @media (max-width:900px){
+    .bracketGrid{ scroll-snap-type: x proximity; }
+    .bracketCol{ scroll-snap-align: start; }
+  }
+
+  /* =========================
+   * 6) MY MATCHUP VIEW
+   * ========================= */
+  .mmWrap{ margin-top:6px; }
+
+  .mmHeader{
+    font-weight:900;
+    font-size:14px;
+    margin: 0 0 var(--mmHeaderGap) 0;
+    line-height:1.2;
+  }
+
+  .microBox{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding: var(--mmPad);
+    background: var(--glassBlue14);
+  }
+
+  .youBox{
+    border:2px solid var(--winnerGreen);
+    background: var(--glassBlue14);
+  }
+
+  .microTitle{
+    font-weight:900;
+    font-size:14px;
+    margin:0 0 2px 0;
+    line-height:1.15;
+  }
+
+  .microMeta{
+    font-size:14px;
+    font-weight:900;
+    color: var(--yellow);
+    margin:0;
+    line-height:1.2;
+  }
+
+  .centerVS{
+    text-align:center;
+    font-weight:900;
+    font-size:12px;
+    color: var(--red);
+    margin: var(--mmGap) 0;
+    letter-spacing:.5px;
+  }
+
+  /* final version of elimTitle (kept only once, matches your current winner override) */
+  .elimTitle{
+    font-weight:900;
+    font-size:14px;
+    margin-bottom:4px;
+    opacity:.85;
+  }
+
+  .elimSub{
+    font-weight:400;
+    font-size:14px;
+    color: rgba(255,255,255,.9);
+  }
+
+  .deadBadge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 6px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:900;
+    background: rgba(228,0,43,.85);
+    color:#fff;
+    opacity:.9;
+  }
+  .deadBadge .skull{ font-size:12px; line-height:1; }
+
+  /* =========================
+   * 7) BOTTOM NAV
+   * ========================= */
+  .bottomNav{
+    position: fixed;
+    left:0; right:0; bottom:0;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(2,11,18,.92);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,.10);
+    z-index: 9999;
+  }
+
+  .navInner{
+    max-width: 920px;
+    margin:0 auto;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .navInner::before,
+  .navInner::after{
+    content:"";
+    flex: 1 0 auto;
+  }
+
+  .navBtn{
+    flex:0 0 auto;
+    min-width:98px;
+    background: var(--white06);
+    color:#fff;
+    border:1px solid var(--white10);
+    border-radius:18px;
+    padding:6px 8px;
+    font-weight:800;
+    font-size:12px;
+    cursor:pointer;
+    display:flex;
+    gap:6px;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    white-space:nowrap;
+  }
+
+  .navBtn.active{
+    background: var(--glassBlue22);
+    border-color: var(--glassBlue55);
+  }
+
+  .navBtn .ico{ font-size:14px; }
+
+  /* =========================
+   * 8) STATS (UI)
+   * ========================= */
+  .statsModes{
+    display:flex;
+    flex-wrap: nowrap;
+    gap:8px;
+    margin-top:8px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom:4px;
+  }
+  .statsModes::-webkit-scrollbar{ height:2px; }
+  .statsModes::-webkit-scrollbar-thumb{
+    background: var(--white14);
+    border-radius:999px;
+  }
+
+  .statsModes button.secondary{
+    flex: 0 0 auto;
+    width:auto;
+    padding:8px 12px;
+    border-radius:12px;
+    background: var(--glassBlue22);
+  }
+  .statsModes button.secondary.active{
+    background: var(--glassBlue42);
+    border:1px solid var(--glassBlue55);
+  }
+
+  .statsPanel{ margin-top:6px; }
+
+  .statsRow{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:4px 6px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background: var(--glassBlue20);
+    margin-top:3px;
+  }
+
+  .statsLeft{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+
+  .rankBadge{
+    flex:0 0 auto;
+    min-width:32px;
+    height:24px;
+    border-radius:999px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:400;
+    font-variant-numeric: tabular-nums;
+    background: rgba(255,255,255,.10);
+    border:1px solid var(--white12);
+    font-size:14px;
+  }
+
+  .statsName{
+    font-weight:400;
+    color: var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:14px;
+  }
+
+  .statsBadges{
+    flex: 1 1 auto;
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    min-width:0;
+  }
+
+  .miniPill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--white12);
+    background: var(--white06);
+    font-size:11px;
+    font-weight:900;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .miniPill .k{ color: var(--muted); font-weight:800; }
+
+  .statsRow.overallRow{
+    display:grid;
+    grid-template-columns: auto var(--overallNameW, max-content) 1fr;
+    align-items:center;
+    gap:10px;
+  }
+
+  .statsRow.overallRow .statsName{
+    width: var(--overallNameW, max-content);
+    white-space:nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .statsRow.overallRow .statsBadges{
+    justify-content:flex-start;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling: touch;
+    white-space:nowrap;
+  }
+  .statsRow.overallRow .statsBadges .miniPill{ flex:0 0 auto; }
+
+  .statsControls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+    margin-top:8px;
+  }
+  .statsControls label{ margin:0; }
+  .statsControls select{
+    width:auto;
+    min-width:220px;
+    padding: var(--mmPad);
+  }
+
+  .tiles{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:10px;
+    margin-top:8px;
+  }
+  .tile{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background: rgba(0,122,194,.10);
+  }
+  .tile .tLabel{ color: var(--muted); font-weight:800; font-size:12px; }
+  .tile .tVal{ font-weight:900; font-size:22px; margin-top:4px; }
+
+  @media (max-width:520px){
+    .tiles{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .statsControls select{ width:100%; }
+    .statsModes{ flex-wrap: nowrap !important; overflow-x:auto !important; }
+  }
+
+  /* paid + you highlights */
+  .statsRow.paidRow{ border:1px solid var(--greenfade); }
+  .statsRow.youRow{
+    background: var(--glassBlue42);
+    border-color: var(--glassBlue55);
+  }
+  .statsRow.paidRow.youRow{ border:1px solid var(--greenfade); }
+
+  /* =========================
+   * 9) SPONSOR OVERLAY
+   * ========================= */
+  .sponsor-container{
+    position: fixed;
+    bottom: var(--navH);
+    left:0;
+    right:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    z-index: 2; /* behind cards, above watermark */
+    pointer-events:none;
+  }
+
+  .presented-by{
+    font-size:11px;
+    opacity:0.5;
+    font-weight:bold;
+    color: var(--muted);
+    letter-spacing:.2px;
+    margin-bottom:6px;
+    text-transform: uppercase;
+  }
+
+  .sponsor-logo{
+    height:80px;
+    width:auto;
+    opacity:0.5;
+  }
+
+  /* =========================
+   * 10) SCROLLBARS
+   * ========================= */
+  *::-webkit-scrollbar{ height:10px; width:10px; }
+  *::-webkit-scrollbar-track{
+    background: var(--white06);
+    border-radius:999px;
+  }
+  *::-webkit-scrollbar-thumb{
+    background: rgba(0,122,194,.40);
+    border-radius:999px;
+    border:2px solid rgba(0,0,0,.35);
+  }
+  *::-webkit-scrollbar-thumb:hover{ background: rgba(0,122,194,.60); }
+  *::-webkit-scrollbar-corner{ background: transparent; }
+  </style>
 </head>
 
 <body>
-
-<div class="card">
-
-  <h1>NASCAR Pool Rebuild</h1>
-  <p class="small">Same frontend direction. New backend.</p>
-
-  <div class="controls">
-    <label for="raceSelect">Race:</label>
-    <select id="raceSelect"></select>
-
-    <label for="tournamentSelect">Tournament:</label>
-    <select id="tournamentSelect"></select>
-
-    <label for="roundSelect">Round:</label>
-    <select id="roundSelect">
-      <option value="1">Round 1</option>
-      <option value="2">Round 2</option>
-      <option value="3">Round 3</option>
-      <option value="4">Round 4</option>
-    </select>
-
-    <button id="generateAssignmentsBtn" type="button">Generate Assignments</button>
-    <button id="importQualBtn" type="button">Import Qualifying</button>
-    <button id="importResultsBtn" type="button">Import Results</button>
+  <!-- Title row: welcome message moved up + right aligned -->
+  <div class="titleRow">
+    <h2>NASCAR '26</h2>
+    <div id="welcomeName"></div>
   </div>
 
-  <div id="actionStatus"></div>
+  <!-- Sub row: player selector moved here (right side) -->
+  <div class="sub subRow">
+    <span class="pill">Player Portal</span>
 
-  <div class="section">
-    <div id="status">Loading assignments...</div>
-    <div id="results"></div>
+    <div class="subRowRight">
+      <select id="globalPlayer"></select>
+    </div>
   </div>
 
-  <div class="section">
-    <h2>Swiss Matchups</h2>
-    <div id="matchups"></div>
+  <!-- Top controls: spoiler toggle moved to where player selector used to be -->
+  <div class="topBar">
+    <button id="spoilerToggle" class="spoilerToggle topactions" type="button" role="switch" aria-checked="true">
+      <span class="label">Spoilers</span>
+      <span id="spoilerTrack" class="track">
+        <span id="spoilerState" class="state">ON</span>
+        <span id="spoilerThumb" class="thumb"></span>
+      </span>
+    </button>
+
+    <div class="topBarRight">
+      <button class="topactions" onclick="clearSavedAndReset()">🚫 Forget me</button>
+      <button class="topactions" onclick="refreshActiveView()">🔄 Refresh</button>
+    </div>
   </div>
 
-  <div class="section">
-    <h2>Swiss Standings</h2>
-    <div id="standings"></div>
+  <!-- CURRENT RACE -->
+  <div id="view-current" class="card" style="display:none;">
+    <div class="raceHeaderRow">
+      <div id="currentHeader">Current Race</div>
+      <select id="raceSelect" style="width:auto;"></select>
+    </div>
+    <div class="muted" id="currentSub"></div>
+    <div id="matchupsArea" style="margin-top:10px;"></div>
+    <div id="eliminatedArea" style="margin-top:0px;"></div>
   </div>
 
-</div>
+  <!-- MY MATCHUP -->
+  <div id="view-mymatchup" class="card" style="display:none;">
+    <div class="big">My Matchup</div>
+    <div class="muted">Who you can talk shit to this week.</div>
+    <div id="mmStatus" class="mmWrap"></div>
+  </div>
 
-<script>
-const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
-const ADMIN_KEY = "BMurf1083!@";
+  <!-- STANDINGS -->
+  <div id="view-standings" class="card" style="display:none;">
+    <div class="big">Stats</div>
+    <div class="muted">Who sucks and who doesn't</div>
+    <div id="standingsArea" class="status">I'm slow...</div>
+  </div>
 
-const raceSelect = document.getElementById("raceSelect");
-const tournamentSelect = document.getElementById("tournamentSelect");
-const roundSelect = document.getElementById("roundSelect");
+  <!-- DUES -->
+  <div id="view-dues" class="card" style="display:none;">
+    <div class="big">Dues</div>
+    <div class="muted">Here's how much you owe me.</div>
+    <div id="duesStatus" class="mmWrap"></div>
+  </div>
 
-const generateAssignmentsBtn = document.getElementById("generateAssignmentsBtn");
-const importQualBtn = document.getElementById("importQualBtn");
-const importResultsBtn = document.getElementById("importResultsBtn");
+  <!-- BRACKET -->
+  <div id="view-bracket" class="card" style="display:none;">
+    <div class="big">Bracket</div>
+    <div class="muted" id="bracketSub">I'm slow...</div>
 
-const statusEl = document.getElementById("status");
-const resultsEl = document.getElementById("results");
-const actionStatusEl = document.getElementById("actionStatus");
+    <div class="bracketWrap">
+      <div id="bracketSticky" class="bracketSticky"></div>
+      <div class="bracketFade left"></div>
+      <div class="bracketFade right"></div>
+      <div id="bracketArea">I'm slow...</div>
+    </div>
+  </div>
 
-const matchupsEl = document.getElementById("matchups");
-const standingsEl = document.getElementById("standings");
+  <!-- Bottom Nav -->
+  <div class="sponsor-container">
+    <div class="presented-by">PRESENTED BY</div>
+    <img src="buschlight.png" alt="Busch Light" class="sponsor-logo">
+  </div>
+  <div class="bottomNav">
+    <div class="navInner">
+      <button class="navBtn" id="nav-race" onclick="showView('current')">
+        <div class="ico">🏁</div><div>Race</div>
+      </button>
+      <button class="navBtn" id="nav-bracket" onclick="showView('bracket')">
+        <div class="ico">🏆</div><div>Bracket</div>
+      </button>
+      <button class="navBtn" id="nav-me" onclick="showView('mymatchup')">
+        <div class="ico">🧍</div><div>Me</div>
+      </button>
+      <button class="navBtn" id="nav-stats" onclick="showView('standings')">
+        <div class="ico">📊</div><div>Stats</div>
+      </button>
+      <button class="navBtn" id="nav-dues" onclick="showView('dues')">
+        <div class="ico">💰</div><div>$$$</div>
+      </button>
+    </div>
+  </div>
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
-  const text = await response.text();
+  <script>
+  /************************************************************
+   * NASCAR Pool 2026 — Player Portal JS
+   * Spoiler toggle added (minimal changes, no CSS edits).
+   ************************************************************/
 
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
+  /* =========================
+   * 1) CONFIG / CONSTANTS
+   * ========================= */
+  const API_BASE = "https://script.google.com/macros/s/AKfycbw9ZWpslxculbHs3kwNWSBx9jU_QZx2PpLsWpa4N8DPK8qypXQObwfG5Vw_lh5lEizjuA/exec"; // <-- REPLACE ME
+  const STORAGE_KEY = "nascar_pool_player_name";
+  const VIEW_KEY = "nascar_pool_active_view";
+  const SPOILER_KEY = "nascar_pool_spoilers_on"; // "1" or "0"
+
+  const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
+  const views = ["current","mymatchup","standings","dues","bracket"];
+  let activeView = "current";
+  let _bracketBlob = null;
+
+  // Player site uses API_BASE directly. (No extra config helper needed.)
+  const ADMIN_KEY = ""; // leave blank on the public site
+  const TOURNAMENT_PAYOUTS = {
+    1: "🖕🏻$100",
+    2: "$60",
+    3: "$40",
+    4: "$20"
+};
+  /* =========================
+   * 2) Spoiler toggle (global)
+   * ========================= */
+  function spoilersOn_(){
+    const v = String(localStorage.getItem(SPOILER_KEY) ?? "1");
+    return v !== "0";
   }
 
-  if (!response.ok) {
-    throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  function setSpoilersOn_(on){
+    localStorage.setItem(SPOILER_KEY, on ? "1" : "0");
+    paintSpoilerToggle_();
+    enforceSpoilerNav_();
   }
 
-  return data;
-}
+  function paintSpoilerToggle_(){
+    const btn = document.getElementById("spoilerToggle");
+    const state = document.getElementById("spoilerState");
+    const thumb = document.getElementById("spoilerThumb");
+    const on = spoilersOn_();
 
-function authHeaders() {
-  return {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`
+    if(!btn || !state || !thumb) return;
+
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    state.textContent = on ? "ON" : "OFF";
+
+    // ON = spoilers shown; OFF = spoilers hidden
+    thumb.style.transform = on ? "translateX(32px)" : "translateX(0px)";
+    thumb.style.background = on ? "var(--red)" : "var(--blue)";
+
+    // subtle button tint
+    btn.style.background = on ? "rgba(228, 0, 43, .4)" : "rgba(0,122,194,.18)";
+    btn.title = on ? "Spoilers ON (shows winners)" : "Spoilers OFF (hides winners)";
+  }
+
+  function initSpoilerToggle_(){
+    const btn = document.getElementById("spoilerToggle");
+    if(!btn) return;
+
+    paintSpoilerToggle_();
+    enforceSpoilerNav_();
+
+    btn.onclick = () => {
+      setSpoilersOn_(!spoilersOn_());
+
+      // If they were on a spoiler-locked view, kick them out immediately.
+      if (!spoilersOn_()) {
+        if (activeView === "bracket") showView("current");
+      }
+
+      // Refresh only what's currently visible (fast + minimal work)
+      refreshActiveView();
+    };
+  }
+
+  function enforceSpoilerNav_(){
+    const on = spoilersOn_();
+
+    const bracketBtn = document.getElementById("nav-bracket");
+    if (bracketBtn) bracketBtn.style.display = on ? "" : "none";
+  }
+
+  /* =========================
+   * 3) iOS viewport bottom bar fix
+   * ========================= */
+  (function fixIOSBottomBar(){
+    function update(){
+      const vv = window.visualViewport;
+      if (!vv) return;
+
+      const bottomGap = Math.max(
+        0,
+        window.innerHeight - (vv.height + vv.offsetTop)
+      );
+
+      document.documentElement.style.setProperty("--vvb", bottomGap + "px");
+    }
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", update);
+      window.visualViewport.addEventListener("scroll", update);
+    }
+  })();
+
+  /* =========================
+   * 4) API helpers (Fetch + optional JSONP fallback)
+   * ========================= */
+  function apiUrl(params){
+    const u = new URL(API_BASE);
+    Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
+    return u.toString();
+  }
+
+  function jsonp(url){
+    return new Promise((resolve, reject) => {
+      const cb = "__jsonp_cb_" + Math.random().toString(36).slice(2);
+      const s = document.createElement("script");
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("JSONP timeout"));
+      }, 15000);
+
+      function cleanup(){
+        clearTimeout(timeout);
+        delete window[cb];
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+      }
+
+      window[cb] = (data) => {
+        cleanup();
+        resolve(data);
+      };
+
+      const glue = (url.includes("?") ? "&" : "?");
+      s.src = url + glue + "callback=" + encodeURIComponent(cb);
+      s.onerror = () => {
+        cleanup();
+        reject(new Error("JSONP load failed"));
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function apiCall(action, params = {}, isAdmin = false){
+    const apiBase = API_BASE;
+    const adminKey = ADMIN_KEY;
+
+    if(!apiBase) throw new Error("Missing API Base URL.");
+    if(isAdmin && !adminKey) throw new Error("Missing Admin Key.");
+
+    const q = new URLSearchParams();
+    q.set("action", action);
+    if(isAdmin) q.set("key", adminKey);
+
+    Object.keys(params || {}).forEach(k => {
+      const v = params[k];
+      if(v !== undefined && v !== null) q.set(k, v);
+    });
+
+    const url = apiBase + "?" + q.toString();
+    return fetch(url, { cache: "no-store" }).then(r => r.json());
+  }
+
+  async function getPlayerRaceData_(){
+    if (_playerRaceData) return _playerRaceData;
+
+    const res = await fetch("/api/player-race-data", { cache: "no-store" });
+    const data = await res.json();
+
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "player-race-data failed");
+    }
+
+    _playerRaceData = data;
+    return data;
+  }
+
+  /* =========================
+   * 5) Snapshot Loader (GitHub Pages /data/*.json)
+   * ========================= */
+  const SNAP_MAP = {
+    context:   "./data/context.json",
+    players:   "./data/players.json",
+    matchups:  "./data/matchups.json",
+    raceList:  "./data/raceList.json",
+    bracket:   "./data/bracket.json",
+    standings: "./data/standings.json",
+    dues:      "./data/dues.json",
+    my:        "./data/myMatchups.json",
+    h2h:       "./data/h2h.json",
+    wins:      "./data/wins.json",
+    drivers:   "./data/driverUsage.json",
+    bracketHistory: "./data/bracketHistory.json",
   };
-}
 
-async function loadRaces() {
-  const races = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,
-    { headers: authHeaders() }
-  );
+  let SNAP_VER = null;
+  let SNAP_CTX = null;
 
-  raceSelect.innerHTML = "";
+  async function refreshSnapshotVersion_(){
+    const url = SNAP_MAP.context + (SNAP_MAP.context.includes("?") ? "&" : "?") + "v=" + Date.now();
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error("Context fetch failed (" + res.status + ")");
+    const ctx = await res.json();
 
-  races.forEach(r => {
-    const o = document.createElement("option");
-    o.value = r.id;
-    o.textContent = `Race ${r.race_number}: ${r.race_name}`;
-    raceSelect.appendChild(o);
-  });
-
-  return races;
-}
-
-async function loadTournaments() {
-  const tournaments = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`,
-    { headers: authHeaders() }
-  );
-
-  tournamentSelect.innerHTML = "";
-
-  tournaments.forEach(t => {
-    const o = document.createElement("option");
-    o.value = t.id;
-    o.textContent = `Tournament ${t.tournament_number} (${t.season_year})`;
-    tournamentSelect.appendChild(o);
-  });
-
-  return tournaments;
-}
-
-async function loadAssignments(raceId) {
-  statusEl.textContent = "Loading assignments...";
-  resultsEl.innerHTML = "";
-
-  const data = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
-    { headers: authHeaders() }
-  );
-
-  if (!data.length) {
-    statusEl.textContent = "No assignments.";
-    return;
+    SNAP_CTX = ctx;
+    SNAP_VER = encodeURIComponent(ctx && ctx.publishedAt ? ctx.publishedAt : String(Date.now()));
+    return ctx;
   }
 
-  const players = {};
-  data.forEach(r => {
-    if (!players[r.player_name]) players[r.player_name] = [];
-    players[r.player_name].push(r);
-  });
+  async function fetchSnapshotJson(key, forceRefreshVersion=false){
+    const base = SNAP_MAP[key];
+    if(!base) throw new Error("Unknown snapshot key: " + key);
 
-  resultsEl.innerHTML = Object.entries(players).map(([name, a]) => {
-    a.sort((x, y) => x.assignment_slot - y.assignment_slot);
+    if(key === "context"){
+      const url = base + (base.includes("?") ? "&" : "?") + "v=" + Date.now();
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) throw new Error(`Snapshot fetch failed (${res.status}) for ${key}`);
+      return await res.json();
+    }
 
-    return `
-      <div class="player-block">
-        <h3>${name}</h3>
-        ${a.map(r => `
-          <div class="assignment-line">
-            <strong>Driver ${r.assignment_slot}:</strong>
-            ${r.driver_name ?? "Not resolved yet"}${r.car_number ? ` (#${r.car_number})` : ""}
-            <div class="muted">Assigned qualifying position: ${r.qualifying_position}</div>
+    if(!SNAP_VER || forceRefreshVersion){
+      try { await refreshSnapshotVersion_(); }
+      catch(e){
+        SNAP_VER = String(Date.now());
+      }
+    }
+
+    const url = base + (base.includes("?") ? "&" : "?") + "v=" + SNAP_VER;
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error(`Snapshot fetch failed (${res.status}) for ${key}`);
+    return await res.json();
+  }
+
+  /* =========================
+   * 6) UI helpers
+   * ========================= */
+  function setActiveNav(which){
+    const map = {
+      current: "nav-race",
+      mymatchup: "nav-me",
+      standings: "nav-stats",
+      dues: "nav-dues",
+      bracket: "nav-bracket"
+    };
+
+    Object.values(map).forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.classList.remove("active");
+    });
+
+    const btn = document.getElementById(map[which]);
+    if (btn) btn.classList.add("active");
+  }
+
+  function persistHScroll(selector, storageKey){
+    const el = document.querySelector(selector);
+    if(!el) return;
+
+    requestAnimationFrame(() => {
+      const saved = Number(localStorage.getItem(storageKey) || 0);
+      if (Number.isFinite(saved) && saved > 0) el.scrollLeft = saved;
+    });
+
+    let t = null;
+    el.addEventListener("scroll", () => {
+      if (t) return;
+      t = requestAnimationFrame(() => {
+        localStorage.setItem(storageKey, String(el.scrollLeft || 0));
+        t = null;
+      });
+    }, { passive:true });
+
+    window.addEventListener("beforeunload", () => {
+      localStorage.setItem(storageKey, String(el.scrollLeft || 0));
+    });
+  }
+
+  function showView(which) {
+    // If spoilers are OFF, do not allow bracket view to render at all.
+    if (!spoilersOn_() && which === "bracket") which = "current";
+
+    activeView = which;
+    setActiveNav(which);
+    localStorage.setItem(VIEW_KEY, which);
+
+    views.forEach(v => {
+      const el = document.getElementById("view-" + v);
+      if (el) el.style.display = (v === which) ? "block" : "none";
+    });
+
+    if (which === "current") loadCurrent();
+    if (which === "standings") loadStandings();
+    if (which === "dues") loadDues();
+    if (which === "mymatchup") loadMyMatchup();
+    if (which === "bracket") loadBracket();
+  }
+
+  function refreshActiveView() {
+    SNAP_VER = null;
+    SNAP_CTX = null;
+    _cache_myMatchupsAll = null;
+    _bracketHistoryBlob = null;
+    _playerRaceData = null;
+
+    if (activeView === "current") loadCurrent();
+    else if (activeView === "standings") loadStandings();
+    else if (activeView === "dues") loadDues();
+    else if (activeView === "mymatchup") loadMyMatchup();
+    else if (activeView === "bracket") loadBracket();
+  }
+
+  function savePlayerName(name) {
+    localStorage.setItem(STORAGE_KEY, String(name || ""));
+    setWelcome();
+  }
+
+  function loadPlayerName() {
+    return String(localStorage.getItem(STORAGE_KEY) || "").trim();
+  }
+
+  function hasPlayerName() {
+    return !!loadPlayerName();
+  }
+
+  function clearSavedAndReset() {
+    localStorage.removeItem(STORAGE_KEY);
+
+    const gp = document.getElementById("globalPlayer");
+    if (gp) {
+      const ph = gp.querySelector("#playerPlaceholder");
+      if (ph) ph.hidden = false;  // show placeholder again since name is cleared
+      gp.value = "";
+      autoSizePlayerSelect_(gp);
+    }
+
+    setWelcome();
+
+    applyYouRowsNow_();
+
+    if (activeView === "mymatchup") {
+      const out = document.getElementById("mmStatus");
+      if (out) out.textContent = "";
+    }
+
+    if (activeView === "dues") {
+      const out = document.getElementById("duesStatus");
+      if (out) out.textContent = "";
+    }
+  }
+
+  function setWelcome() {
+    const w = document.getElementById("welcomeName");
+    const name = loadPlayerName();
+    if (!w) return;
+
+    const messages = {
+      "Beau": "Helleau, Beau.",
+      "Bob": "Nebraska sucks 🤘🏻",
+      "Brett": "Hey, commish!",
+      "Chris": "Hello, Edward.",
+      "Don": "Sloan Broadwell!",
+      "Jason": "You're still here?",
+      "Justin": "Hi, Brett's brother.",
+      "Nate C.": "Earl's gotta die!",
+      "Nate M.": "Ol' Boomhauer",
+      "Nick": "Got syrup?",
+      "Pat": "Go inspect something.",
+      "Rob": "Aye, Aye Capt 🫡",
+      "Russ": "DSI President",
+      "Stacy": "East bound and down!",
+      "Steven": "I need Velo's!",
+      "Tyler": "Navel Bush, huh?"
+    };
+
+    if (!name) {
+      w.textContent = "👻";
+      return;
+    }
+
+    w.textContent = messages[name] || `Welcome ${name}.`;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function escapeAttr(s) {
+    return String(s ?? "")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function populatePlayerDropdowns(playerList) {
+    const gp = document.getElementById("globalPlayer");
+    if (!gp) return;
+
+    // Placeholder exists, but is disabled (not selectable).
+    // We'll show it ONLY when there is no saved player.
+    const options = [
+      `<option value="" id="playerPlaceholder" disabled>Who the fuck are you?</option>`
+    ]
+      .concat(playerList.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`))
+      .join("");
+
+    gp.innerHTML = options;
+
+    const ph = gp.querySelector("#playerPlaceholder");
+    const saved = loadPlayerName();
+
+    if (saved) {
+      gp.value = saved;
+      if (ph) ph.hidden = true;   // hide placeholder from dropdown list once we have a saved name
+    } else {
+      gp.value = "";
+      if (ph) {
+        ph.hidden = false;        // show placeholder only when nothing is saved
+        ph.selected = true;
+      }
+    }
+
+    autoSizePlayerSelect_(gp);
+
+    gp.onchange = () => {
+      const name = String(gp.value || "").trim();
+      if (!name) return;
+
+      // once a real name is chosen, hide placeholder so only players are in the list
+      if (ph) ph.hidden = true;
+
+      savePlayerName(name);
+      setWelcome();
+      checkDuesNag_();
+      applyYouRowsNow_();
+      autoSizePlayerSelect_(gp);
+
+      if (activeView === "mymatchup") loadMyMatchup();
+      if (activeView === "dues") loadDues();
+    };
+  }
+
+  function formatDriversOrNumbers(driversArr, numsArr){
+    const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
+    const d2 = (driversArr && driversArr[1] != null) ? String(driversArr[1]).trim() : "";
+
+    const n1 = (numsArr && numsArr[0] != null) ? String(numsArr[0]).trim() : "";
+    const n2 = (numsArr && numsArr[1] != null) ? String(numsArr[1]).trim() : "";
+
+    const hasDrivers = !!(d1 || d2);
+    const hasNums = !!(n1 || n2);
+
+    if (!hasDrivers && !hasNums) return "";
+    if (!hasDrivers && hasNums){
+      return `Numbers: ${[n1, n2].filter(Boolean).join(", ")}`;
+    }
+
+    function fmtPair(num, drv){
+      const numClean = String(num || "").trim();
+      const drvClean = String(drv || "").trim();
+      if (!numClean && !drvClean) return "";
+      if (numClean && drvClean) return `(${numClean}) ${drvClean}`;
+      if (drvClean) return drvClean;
+      return `(${numClean})`;
+    }
+
+    return [fmtPair(n1, d1), fmtPair(n2, d2)].filter(Boolean).join(", ");
+  }
+
+  function applyYouRowsNow_(){
+    const you = loadPlayerName().trim().toLowerCase();
+
+    document.querySelectorAll("#matchupsArea .matchupCard").forEach(card => {
+      const isYou = !!you && (
+        (card.dataset.p1 || "") === you ||
+        (card.dataset.p2 || "") === you
+      );
+      card.classList.toggle("youRow", isYou);
+    });
+
+    document.querySelectorAll("#standingsArea .statsRow").forEach(row => {
+      const nameEl = row.querySelector(".statsName");
+      const nm = String(nameEl?.textContent || "").trim().toLowerCase();
+      const isYou = !!you && nm === you;
+      row.classList.toggle("youRow", isYou);
+    });
+  }
+
+  /* =========================
+   * 7) Snapshot caches / helpers
+   * ========================= */
+  let _cache_myMatchupsAll = null;
+
+  async function getMyMatchupsAllSnapshot(){
+    if(_cache_myMatchupsAll) return _cache_myMatchupsAll;
+    try{
+      _cache_myMatchupsAll = await fetchSnapshotJson("my", false);
+    }catch(e){
+      _cache_myMatchupsAll = null;
+    }
+    return _cache_myMatchupsAll;
+  }
+
+  function extractPicksFromMyEntry(entry){
+    if(!entry || typeof entry !== "object") return { drivers:null, nums:null };
+    const drivers = entry.youDrivers || entry.drivers || entry.picksDrivers || entry.assignedDrivers || null;
+    const nums    = entry.youNums    || entry.nums    || entry.picksNums    || entry.assignedNums    || null;
+    return { drivers, nums };
+  }
+
+  function getEntryByName(map, name){
+    if(!map || !name) return null;
+    if(map[name]) return map[name];
+
+    const target = String(name).trim().toLowerCase();
+    for(const k in map){
+      if(String(k).trim().toLowerCase() === target) return map[k];
+    }
+    return null;
+  }
+
+  /* =========================
+   * 8) Data access (snapshots first, live GAS fallback)
+   * ========================= */
+ async function getData_(snapKey, action, params){
+    // NEW BACKEND: Current Race section
+    if (snapKey === "raceList" || action === "playerGetRaceList"){
+      const blob = await getPlayerRaceData_();
+      return Array.isArray(blob?.raceList) ? blob.raceList : [];
+    }
+
+    if (snapKey === "matchups" || action === "playerGetAllRaceMatchups"){
+      const blob = await getPlayerRaceData_();
+      return blob?.matchups || { current:null, races:{} };
+    }
+
+    // EXISTING PATH for everything else, for now
+    try{
+      return await fetchSnapshotJson(snapKey, false);
+    }catch(e){
+      const resp = await apiCall(action, params || {}, false);
+      if(!resp || !resp.ok) throw new Error(resp?.error || ("API failed: " + action));
+      return resp.data;
+    }
+  }
+
+  /* =========================
+   * 9) Loaders
+   * ========================= */
+  let ALL_MATCHUPS = null;
+  let RACE_LIST = [];
+  let _raceSelectWiringDone = false;
+  let _raceSelectIsProgrammatic = false;
+  let _bracketHistoryBlob = null;
+  let _playerRaceData = null;
+
+  async function getBracketHistory_(){
+    if (_bracketHistoryBlob) return _bracketHistoryBlob;
+    try { _bracketHistoryBlob = await fetchSnapshotJson("bracketHistory", false); }
+    catch(e){ _bracketHistoryBlob = null; }
+    return _bracketHistoryBlob;
+  }
+
+  function raceKey_(tournament, race){
+    return String(tournament || "").trim() + "||" + String(race || "").trim();
+  }
+
+  async function getBracket_(){
+    if (_bracketBlob) return _bracketBlob;
+    try { _bracketBlob = await fetchSnapshotJson("bracket", false); }
+    catch(e){ _bracketBlob = null; }
+    return _bracketBlob;
+  }
+
+  function setRaceSelectValue_(tournament, race){
+    const sel = document.getElementById("raceSelect");
+    if(!sel) return;
+    const key = raceKey_(tournament, race);
+    _raceSelectIsProgrammatic = true;
+    try{
+      sel.value = key;
+      autoSizeRaceSelect_(sel);
+    } finally {
+      _raceSelectIsProgrammatic = false;
+    }
+  }
+
+  async function initRaceSelect_(){
+    if(_raceSelectWiringDone) return;
+    _raceSelectWiringDone = true;
+
+    const sel = document.getElementById("raceSelect");
+    if(!sel) return;
+
+    sel.innerHTML = `<option value="">Loading races...</option>`;
+    autoSizeRaceSelect_(sel);
+
+    try{
+      const list = await getData_("raceList", "playerGetRaceList");
+      RACE_LIST = Array.isArray(list) ? list : [];
+
+      sel.innerHTML = RACE_LIST.map(r => {
+        const t = r.tournament;
+        const race = r.race;
+        const label = `${race}`;
+        return `<option value="${escapeHtml(raceKey_(t, race))}">${escapeHtml(label)}</option>`;
+      }).join("") || `<option value="">No races</option>`;
+
+      autoSizeRaceSelect_(sel);
+
+      sel.addEventListener("change", () => {
+        if(_raceSelectIsProgrammatic) return;
+        autoSizeRaceSelect_(sel);
+        loadSelectedRace_();
+      });
+    }catch(e){
+      sel.innerHTML = `<option value="">Races unavailable</option>`;
+      sel.disabled = true;
+    }
+  }
+
+  async function renderMatchupsInto_(data){
+    const header = document.getElementById("currentHeader");
+    const sub = document.getElementById("currentSub");
+    const area = document.getElementById("matchupsArea");
+    const elim = document.getElementById("eliminatedArea");
+
+    header.textContent = data.race || "Race";
+    const tour  = data.tournament ?? "";
+    const round = data.currentRound ?? data.round ?? "";
+    const roundText =
+      round === "" ? "" :
+      (Number(round) === 4 ? "Final" : `Rnd ${round}`);
+
+    sub.textContent =
+      `Tourney ${tour}` +
+      (roundText ? ` · ${roundText}` : "");
+
+    area.innerHTML = "";
+    elim.innerHTML = "";
+
+    const you = loadPlayerName().trim().toLowerCase();
+    const spoilersOn = spoilersOn_();
+
+    const norm = (s) => String(s ?? "").trim().toLowerCase();
+    const isCurrentRace =
+      ALL_MATCHUPS?.current &&
+      norm(ALL_MATCHUPS.current.race) === norm(data.race) &&
+      String(ALL_MATCHUPS.current.tournament || "").trim() === String(data.tournament || "").trim();
+
+    // Spoilers OFF: do not render current race matchup cards at all.
+    if (!spoilersOn && isCurrentRace){
+      area.innerHTML = `
+        <div class="microBox" style="margin-top:10px;">
+          <div class="microTitle">Spoilers are OFF, you fragile fantasy princess.</div>
+          <div class="microMeta" style="color: var(--muted); font-weight:700;">
+      Current matchups? Hidden like a crew chief's real strategy sheet.<br><br>
+      This is the current race, dipshit—pick a race that's already wrecked, finished, and posted from the dropdown if you want to see who your drivers are up against.<br><br>
+      We're not spoiling the live action just because Justin DVR'd the race or was too busy pretending to catch bad guys taller than him to watch the Big One turn the field into scrap metal.<br><br>
+      Some of us still like the thrill of not knowing if your pick survived the restart carnage or got parked on lap 12 thanks to fuel mileage roulette.<br><br>
+      Quit hammering refresh like it's going to magically un-hide the results. Go select a completed race, or sit tight and pretend the caution didn't just fuck your entire lineup.<br><br>
+      The checkered flag drops when it drops. Not when your patience does.
           </div>
-        `).join("")}
+        </div>
+      `;
+      elim.innerHTML = "";
+      return;
+    }
+
+    // Winner pills + averages come from bracket.json, but ONLY when spoilers are ON.
+    let roundObj = null;
+    if (spoilersOn){
+      try{
+        const hist = await getBracketHistory_();
+        const key = raceKey_(data?.tournament, data?.race);
+        roundObj = hist?.roundsByKey?.[key] || null;
+      }catch(e){
+        roundObj = null;
+      }
+    }
+
+    const showPastAvgs = spoilersOn && !isCurrentRace;
+    const fmtAvg = (n) => {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "";
+      return x.toFixed(1).replace(/\.0$/, "");
+    };
+
+    function matchupBracketInfo_(m){
+      if(!roundObj?.matchups?.length) return { winner:"", a1:null, a2:null };
+      const bm = roundObj.matchups.find(x =>
+        norm(x?.p1) === norm(m?.p1) && norm(x?.p2) === norm(m?.p2)
+      );
+      return {
+        winner: norm(bm?.winner),
+        a1: (bm?.a1 ?? null),
+        a2: (bm?.a2 ?? null),
+      };
+    }
+
+    for (const m of (data.matchups || [])) {
+      const card = document.createElement("div");
+      const isYou =
+        you &&
+        (
+          norm(m.p1) === you ||
+          norm(m.p2) === you
+        );
+
+      card.className = "matchupCard" + (isYou ? " youRow" : "");
+      card.dataset.p1 = norm(m.p1);
+      card.dataset.p2 = norm(m.p2);
+
+      function metaHtml_(driversArr, numsArr){
+        const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
+        const d2 = (driversArr && driversArr[1] != null) ? String(driversArr[1]).trim() : "";
+
+        const n1 = (numsArr && numsArr[0] != null) ? String(numsArr[0]).trim() : "";
+        const n2 = (numsArr && numsArr[1] != null) ? String(numsArr[1]).trim() : "";
+
+        // Spoilers OFF: do not show race-winner highlight/flag/green.
+        const raceWinner = spoilersOn ? norm(data.raceWinnerDriver) : "";
+
+        function renderOne(num, drv){
+          const numClean = String(num || "").trim();
+          const drvClean = String(drv || "").trim();
+          if (!numClean && !drvClean) return "";
+
+          const isWinner = raceWinner && drvClean && norm(drvClean) === raceWinner;
+
+          const safeNum = escapeHtml(numClean);
+          const safeDrv = escapeHtml(drvClean);
+
+          if (numClean && drvClean){
+            if (isWinner){
+              return `(${safeNum}) <span class="driverWinner"><span class="winFlag" aria-hidden="true">🏁</span>${safeDrv}</span>`;
+            }
+            return `(${safeNum}) ${safeDrv}`;
+          }
+
+          if (drvClean){
+            if (isWinner){
+              return `<span class="driverWinner"><span class="winFlag" aria-hidden="true">🏁</span>${safeDrv}</span>`;
+            }
+            return safeDrv;
+          }
+
+          return `(${safeNum})`;
+        }
+
+        return [renderOne(n1, d1), renderOne(n2, d2)].filter(Boolean).join(", ");
+      }
+
+      const leftMeta  = metaHtml_(m.p1Drivers, m.p1Nums);
+      const rightMeta = metaHtml_(m.p2Drivers, m.p2Nums);
+
+      const info = showPastAvgs ? matchupBracketInfo_(m) : { winner:"", a1:null, a2:null };
+      const w = spoilersOn ? info.winner : "";
+      const p1Win = spoilersOn && w && w === norm(m.p1);
+      const p2Win = spoilersOn && w && w === norm(m.p2);
+
+      const p1AvgTxt = showPastAvgs ? fmtAvg(info.a1) : "";
+      const p2AvgTxt = showPastAvgs ? fmtAvg(info.a2) : "";
+
+      // Spoilers OFF: do not render (avg) on the label at all.
+      const p1Label = `${String(m.p1 || "").trim()}${p1AvgTxt ? ` (${p1AvgTxt})` : ""}`;
+      const p2Label = `${String(m.p2 || "").trim()}${p2AvgTxt ? ` (${p2AvgTxt})` : ""}`;
+
+      card.innerHTML = `
+        <div class="matchupRow">
+          <div class="side left">
+            <div class="pName"><span class="nameWrap"><span class="nameText">${escapeHtml(p1Label)}</span>${p1Win ? `<span class="winPill">WIN</span>` : ``}</span></div>
+            ${leftMeta ? `<div class="pMeta">${leftMeta}</div>` : ``}
+          </div>
+          <div class="vsBadge">VS</div>
+          <div class="side right">
+            <div class="pName"><span class="nameWrap"><span class="nameText">${escapeHtml(p2Label)}</span>${p2Win ? `<span class="winPill">WIN</span>` : ``}</span></div>
+            ${rightMeta ? `<div class="pMeta">${rightMeta}</div>` : ``}
+          </div>
+        </div>
+      `;
+      area.appendChild(card);
+    }
+
+    // Spoilers OFF: also hide eliminated list (it’s basically a giant “who lost” billboard).
+    if (!spoilersOn){
+      elim.innerHTML = "";
+    }
+
+    applyYouRowsNow_();
+  }
+
+  function autoSizeRaceSelect_(sel){
+    if(!sel) return;
+
+    if(!autoSizeRaceSelect_._measurer){
+      const s = document.createElement("span");
+      s.style.position = "absolute";
+      s.style.top = "-9999px";
+      s.style.left = "-9999px";
+      s.style.whiteSpace = "pre";
+      document.body.appendChild(s);
+      autoSizeRaceSelect_._measurer = s;
+    }
+
+    const measurer = autoSizeRaceSelect_._measurer;
+
+    const cs = getComputedStyle(sel);
+      measurer.style.font = cs.font;
+      measurer.style.letterSpacing = cs.letterSpacing;
+
+    const text = sel.options[sel.selectedIndex]?.text || "";
+      measurer.textContent = text;
+
+    const paddingLeft  = parseFloat(cs.paddingLeft)  || 0;
+    const paddingRight = parseFloat(cs.paddingRight) || 0;
+
+    const arrowSpace = 34;
+
+    const width = Math.ceil(
+      measurer.getBoundingClientRect().width +
+      paddingLeft +
+      paddingRight +
+      arrowSpace
+    );
+
+    sel.style.width = width + "px";
+  }
+  
+  function autoSizePlayerSelect_(sel){
+    if(!sel) return;
+
+    let measurer = document.getElementById("__playerSelectMeasurer");
+    if(!measurer){
+      measurer = document.createElement("span");
+      measurer.id = "__playerSelectMeasurer";
+      measurer.style.position = "absolute";
+      measurer.style.visibility = "hidden";
+      measurer.style.whiteSpace = "pre";
+      measurer.style.left = "-9999px";
+      measurer.style.top = "-9999px";
+      document.body.appendChild(measurer);
+    }
+
+    const cs = getComputedStyle(sel);
+
+    // match the select's font so the measurement is accurate
+    measurer.style.fontFamily = cs.fontFamily;
+    measurer.style.fontSize = cs.fontSize;
+    measurer.style.fontWeight = cs.fontWeight;
+    measurer.style.letterSpacing = cs.letterSpacing;
+
+    const text = sel.options[sel.selectedIndex]?.text || "";
+    measurer.textContent = text;
+
+    const paddingLeft  = parseFloat(cs.paddingLeft)  || 0;
+    const paddingRight = parseFloat(cs.paddingRight) || 0;
+    const arrowSpace = 34;
+    const width = Math.ceil(
+      measurer.getBoundingClientRect().width +
+      paddingLeft +
+      paddingRight +
+      arrowSpace
+    );
+
+    sel.style.width = width + "px";
+  }
+    
+  async function loadSelectedRace_(){
+    const sel = document.getElementById("raceSelect");
+    const area = document.getElementById("matchupsArea");
+    const elim = document.getElementById("eliminatedArea");
+    if(!sel) return;
+
+    const v = String(sel.value || "");
+    if(!v){
+      loadCurrent();
+      return;
+    }
+
+    area.innerHTML = "Loading race...";
+    elim.innerHTML = "";
+
+    try{
+      if (!ALL_MATCHUPS) await loadCurrent();
+
+      const key = String(v).trim();
+      const raceData = ALL_MATCHUPS?.races?.[key];
+
+      if (!raceData) {
+        area.innerHTML = `
+          <div class="microBox" style="margin-top:10px;">
+          <div class="microTitle">Back to the future?</div>
+          <div class="microMeta" style="color: var(--muted); font-weight:700;">
+            This race ain’t even fuckin’ started, you mouth-breathin’ dipshit.<br><br>
+      The haulers are still sittin’ in the lot, tires ain’t even warm, drivers are prolly still 
+      scratchin’ their balls and arguin’ over who gets the last Moon Pie, and your dumb redneck 
+      ass is already hollerin’ for lap times like a coonhound that just seen a squirrel.<br><br>
+      The goddamn sun ain’t even set on yesterday’s bullshit and you’re out here demandin’ 
+      results like you think time bends over for your broke-ass attention span.<br><br>
+      Go choke on a chicken bone, slam another Natty Light, and sit your impatient hillbilly 
+      carcass down. The checkered flag don’t give a rat’s ass about your toddler tantrum.<br><br>
+      We’ll let ya know when the real men finish racin’. Until then… shut the entire fuck up.
+          </div>
+        </div>
+      `;
+      elim.innerHTML = "";
+      return;
+      }
+
+      await renderMatchupsInto_(raceData);
+
+      // Eliminated list: renderMatchupsInto_ already hides it when spoilers are OFF.
+      if (spoilersOn_()){
+        const eliminated = Array.isArray(raceData.eliminated) ? raceData.eliminated : [];
+        if (eliminated.length > 0) {
+          let html = `<div class="elimTitle">Eliminated</div>`;
+          const myAll = await getMyMatchupsAllSnapshot();
+
+          eliminated.forEach(p => {
+            const entry = getEntryByName(myAll, p);
+            const picks = extractPicksFromMyEntry(entry);
+            const meta = formatDriversOrNumbers(picks.drivers, picks.nums);
+            html += `<div class="elimItem">${escapeHtml(p)}${meta ? ` — ${escapeHtml(meta)}` : ``}</div>`;
+          });
+
+          elim.innerHTML = html;
+        } else {
+          elim.innerHTML = "";
+        }
+      } else {
+        elim.innerHTML = "";
+      }
+
+    }catch(e){
+      area.innerHTML = "Error loading that race.";
+      elim.innerHTML = "";
+      console.log(e);
+    }
+  }
+
+  async function loadPlayersThenInit() {
+    try{
+      const players = await getData_("players", "playerGetPlayerList");
+      const safePlayers = Array.isArray(players) ? players : [];
+      populatePlayerDropdowns(safePlayers);
+      setWelcome();
+      await initRaceSelect_();
+      checkDuesNag_();
+
+      // Spoiler toggle init (after DOM exists)
+      initSpoilerToggle_();
+
+      const last = String(localStorage.getItem(VIEW_KEY) || "").trim();
+      const allowed = views.includes(last) ? last : "";
+
+      if (allowed) showView(allowed);
+      else if (hasPlayerName()) showView("mymatchup");
+      else showView("current");
+
+    }catch(e){
+      console.log(e);
+      setWelcome();
+      await initRaceSelect_();
+      initSpoilerToggle_();
+      showView("current");
+    }
+  }
+
+  async function loadCurrent(){
+    const area = document.getElementById("matchupsArea");
+    const elim = document.getElementById("eliminatedArea");
+
+    area.innerHTML = "Loading current race...";
+    elim.innerHTML = "";
+
+    try{
+      const blob = (await getData_("matchups", "playerGetAllRaceMatchups")) || {};
+      ALL_MATCHUPS = blob;
+
+      await initRaceSelect_();
+
+      if (!ALL_MATCHUPS || !ALL_MATCHUPS.current || !ALL_MATCHUPS.races) {
+        area.innerHTML = "Matchups data malformed.";
+        return;
+      }
+
+      const curT = ALL_MATCHUPS.current.tournament;
+      const curR = ALL_MATCHUPS.current.race;
+
+      if (!curT || !curR) {
+        area.innerHTML = "Current race not set yet.";
+        return;
+      }
+
+      const currentKey = raceKey_(curT, curR);
+      const currentRaceData = ALL_MATCHUPS.races[currentKey];
+
+      if (!currentRaceData) {
+        area.innerHTML = "Current race data not found.";
+        return;
+      }
+
+      setRaceSelectValue_(curT, curR);
+
+      await renderMatchupsInto_(currentRaceData);
+
+      // Eliminated list only when spoilers are ON.
+      if (spoilersOn_()){
+        const eliminated = Array.isArray(currentRaceData.eliminated) ? currentRaceData.eliminated : [];
+        if (eliminated.length > 0) {
+          let html = `<div class="elimTitle">Eliminated</div>`;
+          const myAll = await getMyMatchupsAllSnapshot();
+
+          eliminated.forEach(p => {
+            const entry = getEntryByName(myAll, p);
+            const picks = extractPicksFromMyEntry(entry);
+            const meta = formatDriversOrNumbers(picks.drivers, picks.nums);
+            html += `<div class="elimItem">${escapeHtml(p)}${meta ? ` — ${escapeHtml(meta)}` : ``}</div>`;
+          });
+
+          elim.innerHTML = html;
+        } else {
+          elim.innerHTML = "";
+        }
+      } else {
+        elim.innerHTML = "";
+      }
+
+    }catch(e){
+      area.innerHTML = "Error loading matchups.";
+      elim.innerHTML = "";
+      console.log(e);
+    }
+  }
+
+  const EARLY_MESSAGES = [
+    "Seedings aren’t set yet. Everyone is still technically good at this.",
+    "No matchups yet. Enjoy this moment before it all goes wrong.",
+    "Relax. The bracket hasn’t ruined your weekend yet.",
+    "Nothing’s set yet. Stop refreshing like it’s going to help.",
+    "Bracket pending. The spreadsheet gods demand patience.",
+    "Matchups not set. Go hydrate or something.",
+    "Seedings aren’t ready. Your downfall has been delayed.",
+    "Calm down. NASCAR hasn’t hurt us yet."
+  ];
+
+  function getEarlyMessage(){
+    return EARLY_MESSAGES[Math.floor(Math.random() * EARLY_MESSAGES.length)];
+  }
+
+  async function loadMyMatchup() {
+    const sel = document.getElementById("globalPlayer");
+    const out = document.getElementById("mmStatus");
+
+    const name = sel ? String(sel.value || "").trim() : "";
+    if (!name) { out.textContent = "Pick your damn name first, you anonymous ghost. We can't show your pathetic stats, overdue dues, your sad matchups, or even highlight your sorry ass in the full-field view until you select who the hell you are from the dropdown. This ain't the pace car parade—nobody's waiting on your indecisive ass to drop the green. Without a name, you're just another random dipshit in the grandstands yelling at the TV like your fantasy pick didn't just get taken out in the Big One on lap 47. Click a name already. Or keep lurking like a crew chief hiding bad fuel strategy notes. Your call, but the leaderboard ain't gonna populate itself.Select or GTFO. The checkered flag waits for no one... especially not you.";
+      return; 
+    }
+
+    savePlayerName(name);
+    out.textContent = "Loading…";
+
+    try{
+      let data = {};
+      try{
+        const all = await fetchSnapshotJson("my", false);
+        data = (all && all[name]) ? all[name] : {};
+      }catch(e){
+        const res = await apiCall("playerGetMyMatchup", { name });
+        if (!res || !res.ok) throw new Error(res?.error || "API failed");
+        data = res.data || {};
+      }
+
+      const status = String(data.status || "").trim().toLowerCase();
+
+      const youDriversArr = Array.isArray(data.youDrivers)
+        ? data.youDrivers.map(x => String(x || "").trim()).filter(Boolean)
+        : [];
+
+      const youNumsArr = Array.isArray(data.youNums) ? data.youNums : [];
+      const n1 = (youNumsArr.length > 0 && String(youNumsArr[0] ?? "").trim() !== "") ? String(youNumsArr[0]).trim() : "";
+      const n2 = (youNumsArr.length > 1 && String(youNumsArr[1] ?? "").trim() !== "") ? String(youNumsArr[1]).trim() : "";
+
+      const opp = String(data.opponent || "").trim();
+      const hasRealOpponent =
+        !!opp &&
+        opp !== "-" &&
+        opp.toLowerCase() !== "tbd" &&
+        opp.toLowerCase() !== "bye";
+
+      const tour = String(data.tournament ?? "").trim();
+      const rnd  = String(data.round ?? "").trim();
+      const hasRealContext =
+        tour !== "" && tour !== "0" &&
+        rnd  !== "" && rnd  !== "0";
+
+      const youListLabel = youDriversArr.length
+        ? "Your drivers:"
+        : ((n1 || n2) ? "Your numbers:" : "");
+
+      const youListText = youDriversArr.length
+        ? youDriversArr.join("<br>")
+        : ((n1 || n2) ? [n1,n2].filter(Boolean).join(", ") : "");
+
+      const youListHtml = youDriversArr.length ? youListText : escapeHtml(youListText);
+
+      // If not started / no opponent context, keep your existing behavior.
+      if (!hasRealOpponent || !hasRealContext) {
+        out.innerHTML = `
+          <div class="microBox" style="margin-top:6px;">
+            <div class="pill" style="margin-bottom:8px;">⏳ Not started yet</div>
+            <div class="microMeta elimSub">
+              ${escapeHtml(getEarlyMessage())}
+            </div>
+
+            ${youListText ? `
+              <div style="margin-top:10px;">
+                <div class="microTitle">${escapeHtml(youListLabel)}</div>
+                <div class="microMeta">${youListHtml}</div>
+              </div>
+            ` : ``}
+          </div>
+        `;
+        return;
+      }
+
+      if (status !== "active") {
+        out.innerHTML = `
+          <div class="microBox" style="margin-top:6px;">
+            <div class="deadBadge" style="margin-bottom:8px;"><span class="skull">☠️</span> ELIMINATED</div>
+            <div class="microMeta elimSub">
+              ${escapeHtml(data.you || name)}, you're eliminated…but here's your stuff anyway. Maybe you can still win $25. Try not to make this a lifestyle.<br><br>
+            </div>
+
+            ${youListText ? `
+              <div class="microTitle">${escapeHtml(youListLabel)}</div>
+              <div class="microMeta">${youListHtml}</div>
+            ` : ``}
+          </div>
+        `;
+        return;
+      }
+
+      const youMeta = formatDriversOrNumbers(data.youDrivers, data.youNums);
+      const oppMeta = formatDriversOrNumbers(data.oppDrivers, data.oppNums);
+
+      // Spoilers OFF: replace non-you microBox with shrug emoji.
+      if (!spoilersOn_()){
+        out.innerHTML = `
+          <div class="mmHeader">
+            Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
+          </div>
+
+          <div class="microBox youBox">
+            <div class="microTitle">${escapeHtml(data.you)}</div>
+            ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
+          </div>
+
+          <div class="centerVS">VS</div>
+
+          <div class="microBox" style="display:flex; align-items:center; justify-content:center; min-height:64px;">
+            <div style="font-size:34px; line-height:1;">🤷</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Spoilers ON: normal rendering
+      out.innerHTML = `
+        <div class="mmHeader">
+          Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
+        </div>
+
+        <div class="microBox youBox">
+          <div class="microTitle">${escapeHtml(data.you)}</div>
+          ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
+        </div>
+
+        <div class="centerVS">VS</div>
+
+        <div class="microBox">
+          <div class="microTitle">${escapeHtml(data.opponent)}</div>
+          ${oppMeta ? `<div class="microMeta">${escapeHtml(oppMeta)}</div>` : ``}
+        </div>
+      `;
+    }catch(e){
+      out.textContent = "Error: " + (e && e.message ? e.message : e);
+    }
+  }
+
+  async function loadDues() {
+    const out = document.getElementById("duesStatus");
+
+    // Spoilers OFF: do not render dues at all.
+    if (!spoilersOn_()){
+      out.innerHTML = `
+        <div class="microBox" style="margin-top:6px;">
+          <div class="microTitle">Turn off spoilers to see this, you broke-ass crybaby. Spoilers off = dues visible. Simple as that, dipshit.<br><br>
+        </div>
+          <div class="microMeta" style="color: var(--muted); font-weight:700;">
+            It’s literally dues—money you owe because your fantasy picks wrecked harder than a backmarker on pit road.<br><br>
+      We’re not flashing your overdue balance while the race is live just so you can whine in the chat that “the Big One cost me everything” before the checkered even drops.<br><br>
+      Some of us are still pretending the caution didn’t fuck the entire playoff chase and your wallet at the same time.<br><br>
+      Flip the spoiler switch, see how much you’re bleeding cash, pay up like a grown-ass adult, and quit acting like seeing your own tab is worse than watching your driver get turned on a restart.<br><br>
+      You’ll live. Your bank account might not, but that’s between you and Venmo.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const sel = document.getElementById("globalPlayer");
+    const name = sel ? String(sel.value || "").trim() : "";
+    if (!name) {
+      out.textContent = "Pick your damn name first, you anonymous ghost. We can't show your pathetic stats, overdue dues, your sad matchups, or even highlight your sorry ass in the full-field view until you select who the hell you are from the dropdown. This ain't the pace car parade—nobody's waiting on your indecisive ass to drop the green. Without a name, you're just another random dipshit in the grandstands yelling at the TV like your fantasy pick didn't just get taken out in the Big One on lap 47. Click a name already. Or keep lurking like a crew chief hiding bad fuel strategy notes. Your call, but the leaderboard ain't gonna populate itself.Select or GTFO. The checkered flag waits for no one... especially not you.";
+      return;
+    }
+
+    savePlayerName(name);
+    out.textContent = "Loading…";
+
+    try {
+      const all = await getData_("dues", "playerGetDues", { name });
+
+      let data = null;
+
+      if (
+        all &&
+        typeof all === "object" &&
+        !Array.isArray(all) &&
+        (all.name || all.paid != null || all.balance != null || all.winnings != null)
+      ) {
+        data = all;
+      } else if (all && typeof all === "object" && !Array.isArray(all) && all[name]) {
+        data = all[name];
+      } else if (Array.isArray(all)) {
+        data =
+          all.find(
+            r =>
+              String(r?.name || "")
+                .trim()
+                .toLowerCase() === name.toLowerCase()
+          ) || null;
+      } else if (all && Array.isArray(all.dues)) {
+        data =
+          all.dues.find(
+            r =>
+              String(r?.name || "")
+                .trim()
+                .toLowerCase() === name.toLowerCase()
+          ) || null;
+      }
+
+      if (!data) throw new Error("No dues record found for " + name);
+
+      const paid = Number(data.paid ?? 0);
+      const winnings = Number(data.winnings ?? 0);
+      const balance = Number(data.balance ?? 0);
+
+      const paidLine =
+        paid === 180
+          ? `<span style="color: var(--green); opacity: 0.9;">Paid: $${paid.toFixed(2)}</span>`
+          : `Paid: $${paid.toFixed(2)}`;
+
+      const balanceLine =
+        balance > 0
+          ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
+          : `Balance Due: $${balance.toFixed(2)}`;
+
+      out.innerHTML =
+        `<div class="microBox">
+          <div>${paidLine}</div>
+          <div>Winnings: $${winnings.toFixed(2)}</div>
+          <div>${balanceLine}</div>
+        </div>`;
+
+    } catch (e) {
+      out.textContent = "Error: " + (e && e.message ? e.message : e);
+    }
+  }
+
+    /* =========================
+   * 9.x) Dues Nag Popup (per-player, per-race, once)
+   * ========================= */
+
+  const DUES_PER_RACE = 5;
+
+  function duesNagKey_(playerName, raceKey){
+    const n = String(playerName || "").trim().toLowerCase();
+    const rk = String(raceKey || "").trim();
+    return `nascar_dues_nag_seen__${n}__${rk}`;
+  }
+
+  function currentRaceKey_(){
+    const curT = ALL_MATCHUPS?.current?.tournament;
+    const curR = ALL_MATCHUPS?.current?.race;
+    if(!curT || !curR) return "";
+    return raceKey_(curT, curR);
+  }
+
+  function racesCompletedCount_(){
+    // RACE_LIST is ordered; "current race" is the upcoming/active race.
+    // Completed races = index of current race in RACE_LIST.
+    const rk = currentRaceKey_();
+    if(!rk || !Array.isArray(RACE_LIST) || !RACE_LIST.length) return null;
+
+    const idx = RACE_LIST.findIndex(r => raceKey_(r?.tournament, r?.race) === rk);
+    if(idx < 0) return null;
+
+    return idx; // if current is #4, idx=3 => 3 completed
+  }
+
+  function ensureDuesNagStyles_(){
+    if(document.getElementById("duesNagStyles")) return;
+
+    const css = document.createElement("style");
+    css.id = "duesNagStyles";
+    css.textContent = `
+      .duesNagOverlay{
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 999999;
+      }
+
+      .duesNagCard{
+        width: min(560px, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+        color: var(--text);
+        box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+      }
+
+      .duesNagTitle{
+        font-weight: 900;
+        font-size: 16px;
+        letter-spacing: -0.2px;
+        margin: 0 0 6px 0;
+      }
+
+      .duesNagBody{
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--muted);
+      }
+
+      .duesNagBody b{
+        color: var(--text);
+        font-weight: 900;
+      }
+
+      .duesNagFinePrint{
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(255,255,255,.60);
+      }
+
+      .duesNagRow{
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: nowrap;
+      }
+
+      /* Target the actual element type to beat your global button rules cleanly */
+      button.duesNagBtn{
+        -webkit-appearance: none;
+        appearance: none;
+        box-sizing: border-box;
+        margin: 0 !important;          /* kills button.primary margin-top:3px */
+        padding: 0 10px !important;     /* kills global button padding */
+        height: 30px;
+        line-height: 1;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+        background: rgba(255,255,255,.06);
+        color: var(--text);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+      }
+
+      button.duesNagBtn:hover{
+        background: rgba(255,255,255,.10);
+      }
+
+      /* Rename “primary” so it doesn’t collide with button.primary */
+      button.duesNagBtn.duesNagPrimary{
+        background: rgba(228, 0, 43, .40);
+        border: 1px solid rgba(255,255,255,.32);
+      }
+
+      button.duesNagBtn.duesNagPrimary:hover{
+        background: rgba(228, 0, 43, .55);
+      }
+
+      .duesNagImg{
+        width: 100%;
+        max-height: 170px;
+        object-fit: contain;
+        margin-top: 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--line);
+      }
+    `;
+    document.head.appendChild(css);
+  }
+
+  function closeDuesNag_(){
+    const el = document.getElementById("duesNagOverlay");
+    if(el) el.remove();
+  }
+
+  function showDuesNag_(opts){
+    ensureDuesNagStyles_();
+    closeDuesNag_();
+
+    const {
+      name,
+      required,
+      paid,
+      winnings,
+      effectivePaid,
+      behind,
+      raceDisplay
+    } = opts;
+
+    const overlay = document.createElement("div");
+    overlay.id = "duesNagOverlay";
+    overlay.className = "duesNagOverlay";
+    overlay.addEventListener("click", (e) => {
+      if(e.target === overlay) closeDuesNag_();
+    });
+
+    // Optional image: set this to a real path if you want an image.
+    // Example: const imgSrc = "img/pay-dues.png";
+    const imgSrc = "";
+
+    overlay.innerHTML = `
+      <div class="duesNagCard" role="dialog" aria-modal="true" aria-label="Dues reminder">
+        <div class="duesNagTitle">Pay your fuckin dues, ${escapeHtml(name)}.</div>
+
+        <div class="duesNagBody">
+          Current race: <b>${escapeHtml(raceDisplay || "Current")}</b><br/>
+          Bare minimum to not be a bum: <b>$${Number(required).toFixed(2)}</b><br/>
+          Paid: <b>$${Number(paid).toFixed(2)}</b> | Won: <b>$${Number(winnings).toFixed(2)}</b> = <b>$${Number(effectivePaid).toFixed(2)}</b><br/>
+          You’re behind by: <b style="color: var(--red);">$${Number(behind).toFixed(2)}</b>
+        </div>
+
+        ${imgSrc ? `<img class="duesNagImg" src="${escapeAttr(imgSrc)}" alt="Pay your dues">` : ``}
+
+        <div class="duesNagFinePrint">
+          I'll bug you until you pony up the cash. Yes, it’s petty. That’s the point.
+        </div>
+
+        <div class="duesNagRow">
+          <button class="duesNagBtn ghost" id="duesNagCloseBtn" type="button">I hate this</button>
+          <button class="duesNagBtn duesNagPrimary" id="duesNagViewBtn" type="button">Take me to Dues</button>
+        </div>
       </div>
     `;
-  }).join("");
 
-  statusEl.textContent = "";
-}
+    document.body.appendChild(overlay);
 
-async function loadScores(raceId) {
-  const data = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,
-    { headers: authHeaders() }
-  );
+    const closeBtn = document.getElementById("duesNagCloseBtn");
+    const duesBtn  = document.getElementById("duesNagViewBtn");
 
-  if (!data.length) return;
+    if(closeBtn) closeBtn.onclick = closeDuesNag_;
+    if(duesBtn) duesBtn.onclick = () => {
+    // open Venmo profile in a new tab/window
+    window.open("https://venmo.com/u/brettmurphyjr", "_blank", "noopener,noreferrer");
+    };
+  }
 
-  resultsEl.innerHTML = data.map(r => `
-    <div class="player-block">
-      <h3>${r.player_name}</h3>
+  async function checkDuesNag_(){
+    try{
+      // Only nag if they already have a saved player selected
+      const rawName = loadPlayerName();
+      const name = String(rawName || "").trim();
+      if(!name) return;
 
-      <div class="assignment-line">
-        <strong>Driver 1:</strong>
-        ${r.driver_1_name ?? "—"}${r.driver_1_car_number ? ` (#${r.driver_1_car_number})` : ""}
-        <div class="muted">
-          Qual: ${r.driver_1_qualifying_position ?? "—"} | Finish: ${r.driver_1_finish ?? "—"}
+      // Need matchups blob to know "current race"
+      if(!ALL_MATCHUPS || !ALL_MATCHUPS.current){
+        ALL_MATCHUPS = (await getData_("matchups", "playerGetAllRaceMatchups")) || null;
+      }
+
+      const rk = currentRaceKey_();
+      if(!rk) return;
+
+      // Only once per player per race
+      const seenKey = duesNagKey_(name, rk);
+      if(localStorage.getItem(seenKey) === "1") return;
+
+      // Need race list order to compute "races completed"
+      if(!Array.isArray(RACE_LIST) || !RACE_LIST.length){
+        const list = await getData_("raceList", "playerGetRaceList");
+        RACE_LIST = Array.isArray(list) ? list : [];
+      }
+
+      const completed = racesCompletedCount_();
+      if(completed == null) return;
+
+      const required = completed * DUES_PER_RACE;
+
+      // Pull dues record (may come back as per-player OR a map keyed by player)
+      const res = await getData_("dues", "playerGetDues", { name });
+
+      let data = null;
+
+      // Case 1: per-player object
+      if (res && typeof res === "object" && (
+        res.paid != null || res.winnings != null || res.balance != null
+      )) {
+        data = res;
+      }
+      // Case 2: map keyed by player name
+      else if (res && typeof res === "object") {
+        const want = name.toLowerCase();
+        const key = Object.keys(res).find(k => String(k || "").trim().toLowerCase() === want);
+        data = key ? res[key] : null;
+      }
+
+      const paid = Number(data?.paid ?? 0);
+      const winnings = Number(data?.winnings ?? 0);
+
+      // “Paid up to current race” can be satisfied by cash OR winnings credit.
+      const effectivePaid = paid + winnings;
+
+      const behind = required - effectivePaid;
+      if(!(behind > 0.0001)) return;
+
+      // Mark seen immediately (so refresh spam doesn't re-open it)
+      localStorage.setItem(seenKey, "1");
+
+      // Nice display label for current race (use ALL_MATCHUPS current race string)
+      const raceDisplay = ALL_MATCHUPS?.current?.race || "";
+
+      showDuesNag_({ name, required, paid, winnings, effectivePaid, behind, raceDisplay });
+
+      }catch(e){
+      // Silent fail. A nag popup should never break the site.
+      console.log("checkDuesNag_ failed:", e);
+    }
+  }
+  
+  /* =========================
+   * 10) Stats / Standings
+   * ========================= */
+  let _cache_standings = null;
+  let _statsMode = "overall";
+  let _nameWTimer = null;
+
+  function resetStatPillScroll(scope){
+    const root = scope || document;
+    root.querySelectorAll('.statsBadges').forEach(el => {
+      el.scrollLeft = 0;
+      el.scrollTo(0, 0);
+    });
+  }
+
+  function resetStatPillScrollSoon(scope){
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resetStatPillScroll(scope));
+    });
+  }
+
+  function syncOverallNameColumnWidth_(){
+    const panel = document.getElementById("statsPanel");
+    if(!panel) return;
+
+    const names = panel.querySelectorAll(".statsRow .statsName");
+    if(!names.length) return;
+
+    let ruler = document.getElementById("__nameRuler");
+    if(!ruler){
+      ruler = document.createElement("span");
+      ruler.id = "__nameRuler";
+      ruler.style.position = "fixed";
+      ruler.style.left = "-9999px";
+      ruler.style.top = "-9999px";
+      ruler.style.visibility = "hidden";
+      ruler.style.whiteSpace = "nowrap";
+      ruler.style.padding = "0";
+      ruler.style.margin = "0";
+      ruler.style.border = "0";
+      document.body.appendChild(ruler);
+    }
+
+    const cs = window.getComputedStyle(names[0]);
+    ruler.style.fontFamily = cs.fontFamily;
+    ruler.style.fontSize = cs.fontSize;
+    ruler.style.fontWeight = cs.fontWeight;
+    ruler.style.letterSpacing = cs.letterSpacing;
+    ruler.style.textTransform = cs.textTransform;
+
+    let max = 0;
+    names.forEach(el => {
+      ruler.textContent = el.textContent || "";
+      max = Math.max(max, ruler.getBoundingClientRect().width);
+    });
+
+    const next = Math.ceil(max + 6);
+    const prev = parseFloat(panel.style.getPropertyValue("--overallNameW")) || 0;
+    if (Math.abs(next - prev) < 1) return;
+
+    panel.style.setProperty("--overallNameW", next + "px");
+  }
+
+  async function loadStandings() {
+    const area = document.getElementById("standingsArea");
+    area.innerHTML = "Loading stats...";
+
+    try{
+      const data = await getData_("standings", "playerGetStandings");
+      _cache_standings = data || {};
+
+      // Spoilers OFF: do not render standings/tourney/h2h/wins. Keep driver usage only.
+      if (!spoilersOn_()){
+        area.innerHTML = `
+          <div class="microBox" style="margin-top:6px;">
+            <div class="microTitle">Spoilers are OFF</div>
+            <div class="microMeta" style="color: var(--muted); font-weight:700;">
+              Because apparently some of you can't handle the truth without crying to the group chat.<br><br>
+      Standings? Tourney ranks? Head-to-head? Wins? All buried deeper than a wrecked car in the Turn 4 wall after the Big One.<br><br>
+      Humans can't behave—someone always screenshots the leaderboard, spoils the playoff bubble for the guy (Justin) who DVR'd the race, or ruins the surprise that your driver's stage points just got wiped out by a caution-lap bullshit fest.<br><br>
+      Driver usage is still here because knowing who the field picked doesn't ruin the magic of watching your fantasy lineup get fucked on a late-race restart.<br><br>
+      If you're that desperate to see how badly you're losing, pick a completed race from the dropdown like the rest of us. Until then, enjoy the ignorance—it's the only thing keeping half this pool from rage-quitting.<br><br>
+      The checkered flag doesn't care about your fragile feelings. Neither do we.
+            </div>
+          </div>
+          <div class="statsPanel" id="statsPanel" style="margin-top:10px;"></div>
+        `;
+        const box = document.getElementById("statsPanel");
+        _statsMode = "drivers";
+        await renderDrivers_(box);
+        return;
+      }
+
+      // Normal (spoilers ON)
+      area.innerHTML = `
+        <div class="statsModes" id="statsModes">
+          <button class="secondary" data-mode="overall">Standings</button>
+          <button class="secondary" data-mode="tourney">Tourney Ranks</button>
+          <button class="secondary" data-mode="h2h">H2H</button>
+          <button class="secondary" data-mode="wins">Wins</button>
+          <button class="secondary" data-mode="drivers">Driver Usage</button>
         </div>
-      </div>
+        <div class="statsPanel" id="statsPanel"></div>
+      `;
 
-      <div class="assignment-line">
-        <strong>Driver 2:</strong>
-        ${r.driver_2_name ?? "—"}${r.driver_2_car_number ? ` (#${r.driver_2_car_number})` : ""}
-        <div class="muted">
-          Qual: ${r.driver_2_qualifying_position ?? "—"} | Finish: ${r.driver_2_finish ?? "—"}
+      persistHScroll("#statsModes", "nascar_stats_tabs_scroll");
+
+      const modes = area.querySelectorAll("#statsModes button");
+      modes.forEach(b => {
+        b.onclick = () => setStatsMode_(b.getAttribute("data-mode") || "overall");
+      });
+
+      setStatsMode_("overall");
+    }catch(e){
+      area.innerHTML = "Error: " + (e && e.message ? e.message : e);
+    }
+  }
+
+  function setStatsMode_(mode){
+    _statsMode = mode || "overall";
+    const box = document.getElementById("statsPanel");
+    const modes = document.querySelectorAll("#statsModes button");
+    modes.forEach(b => b.classList.toggle("active", (b.getAttribute("data-mode") === _statsMode)));
+
+    if (!box) return;
+    if (_statsMode === "overall") return renderOverall_(box);
+    if (_statsMode === "tourney") return renderTourney_(box);
+    if (_statsMode === "h2h") return renderH2H_(box);
+    if (_statsMode === "wins") return renderWins_(box);
+    if (_statsMode === "drivers") return renderDrivers_(box);
+    box.innerHTML = "";
+  }
+
+  function renderOverall_(box){
+    const data = _cache_standings || {};
+    const rows = Array.isArray(data.overall) ? data.overall : [];
+    const headers = Array.isArray(data.overallHeaders) ? data.overallHeaders : [];
+
+    if (!rows.length || !headers.length){
+      box.innerHTML = `<div class="muted">(No standings data yet)</div>`;
+      requestAnimationFrame(() => syncOverallNameColumnWidth_());
+      resetStatPillScrollSoon(box);
+      return;
+    }
+
+    const nameKey = headers.find(h => /name|player/i.test(h)) || headers[0];
+    const rankKey = headers.find(h => /rank/i.test(h)) || headers[0];
+    const you = loadPlayerName().trim().toLowerCase();
+
+    let html = `<div class="big">Overall</div>`;
+    rows.forEach(r => {
+      const rank = r[rankKey] ?? "";
+      const name = r[nameKey] ?? "";
+
+      const EXCLUDED_KEYS = new Set(["Matches"]);
+
+      const W = r["W"] ?? r["w"] ?? null;
+      const L = r["L"] ?? r["l"] ?? null;
+      const record = (W != null && L != null) ? `${W}-${L}` : "";
+
+      const isYou  = you && name.trim().toLowerCase() === you;
+
+      const badgeKeys = headers
+        .filter(k => !EXCLUDED_KEYS.has(k))
+        .filter(h => h !== nameKey && h !== rankKey)
+        .filter(h => !/^(w|l)$/i.test(h))
+        .slice(0, 5);
+
+      const badges = [
+        record ? `<span class="miniPill">${escapeHtml(record)}</span>` : "",
+        ...badgeKeys.map(k => {
+          const v = r[k];
+          if (v == null || String(v).trim() === "") return "";
+          return `<span class="miniPill"><span class="k">${escapeHtml(k)}:</span> ${escapeHtml(v)}</span>`;
+        })
+      ].filter(Boolean).join("");
+
+      html += `
+        <div class="statsRow overallRow ${isYou ? "youRow" : ""}">
+          <div class="rankBadge">${escapeHtml(rank || "—")}</div>
+          <div class="statsName">${escapeHtml(name)}</div>
+          <div class="statsBadges">${badges}</div>
         </div>
+      `;
+    });
+
+    box.innerHTML = html;
+    requestAnimationFrame(syncOverallNameColumnWidth_);
+    resetStatPillScrollSoon(box);
+  }
+
+  function renderTourney_(box){
+    const data = _cache_standings || {};
+    const headers = Array.isArray(data.tournamentHeaders) ? data.tournamentHeaders : [];
+    if (!headers.length){
+      box.innerHTML = `<div class="muted">(No tournament rank data yet)</div>`;
+      resetStatPillScrollSoon(box);
+      return;
+    }
+
+    const opts = headers.map(h => `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
+    box.innerHTML = `
+      <div class="big">Tournament Ranks</div>
+      <div class="muted">Pick a damn tournament (if you care)</div>
+
+      <div class="statsControls">
+        <select id="tourneyPick">${opts}</select>
       </div>
 
-      <div style="margin-top:8px;color:#9ad">
-        <strong>Avg Finish:</strong> ${r.average_finish ?? "—"}
+      <div id="tourneyRanksBox" style="margin-top:10px;"></div>
+    `;
+
+    const sel = document.getElementById("tourneyPick");
+    const render = () => showTournamentRanks(sel.value);
+    sel.onchange = render;
+    render();
+  }
+
+  function showTournamentRanks(label) {
+  const box = document.getElementById("tourneyRanksBox");
+  const t = (_cache_standings && _cache_standings.tournaments) ? _cache_standings.tournaments : {};
+  const listRaw = t[label] || [];
+
+  let html = ``;
+
+  if (!Array.isArray(listRaw) || listRaw.length === 0) {
+    html += `<div class="muted">(No data yet)</div>`;
+    box.innerHTML = html;
+    return;
+  }
+
+  const items = listRaw
+    .map((it) => {
+      if (it && typeof it === "object") {
+        const player = it.player ?? it.name ?? it.Player ?? it.PLAYER ?? "";
+        const rank = Number(it.rank ?? it.Rank ?? it.RANK);
+
+        const out = { ...it };
+        out.player = String(player || "").trim();
+        out.rank = Number.isFinite(rank) ? rank : null;
+        return out;
+      }
+      return { rank: null, player: String(it || "").trim() };
+    })
+    .filter(x => x.player);
+
+  if (items.length === 0) {
+    html += `<div class="muted">(No data yet)</div>`;
+    box.innerHTML = html;
+    return;
+  }
+
+  const hasRanks = items.some(x => Number.isFinite(x.rank));
+  if (hasRanks) items.sort((a,b) => (a.rank ?? 999) - (b.rank ?? 999));
+
+  let startRank = 17 - items.length;
+  if (startRank < 1) startRank = 1;
+  if (startRank > 16) startRank = 16;
+
+  const you = loadPlayerName().trim().toLowerCase();
+
+  // Tournament complete when all 16 players are present and ranked
+  const tournamentComplete =
+    items.length === 16 &&
+    items.every(x => Number.isFinite(x.rank));
+
+  html += `<div class="rankList">`;
+
+  items.forEach((it, i) => {
+    const r = Number.isFinite(it.rank) ? it.rank : (startRank + i);
+    const name = it.player || "";
+    const isPaid = r <= 4;
+    const isYou  = you && name.trim().toLowerCase() === you;
+
+    const W = it["W"] ?? it["w"] ?? null;
+    const L = it["L"] ?? it["l"] ?? null;
+    const record = (W != null && L != null) ? `${W}-${L}` : "";
+
+    const keys = Object.keys(it || {});
+    const avgK = keys.find(k => /^avg$/i.test(k));
+    const wpK  = keys.find(k => /^w%$/i.test(k) || /^wpct$/i.test(k) || /^win%$/i.test(k));
+
+    const avgVal = avgK ? it[avgK] : null;
+    const wpVal  = wpK  ? it[wpK]  : null;
+
+    const payout = tournamentComplete ? TOURNAMENT_PAYOUTS[r] || "" : "";
+
+    const badges = [
+      record ? `<span class="miniPill">${escapeHtml(record)}</span>` : "",
+      avgVal != null && String(avgVal).trim() !== ""
+        ? `<span class="miniPill"><span class="k">Avg:</span> ${escapeHtml(avgVal)}</span>` : "",
+      wpVal != null && String(wpVal).trim() !== ""
+        ? `<span class="miniPill"><span class="k">W%:</span> ${escapeHtml(wpVal)}</span>` : "",
+      payout
+        ? `<span class="miniPill">${escapeHtml(payout)}</span>` : ""
+    ].filter(Boolean).join("");
+
+    html += `
+      <div class="statsRow overallRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
+        <div class="rankBadge">${escapeHtml(r)}</div>
+        <div class="statsName">${escapeHtml(name)}</div>
+        <div class="statsBadges">${badges}</div>
       </div>
-    </div>
-  `).join("");
+    `;
+  });
 
-  statusEl.textContent = "";
+  html += `</div>`;
+
+  box.innerHTML = html;
+  requestAnimationFrame(syncOverallNameColumnWidth_);
+  resetStatPillScrollSoon(box);
 }
 
-async function loadSwissMatchups() {
-  const t = tournamentSelect.value;
-  const r = roundSelect.value;
+  async function renderH2H_(box){
+    const you = loadPlayerName().trim();
 
-  if (!t) {
-    matchupsEl.innerHTML = "";
-    return;
+    box.innerHTML = `
+      <div class="big">Head-to-Head</div>
+      <div class="muted">If not you, pick someone else, for fucks sake.</div>
+      <div class="statsControls">
+        <select id="h2hPick"></select>
+      </div>
+      <div id="h2hOut" style="margin-top:10px;">Loading…</div>
+    `;
+    resetStatPillScrollSoon(box);
+
+    const players = await getData_("players", "playerGetPlayerList");
+    const sel = document.getElementById("h2hPick");
+    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+
+    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
+
+    const out = document.getElementById("h2hOut");
+    const load = async () => {
+      out.textContent = "Loading…";
+      try{
+        const player = String(sel.value || "").trim();
+        const res = await getData_("h2h", "playerGetH2H", { player });
+        const rows = Array.isArray(res?.rows) ? res.rows : (Array.isArray(res?.[player]) ? res[player] : []);
+
+        if (!rows.length){
+          out.innerHTML = `<div class="muted">(No H2H data yet. If this is new season, compile H2H in Admin first.)</div>`;
+          return;
+        }
+
+        let html = ``;
+        rows.forEach(r => {
+          const rec = r.record || ((r.wins!=null && r.losses!=null) ? `(${r.wins}-${r.losses})` : "");
+          html += `
+            <div class="statsRow">
+              <div class="statsLeft">
+                <div class="statsName">vs ${escapeHtml(r.opponent || "")}</div>
+              </div>
+              <div class="statsBadges">
+                <span class="miniPill">${escapeHtml(rec || "")}</span>
+              </div>
+            </div>
+          `;
+        });
+        out.innerHTML = html;
+      }catch(e){
+        out.innerHTML = `<div class="muted">H2H failed to load. (Likely missing endpoint.)</div>`;
+      }
+    };
+
+    sel.onchange = load;
+    load();
   }
 
-  const data = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/swiss_matchup_results?tournament_id=eq.${t}&round_number=eq.${r}&select=*&order=match_number.asc`,
-    { headers: authHeaders() }
-  );
+  async function renderWins_(box){
+    const you = loadPlayerName().trim();
 
-  if (!data.length) {
-    matchupsEl.innerHTML = "No matchups yet.";
-    return;
+    box.innerHTML = `
+      <div class="big">Wins</div>
+      <div class="muted">Race wins, bracket wins, and tourney wins</div>
+      <div class="statsControls">
+        <select id="winsPick"></select>
+      </div>
+      <div id="winsOut" style="margin-top:10px;">Loading…</div>
+    `;
+    resetStatPillScrollSoon(box);
+
+    const players = await getData_("players", "playerGetPlayerList");
+    const sel = document.getElementById("winsPick");
+    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+
+    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
+
+    const out = document.getElementById("winsOut");
+    const load = async () => {
+      out.textContent = "Loading…";
+      try{
+        const player = String(sel.value || "").trim();
+        const res = await getData_("wins", "playerGetWinCounts", { player });
+        const w = (res && (res.raceWins!=null || res.bracketWins!=null || res.tourneyWins!=null)) ? res : (res && res[player] ? res[player] : {});
+
+        const raceWins = w?.raceWins ?? "—";
+        const bracketWins = w?.bracketWins ?? "—";
+        const tourneyWins = w?.tourneyWins ?? "—";
+
+        out.innerHTML = `
+          <div class="tiles">
+            <div class="tile">
+              <div class="tLabel">🏁 Race Wins</div>
+              <div class="tVal">${escapeHtml(raceWins)}</div>
+            </div>
+            <div class="tile">
+              <div class="tLabel">🏆 Bracket Wins</div>
+              <div class="tVal">${escapeHtml(bracketWins)}</div>
+            </div>
+            <div class="tile">
+              <div class="tLabel">🎯 Tourney Wins</div>
+              <div class="tVal">${escapeHtml(tourneyWins)}</div>
+            </div>
+          </div>
+        `;
+      }catch(e){
+        out.innerHTML = `<div class="muted">Wins failed to load. (Likely missing endpoint.)</div>`;
+      }
+    };
+
+    sel.onchange = load;
+    load();
   }
 
-  matchupsEl.innerHTML = data.map(m => `
-    <div class="player-block">
-      <strong>Match ${m.match_number}</strong>
-      <div class="assignment-line">${m.player1_name} — Avg ${m.player1_avg ?? "-"}</div>
-      <div class="assignment-line">${m.player2_name} — Avg ${m.player2_avg ?? "-"}</div>
-    </div>
-  `).join("");
-}
+  async function renderDrivers_(box){
+    const you = loadPlayerName().trim();
 
-async function loadSwissStandings() {
-  const t = tournamentSelect.value;
+    box.innerHTML = `
+      <div class="big">Driver Usage</div>
+      <div class="muted">How many times you've been stuck with these drivers</div>
+      <div class="statsControls">
+        <select id="drvPick"></select>
+      </div>
+      <div id="drvOut" style="margin-top:10px;">Loading…</div>
+    `;
+    resetStatPillScrollSoon(box);
 
-  if (!t) {
-    standingsEl.innerHTML = "";
-    return;
+    const players = await getData_("players", "playerGetPlayerList");
+    const sel = document.getElementById("drvPick");
+    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+
+    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
+
+    const out = document.getElementById("drvOut");
+    const load = async () => {
+      out.textContent = "Loading…";
+      try{
+        const player = String(sel.value || "").trim();
+        const res = await getData_("drivers", "playerGetDriverUsage", { player });
+        const rows = Array.isArray(res?.rows) ? res.rows : (Array.isArray(res?.[player]) ? res[player] : []);
+
+        if (!rows.length){
+          out.innerHTML = `<div class="muted">(No driver usage data yet)</div>`;
+          return;
+        }
+
+        let html = ``;
+        rows.forEach(r => {
+          html += `
+            <div class="statsRow">
+              <div class="statsLeft">
+                <div class="statsName">${escapeHtml(r.driver || "")}</div>
+              </div>
+              <div class="statsBadges">
+                <span class="miniPill"><span class="k">Times:</span> ${escapeHtml(r.count ?? "")}</span>
+              </div>
+            </div>
+          `;
+        });
+        out.innerHTML = html;
+      }catch(e){
+        out.innerHTML = `<div class="muted">Driver usage failed to load. (Likely missing endpoint.)</div>`;
+      }
+    };
+
+    sel.onchange = load;
+    load();
   }
 
-  const data = await fetchJson(
-    `${SUPABASE_URL}/rest/v1/swiss_standings?tournament_id=eq.${t}&select=*&order=wins.desc,avg_sum.asc,player_name.asc`,
-    { headers: authHeaders() }
-  );
+  /* =========================
+   * 11) Bracket
+   * ========================= */
+  async function loadBracket(){
+    const sub = document.getElementById("bracketSub");
+    const area = document.getElementById("bracketArea");
 
-  if (!data.length) {
-    standingsEl.innerHTML = "No standings.";
-    return;
-  }
-
-  standingsEl.innerHTML = `
-    <table>
-      <tr>
-        <th>Player</th>
-        <th>W</th>
-        <th>L</th>
-        <th>Matches</th>
-        <th>Avg</th>
-      </tr>
-      ${data.map(p => `
-        <tr>
-          <td>${p.player_name}</td>
-          <td>${p.wins}</td>
-          <td>${p.losses}</td>
-          <td>${p.matches}</td>
-          <td>${p.avg ?? "-"}</td>
-        </tr>
-      `).join("")}
-    </table>
-  `;
-}
-
-async function refreshRaceSection() {
-  const raceId = raceSelect.value;
-  if (!raceId) return;
-
-  await loadAssignments(raceId);
-  await loadScores(raceId);
-}
-
-async function refreshSwissSection() {
-  await loadSwissMatchups();
-  await loadSwissStandings();
-}
-
-raceSelect.addEventListener("change", async () => {
-  try {
-    await refreshRaceSection();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
-  }
-});
-
-tournamentSelect.addEventListener("change", async () => {
-  try {
-    await refreshSwissSection();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
-  }
-});
-
-roundSelect.addEventListener("change", async () => {
-  try {
-    await loadSwissMatchups();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
-  }
-});
-
-generateAssignmentsBtn.addEventListener("click", async () => {
-  const raceId = Number(raceSelect.value);
-  if (!raceId) return;
-
-  try {
-    actionStatusEl.textContent = "Generating assignments...";
-
-    const response = await fetch("/api/generate-assignments", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-key": ADMIN_KEY
-      },
-      body: JSON.stringify({ raceId })
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      throw new Error(JSON.stringify(result));
+    // Spoilers OFF: do not render bracket.
+    if (!spoilersOn_()){
+      sub.textContent = "Spoilers are OFF";
+      area.innerHTML = `
+        <div class="microBox" style="margin-top:6px;">
+          <div class="microTitle">Bracket hidden</div>
+          <div class="microMeta" style="color: var(--muted); font-weight:700;">
+            Turn spoilers back ON if you want the bracket.
+          </div>
+        </div>
+      `;
+      return;
     }
 
-    actionStatusEl.textContent = result.message || "Assignments generated.";
-    await refreshRaceSection();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">Generate failed: ${err.message || err}</span>`;
-  }
-});
+    sub.textContent = "Loading…";
+    area.innerHTML = "Loading…";
 
-importQualBtn.addEventListener("click", async () => {
-  const raceId = Number(raceSelect.value);
-  if (!raceId) return;
+    const fmtAvg = (n) => (n == null ? "" : Number(n).toFixed(1).replace(/\.0$/,""));
 
-  try {
-    actionStatusEl.textContent = "Importing qualifying...";
+    try{
+      const data = await getData_("bracket", "playerGetBracket");
 
-    const response = await fetch("/api/import-qualifying", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-key": ADMIN_KEY
-      },
-      body: JSON.stringify({ raceId })
-    });
+      const tour  = data.tournament ?? "";
+      const race  = data.currentRace ?? data.race ?? "";
+      const round = data.currentRound ?? data.round ?? "";
 
-    const result = await response.json();
+      const leftText =
+        `Tourney ${tour}` +
+        (race ? ` · ${race}` : "") +
+        (round !== "" ? ` · ${roundLabel(round)}` : "");
 
-    if (!response.ok || !result.ok) {
-      throw new Error(JSON.stringify(result));
+      sub.innerHTML = `
+        <div class="legendRow">
+          <div>${escapeHtml(leftText)}</div>
+          <div class="bracketLegend" aria-label="Legend">
+            <span class="legendItem"><span class="raceDot"></span> Race W</span>
+            <span class="legendSep">·</span>
+            <span class="legendItem"><span class="winDot"></span> H2H W</span>
+          </div>
+        </div>
+      `;
+
+      const rounds = data.rounds || [];
+      let html = `<div class="bracketGrid">`;
+
+      const sticky = document.getElementById("bracketSticky");
+      if (sticky) {
+        sticky.innerHTML = rounds.map((r, idx) => {
+          const label = r.isCurrent ? "CURRENT" : `ROUND ${r.round}`;
+          const race = r.raceLabel || "";
+          return `
+            <div class="chip" data-idx="${idx}">
+              <span>${escapeHtml(label)}</span>
+              <span class="small">${escapeHtml(race)}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      rounds.forEach(r => {
+        const tag = r.isCurrent
+          ? `<span class="roundTag">CURRENT</span>`
+          : `<span class="roundTag">${escapeHtml(roundLabel(r.round))}</span>`;
+
+        const isFuture = !r.isCurrent && (r.round > data.currentRound);
+
+        html += `
+          <div class="bracketCol ${isFuture ? "isFuture" : ""}">
+            <div class="bracketHdr">
+              <div class="title">${tag}</div>
+              <div class="raceTag">${escapeHtml(r.raceLabel || "")}</div>
+            </div>
+        `;
+
+        (r.matchups || []).forEach(m => {
+          const norm = (s) => String(s ?? "").trim().toLowerCase();
+
+          let winnerName = String(m.winner ?? "").trim();
+          if (!winnerName || /^tie$/i.test(winnerName)) {
+            winnerName = String(
+              m.tieBreakerWinner ??
+              m.tiebreakerWinner ??
+              m.tieBreakWinner ??
+              m.tieWinner ??
+              m.advances ??
+              m.advance ??
+              m.winnerName ??
+              ""
+            ).trim();
+          }
+
+          const winnerSide = (m.winnerSide ?? m.sideWinner ?? m.winnerIdx ?? null);
+
+          const p1Name = String(m.p1 ?? "").trim();
+          const p2Name = String(m.p2 ?? "").trim();
+
+          const p1Win =
+            (winnerSide === 1) ||
+            (winnerName && p1Name && norm(winnerName) === norm(p1Name));
+
+          const p2Win =
+            (winnerSide === 2) ||
+            (winnerName && p2Name && norm(winnerName) === norm(p2Name));
+
+          html += `
+            <div class="ticket">
+              <div class="ticketRow">
+                <div class="sideLeft">
+                  <span class="seedBadge">${escapeHtml(m.s1 || "—")}</span>
+                  <span class="nameText">${escapeHtml(m.p1 || "")}</span>
+                </div>
+                <div class="sideRight">
+                  <span class="winSlot">${m.p1RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                  <span class="winSlot">${p1Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                  <span class="avgBox ${m.a1 == null ? "empty" : ""}">${m.a1 == null ? "—" : escapeHtml(fmtAvg(m.a1))}</span>
+                </div>
+              </div>
+
+              <div class="ticketRow">
+                <div class="sideLeft">
+                  <span class="seedBadge">${escapeHtml(m.s2 || "—")}</span>
+                  <span class="nameText">${escapeHtml(m.p2 || "")}</span>
+                </div>
+                <div class="sideRight">
+                  <span class="winSlot">${m.p2RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                  <span class="winSlot">${p2Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                  <span class="avgBox ${m.a2 == null ? "empty" : ""}">${m.a2 == null ? "—" : escapeHtml(fmtAvg(m.a2))}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+      area.innerHTML = html;
+
+      const grid = area.querySelector(".bracketGrid");
+      if (grid && sticky) {
+        sticky.querySelectorAll(".chip").forEach(chip => {
+          chip.onclick = () => {
+            const idx = Number(chip.getAttribute("data-idx") || "0");
+            const col = grid.children[idx];
+            if (col) col.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+          };
+        });
+      }
+    }catch(e){
+      sub.textContent = "Bracket failed to load.";
+      area.innerHTML = "Error: " + (e && e.message ? e.message : e);
     }
-
-    actionStatusEl.textContent =
-      `Imported qualifying for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
-    await refreshRaceSection();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">Import qualifying failed: ${err.message || err}</span>`;
   }
-});
 
-importResultsBtn.addEventListener("click", async () => {
-  const raceId = Number(raceSelect.value);
-  if (!raceId) return;
+  /* =========================
+   * 12) Events / Init
+   * ========================= */
+  window.addEventListener("resize", () => {
+    if (_statsMode !== "overall" && _statsMode !== "tourney") return;
 
-  try {
-    actionStatusEl.textContent = "Importing results...";
+    clearTimeout(_nameWTimer);
+    _nameWTimer = setTimeout(() => {
+      syncOverallNameColumnWidth_();
+    }, 150);
+  });
 
-    const response = await fetch("/api/import-results", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-key": ADMIN_KEY
-      },
-      body: JSON.stringify({ raceId })
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      throw new Error(JSON.stringify(result));
-    }
-
-    actionStatusEl.textContent =
-      `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
-
-    await loadScores(raceId);
-    await refreshSwissSection();
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">Import results failed: ${err.message || err}</span>`;
-  }
-});
-
-async function init() {
-  try {
-    actionStatusEl.textContent = "Loading...";
-
-    const races = await loadRaces();
-    const tournaments = await loadTournaments();
-
-    if (!races.length) {
-      statusEl.textContent = "No races found.";
-    }
-
-    if (!tournaments.length) {
-      matchupsEl.innerHTML = "No tournaments found.";
-      standingsEl.innerHTML = "";
-    } else {
-      await refreshSwissSection();
-    }
-
-    actionStatusEl.textContent = "";
-  } catch (err) {
-    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
-  }
-}
-
-init();
-</script>
-
+  window.onload = () => {
+    loadPlayersThenInit();
+    persistHScroll(".navInner", "nascar_nav_scroll");
+  };
+  </script>
 </body>
 </html>
