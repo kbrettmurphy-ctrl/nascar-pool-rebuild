@@ -2111,8 +2111,6 @@
       const key = String(v).trim();
       const raceData = ALL_MATCHUPS?.races?.[key];
 
-      const raceData = ALL_MATCHUPS?.races?.[key];
-
       if (!raceData || !Array.isArray(raceData.matchups) || raceData.matchups.length === 0) {
         area.innerHTML = `
           <div class="microBox" style="margin-top:10px;">
