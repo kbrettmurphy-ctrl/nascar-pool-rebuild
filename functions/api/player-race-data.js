@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
 
     // Current matchup rows with averages already calculated in your view
     const matchupRows = await getJson(
-      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id,winner_name&order=tournament_id.asc,round_number.asc,match_number.asc`
+      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
     );
 
     // Score view for qualifying-position numbers
@@ -148,7 +148,12 @@ export async function onRequestGet(context) {
             p2Nums: [p2Nums.p1 ?? "", p2Nums.p2 ?? ""],
             a1: m.player1_avg ?? null,
             a2: m.player2_avg ?? null,
-            winner: m.winner_name || "",
+            winner:
+              Number(m.winner_id) === Number(m.player1_id)
+                ? (m.player1_name || "")
+                : Number(m.winner_id) === Number(m.player2_id)
+                  ? (m.player2_name || "")
+                  : "",
           };
         }),
         eliminated: [],
