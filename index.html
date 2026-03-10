@@ -1417,6 +1417,17 @@
     return data.data || {};
   }
 
+  async function getPlayerBracket_(){
+    const res = await fetch("/api/player-bracket", {
+      cache: "no-store"
+    });
+    const data = await res.json();
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "player-bracket failed");
+    }
+    return data.data || {};
+  }
+
   /* =========================
    * 5) Snapshot Loader (GitHub Pages /data/*.json)
    * ========================= */
@@ -3298,7 +3309,7 @@
     const fmtAvg = (n) => (n == null ? "" : Number(n).toFixed(1).replace(/\.0$/,""));
 
     try{
-      const data = await getData_("bracket", "playerGetBracket");
+      const data = await getPlayerBracket_();
 
       const tour  = data.tournament ?? "";
       const race  = data.currentRace ?? data.race ?? "";
