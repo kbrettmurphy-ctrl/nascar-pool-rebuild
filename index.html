@@ -347,44 +347,46 @@ matchupsEl.innerHTML=data.map(m=>`
 
 async function loadSwissStandings(){
 
-const t=tournamentSelect.value;
-if(!t)return;
+  const t=tournamentSelect.value;
+  if(!t)return;
 
-const response=await fetch(`${SUPABASE_URL}/rest/v1/swiss_standings?order=wins.desc,avg_sum.asc`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
+  const response=await fetch(
+    `${SUPABASE_URL}/rest/v1/swiss_standings?tournament_id=eq.${t}&order=wins.desc,avg_sum.asc,player_name.asc`,
+    {
+      headers:{
+        apikey:SUPABASE_KEY,
+        Authorization:`Bearer ${SUPABASE_KEY}`
+      }
+    }
+  );
 
-const data=await response.json();
+  const data=await response.json();
 
-if(!data.length){
-standingsEl.innerHTML="No standings.";
-return;
-}
+  if(!data.length){
+    standingsEl.innerHTML="No standings.";
+    return;
+  }
 
-standingsEl.innerHTML=`
-<table>
-<tr>
-<th>Player</th>
-<th>W</th>
-<th>L</th>
-<th>Matches</th>
-<th>Avg</th>
-</tr>
-${data.map(p=>`
-<tr>
-<td>${p.player_name}</td>
-<td>${p.wins}</td>
-<td>${p.losses}</td>
-<td>${p.matches}</td>
-<td>${p.avg??"-"}</td>
-</tr>
-`).join("")}
-</table>
-`;
-
+  standingsEl.innerHTML=`
+  <table>
+    <tr>
+      <th>Player</th>
+      <th>W</th>
+      <th>L</th>
+      <th>Matches</th>
+      <th>Avg</th>
+    </tr>
+    ${data.map(p=>`
+      <tr>
+        <td>${p.player_name}</td>
+        <td>${p.wins}</td>
+        <td>${p.losses}</td>
+        <td>${p.matches}</td>
+        <td>${p.avg??"-"}</td>
+      </tr>
+    `).join("")}
+  </table>
+  `;
 }
 
 raceSelect.addEventListener("change",async()=>{
@@ -397,8 +399,10 @@ await loadSwissMatchups();
 await loadSwissStandings();
 });
 
-roundSelect.addEventListener("change",loadSwissMatchups);
-
+roundSelect.addEventListener("change",async()=>{
+  await loadSwissMatchups();
+  await loadSwissStandings();
+});
 generateAssignmentsBtn.addEventListener("click",async()=>{
 
 const raceId=Number(raceSelect.value);
@@ -437,29 +441,33 @@ await loadScores(raceId);
 
 importResultsBtn.addEventListener("click",async()=>{
 
-const raceId=Number(raceSelect.value);
+  const raceId=Number(raceSelect.value);
 
-await fetch("/api/import-results",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"x-admin-key":ADMIN_KEY
-},
-body:JSON.stringify({raceId})
+  actionStatusEl.textContent="Importing results...";
+
+  const response=await fetch("/api/import-results",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-admin-key":ADMIN_KEY
+    },
+    body:JSON.stringify({raceId})
+  });
+
+  const result=await response.json();
+
+  if(!response.ok || !result.ok){
+    actionStatusEl.innerHTML=`<span class="error">Import results failed: ${JSON.stringify(result)}</span>`;
+    return;
+  }
+
+  actionStatusEl.textContent=`Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+
+  await loadScores(raceId);
+  await loadSwissMatchups();
+  await loadSwissStandings();
+
 });
-
-await loadScores(raceId);
-
-});
-
-async function init(){
-
-await loadRaces();
-await loadTournaments();
-await loadSwissMatchups();
-await loadSwissStandings();
-
-}
 
 init();
 
