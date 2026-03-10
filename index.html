@@ -1533,7 +1533,6 @@
     SNAP_VER = null;
     SNAP_CTX = null;
     _cache_myMatchupsAll = null;
-    _bracketHistoryBlob = null;
     _playerRaceData = null;
 
     if (activeView === "current") loadCurrent();
@@ -1907,36 +1906,14 @@
       return;
     }
 
-    // Winner pills + averages come from bracket.json, but ONLY when spoilers are ON.
-    let roundObj = null;
-    if (spoilersOn){
-      try{
-        const hist = await getBracketHistory_();
-        const key = raceKey_(data?.tournament, data?.race);
-        roundObj = hist?.roundsByKey?.[key] || null;
-      }catch(e){
-        roundObj = null;
-      }
-    }
-
+    // Winner pills + averages ONLY when spoilers are ON.
     const showPastAvgs = spoilersOn && !isCurrentRace;
+
     const fmtAvg = (n) => {
       const x = Number(n);
       if (!Number.isFinite(x)) return "";
       return x.toFixed(1).replace(/\.0$/, "");
     };
-
-    function matchupBracketInfo_(m){
-      if(!roundObj?.matchups?.length) return { winner:"", a1:null, a2:null };
-      const bm = roundObj.matchups.find(x =>
-        norm(x?.p1) === norm(m?.p1) && norm(x?.p2) === norm(m?.p2)
-      );
-      return {
-        winner: norm(bm?.winner),
-        a1: (bm?.a1 ?? null),
-        a2: (bm?.a2 ?? null),
-      };
-    }
 
     for (const m of (data.matchups || [])) {
       const card = document.createElement("div");
@@ -1994,13 +1971,12 @@
       const leftMeta  = metaHtml_(m.p1Drivers, m.p1Nums);
       const rightMeta = metaHtml_(m.p2Drivers, m.p2Nums);
 
-      const info = showPastAvgs ? matchupBracketInfo_(m) : { winner:"", a1:null, a2:null };
-      const w = spoilersOn ? info.winner : "";
+      const w = spoilersOn ? norm(m.winner) : "";
       const p1Win = spoilersOn && w && w === norm(m.p1);
       const p2Win = spoilersOn && w && w === norm(m.p2);
 
-      const p1AvgTxt = showPastAvgs ? fmtAvg(info.a1) : "";
-      const p2AvgTxt = showPastAvgs ? fmtAvg(info.a2) : "";
+      const p1AvgTxt = showPastAvgs ? fmtAvg(m.a1) : "";
+      const p2AvgTxt = showPastAvgs ? fmtAvg(m.a2) : "";
 
       // Spoilers OFF: do not render (avg) on the label at all.
       const p1Label = `${String(m.p1 || "").trim()}${p1AvgTxt ? ` (${p1AvgTxt})` : ""}`;
