@@ -244,6 +244,21 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: inserted }, 500);
     }
 
+    // 10) Update Swiss matchup winners
+    await fetch(
+      `${env.SUPABASE_URL}/rest/v1/rpc/update_swiss_matchup_results`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+        body: JSON.stringify({
+          p_tournament_id: 1
+        })
+      }
+    );
     return json({
       ok: true,
       raceId,
