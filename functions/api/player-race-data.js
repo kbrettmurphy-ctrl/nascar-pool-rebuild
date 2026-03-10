@@ -25,7 +25,7 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    // All races for dropdown/current-race logic
+    // All races in season order
     const races = await getJson(
       `/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`
     );
@@ -35,22 +35,22 @@ export async function onRequestGet(context) {
       `/rest/v1/tournament_rounds?select=id,tournament_id,round_number,race_id,tournaments(id,tournament_number),races(id,race_name,race_short,race_number)&order=tournament_id.asc,round_number.asc`
     );
 
-    // Current matchup rows with averages already calculated in your view
+    // Swiss matchup results with averages
     const matchupRows = await getJson(
       `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
     );
 
-    // Score view for qualifying-position numbers
+    // Qualifying-position numbers from score view
     const scoreRows = await getJson(
       `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_qualifying_position,driver_2_qualifying_position`
     );
 
-    // Which races actually have results
+    // Any race that has results at all
     const raceResults = await getJson(
       `/rest/v1/race_results?select=race_id`
     );
 
-    // Race winners (finishing_position = 1)
+    // Race winners
     const winners = await getJson(
       `/rest/v1/race_results?finishing_position=eq.1&select=race_id,drivers(name)`
     );
@@ -78,8 +78,10 @@ export async function onRequestGet(context) {
     }
 
     const roundMeta = [];
+    const roundMetaByRaceId = new Map();
+
     for (const r of rounds || []) {
-      roundMeta.push({
+      const meta = {
         tournamentId: Number(r.tournament_id),
         tournament: Number(r?.tournaments?.tournament_number ?? r.tournament_id),
         round: Number(r.round_number),
@@ -88,12 +90,14 @@ export async function onRequestGet(context) {
         race:
           String(r?.races?.race_short || "").trim() ||
           String(r?.races?.race_name || "").trim(),
-      });
+      };
+
+      roundMeta.push(meta);
+      roundMetaByRaceId.set(meta.raceId, meta);
     }
 
-    // Current race logic:
-    // pick the first race with no results yet; if all known races are completed,
-    // fall back to the highest race_number (latest race in schedule)
+    // Current race = first race in full schedule without results.
+    // If all currently-known races have results, fallback to latest race in schedule.
     let currentRace = null;
 
     for (const r of races || []) {
@@ -107,39 +111,63 @@ export async function onRequestGet(context) {
       currentRace = races[races.length - 1];
     }
 
-    // Tournament/round context is separate from season race context.
-    // If the current race is part of a tournament round, include it.
-    // Otherwise leave tournament/round blank.
-    let currentMeta = null;
+    const currentMeta = currentRace
+      ? (roundMetaByRaceId.get(Number(currentRace.id)) || null)
+      : null;
+
+    // Build visible race set:
+    // - all tournament-mapped races (historical + current tournament)
+    // - plus current season race if it is not already tournament-mapped
+    const visibleRaceIds = new Set(roundMeta.map(r => Number(r.raceId)));
+
     if (currentRace) {
-      currentMeta = roundMeta.find(r => r.raceId === Number(currentRace.id)) || null;
+      visibleRaceIds.add(Number(currentRace.id));
     }
 
-    const raceList = roundMeta.map(r => ({
-      tournament: r.tournament,
-      round: r.round,
-      race: r.race,
-    }));
+    const visibleRaces = (races || []).filter(r => visibleRaceIds.has(Number(r.id)));
+
+    const raceList = visibleRaces.map(r => {
+      const meta = roundMetaByRaceId.get(Number(r.id)) || null;
+      return {
+        tournament: meta ? meta.tournament : "",
+        round: meta ? meta.round : "",
+        race:
+          String(r.race_short || "").trim() ||
+          String(r.race_name || "").trim(),
+      };
+    });
 
     const racesBlob = {};
 
-    for (const r of roundMeta) {
-      const key = `${r.tournament}||${r.race}`;
+    for (const r of visibleRaces) {
+      const raceId = Number(r.id);
+      const meta = roundMetaByRaceId.get(raceId) || null;
 
-      const rows = (matchupRows || []).filter(
-        m =>
-          Number(m.tournament_id) === r.tournamentId &&
-          Number(m.round_number) === r.round
-      );
+      const displayRace =
+        String(r.race_short || "").trim() ||
+        String(r.race_name || "").trim();
+
+      const tournament = meta ? meta.tournament : "";
+      const round = meta ? meta.round : "";
+      const key = `${tournament}||${displayRace}`;
+
+      let rows = [];
+      if (meta) {
+        rows = (matchupRows || []).filter(
+          m =>
+            Number(m.tournament_id) === meta.tournamentId &&
+            Number(m.round_number) === meta.round
+        );
+      }
 
       racesBlob[key] = {
-        tournament: r.tournament,
-        race: r.race,
-        round: r.round,
-        raceWinnerDriver: winnerByRaceId.get(r.raceId) || "",
+        tournament,
+        race: displayRace,
+        round,
+        raceWinnerDriver: winnerByRaceId.get(raceId) || "",
         matchups: rows.map(m => {
-          const p1Nums = scoreMap.get(`${r.raceId}||${m.player1_id}`) || {};
-          const p2Nums = scoreMap.get(`${r.raceId}||${m.player2_id}`) || {};
+          const p1Nums = scoreMap.get(`${raceId}||${m.player1_id}`) || {};
+          const p2Nums = scoreMap.get(`${raceId}||${m.player2_id}`) || {};
 
           return {
             p1: m.player1_name || "",
@@ -162,17 +190,18 @@ export async function onRequestGet(context) {
       };
     }
 
+    const currentRaceName =
+      String(currentRace?.race_short || "").trim() ||
+      String(currentRace?.race_name || "").trim() ||
+      "";
+
     return json({
       ok: true,
       raceList,
       matchups: {
         current: {
           tournament: currentMeta ? currentMeta.tournament : "",
-          race:
-            currentMeta?.race ||
-            String(currentRace?.race_short || "").trim() ||
-            String(currentRace?.race_name || "").trim() ||
-            "",
+          race: currentMeta?.race || currentRaceName,
           round: currentMeta ? currentMeta.round : "",
         },
         races: racesBlob,
