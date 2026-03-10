@@ -2328,17 +2328,14 @@
         return;
       }
 
-      if (status !== "active") {
+      if (status === "not_started") {
         out.innerHTML = `
           <div class="microBox" style="margin-top:6px;">
-            <div class="deadBadge" style="margin-bottom:8px;"><span class="skull">☠️</span> ELIMINATED</div>
+            <div class="microTitle">Matchups not published yet</div>
             <div class="microMeta elimSub">
-              ${escapeHtml(data.you || name)}, you're eliminated…but here's your stuff anyway. Maybe you can still win $25. Try not to make this a lifestyle.<br><br>
+              ${escapeHtml(data.you || name)}, Calm your shit, amigo.<br><br>
+              It’ll show up when it exists.
             </div>
-            ${youListText ? `
-              <div class="microTitle">${escapeHtml(youListLabel)}</div>
-              <div class="microMeta">${youListHtml}</div>
-            ` : ``}
           </div>
         `;
         return;
