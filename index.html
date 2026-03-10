@@ -1429,7 +1429,19 @@
     }
     return data.data || {};
   }
+    
+  async function getPlayerStats_(){
+    const res = await fetch("/api/player-stats", {
+      cache: "no-store"
+    });
+    const data = await res.json();
 
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "player-stats failed");
+    }
+
+    return data.data || {};
+  }
   /* =========================
    * 5) Snapshot Loader (GitHub Pages /data/*.json)
    * ========================= */
@@ -2873,7 +2885,7 @@
     area.innerHTML = "Loading stats...";
 
     try{
-      const data = await getData_("standings", "playerGetStandings");
+      const data = await getPlayerStats_();
       _cache_standings = data || {};
 
       // Spoilers OFF: do not render standings/tourney/h2h/wins. Keep driver usage only.
