@@ -73,14 +73,14 @@ export async function onRequestGet(context) {
     }
 
     const overall = Array.from(statsMap.values()).map(r => {
-      const avg =
+      const rawAvg =
         r.match_count > 0 && Number.isFinite(r.avg_sum)
-          ? Number((r.avg_sum / r.match_count).toFixed(2))
+          ? (r.avg_sum / r.match_count)
           : null;
 
-      const winPct =
+      const rawWinPct =
         r.match_count > 0
-          ? Number(((r.W / r.match_count) * 100).toFixed(1))
+          ? (r.W / r.match_count)
           : 0;
 
       return {
@@ -88,29 +88,27 @@ export async function onRequestGet(context) {
         Name: r.Name,
         W: r.W,
         L: r.L,
-        "W%": winPct,
-        Avg: avg
+        Avg: rawAvg == null ? "" : rawAvg.toFixed(2),   // 00.00
+        "W%": rawWinPct.toFixed(3),                     // .000-ish string
+        __rawAvg: rawAvg == null ? 9999 : rawAvg
       };
     });
 
     overall.sort((a, b) => {
       if (b.W !== a.W) return b.W - a.W;
-
-      const aAvg = Number.isFinite(a.Avg) ? a.Avg : 9999;
-      const bAvg = Number.isFinite(b.Avg) ? b.Avg : 9999;
-      if (aAvg !== bAvg) return aAvg - bAvg;
-
+      if (a.__rawAvg !== b.__rawAvg) return a.__rawAvg - b.__rawAvg;
       return String(a.Name).localeCompare(String(b.Name));
     });
 
     overall.forEach((row, idx) => {
       row.Rank = idx + 1;
+      delete row.__rawAvg;
     });
 
     return json({
       ok: true,
       data: {
-        overallHeaders: ["Rank", "Name", "W", "L", "W%", "Avg"],
+        overallHeaders: ["Rank", "Name", "W", "L", "Avg", "W%"],
         overall,
         tournamentHeaders: [],
         tournaments: {}
