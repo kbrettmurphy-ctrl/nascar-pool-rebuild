@@ -1589,7 +1589,26 @@
     }
   }
 
-  function renderFutureRaceMessage_(area, elim){
+  function renderFutureRaceMessage_(area, elim, raceData){
+    const header = document.getElementById("currentHeader");
+    const sub = document.getElementById("currentSub");
+
+    if (header) {
+    header.textContent = raceData?.race || "Race";
+    }
+
+    if (sub) {
+      const tour = raceData?.tournament ?? "";
+      const round = raceData?.currentRound ?? raceData?.round ?? "";
+      const roundText =
+        round === "" ? "" :
+        (Number(round) === 4 ? "Final" : `Rnd ${round}`);
+
+      sub.textContent =
+        (tour ? `Tourney ${tour}` : "") +
+        (roundText ? `${tour ? " · " : ""}${roundText}` : "");
+    }
+
     if (area) {
       area.innerHTML = `
         <div class="microBox" style="margin-top:10px;">
@@ -1603,7 +1622,7 @@
             results like you think time bends over for your broke-ass attention span.<br><br>
             Go choke on a chicken bone, slam another Natty Light, and sit your impatient hillbilly
             carcass down. The checkered flag don’t give a rat’s ass about your toddler tantrum.<br><br>
-            We’ll let ya know when the real men start racin’. Until then… shut the entire fuck up.
+            We’ll let ya know when the real men finish racin’. Until then… shut the entire fuck up.
           </div>
         </div>
       `;
@@ -2136,7 +2155,7 @@
       const raceData = ALL_MATCHUPS?.races?.[key];
 
       if (!raceData || !Array.isArray(raceData.matchups) || raceData.matchups.length === 0) {
-        renderFutureRaceMessage_(area, elim);
+        renderFutureRaceMessage_(area, elim, raceData);
         return;
       }
 
@@ -2244,7 +2263,7 @@
       setRaceSelectValue_(curT, curR);
 
       if (!Array.isArray(currentRaceData.matchups) || currentRaceData.matchups.length === 0) {
-        renderFutureRaceMessage_(area, elim);
+        renderFutureRaceMessage_(area, elim, currentRaceData);
         return;
       }
 
