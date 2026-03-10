@@ -1397,16 +1397,24 @@
 
   async function getPlayerRaceData_(){
     if (_playerRaceData) return _playerRaceData;
-
     const res = await fetch("/api/player-race-data", { cache: "no-store" });
     const data = await res.json();
-
     if (!res.ok || !data || !data.ok) {
       throw new Error(data?.error || "player-race-data failed");
     }
-
     _playerRaceData = data;
     return data;
+  }
+
+  async function getPlayerMyMatchup_(name){
+    const res = await fetch(`/api/player-my-matchup?name=${encodeURIComponent(name)}`, {
+      cache: "no-store"
+    });
+    const data = await res.json();
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "player-my-matchup failed");
+    }
+    return data.data || {};
   }
 
   /* =========================
@@ -2268,59 +2276,39 @@
   async function loadMyMatchup() {
     const sel = document.getElementById("globalPlayer");
     const out = document.getElementById("mmStatus");
-
     const name = sel ? String(sel.value || "").trim() : "";
     if (!name) { out.textContent = "Pick your damn name first, you anonymous ghost. We can't show your pathetic stats, overdue dues, your sad matchups, or even highlight your sorry ass in the full-field view until you select who the hell you are from the dropdown. This ain't the pace car parade—nobody's waiting on your indecisive ass to drop the green. Without a name, you're just another random dipshit in the grandstands yelling at the TV like your fantasy pick didn't just get taken out in the Big One on lap 47. Click a name already. Or keep lurking like a crew chief hiding bad fuel strategy notes. Your call, but the leaderboard ain't gonna populate itself.Select or GTFO. The checkered flag waits for no one... especially not you.";
       return; 
     }
-
     savePlayerName(name);
     out.textContent = "Loading…";
-
     try{
-      let data = {};
-      try{
-        const all = await fetchSnapshotJson("my", false);
-        data = (all && all[name]) ? all[name] : {};
-      }catch(e){
-        const res = await apiCall("playerGetMyMatchup", { name });
-        if (!res || !res.ok) throw new Error(res?.error || "API failed");
-        data = res.data || {};
-      }
-
+      const data = await getPlayerMyMatchup_(name);
       const status = String(data.status || "").trim().toLowerCase();
-
       const youDriversArr = Array.isArray(data.youDrivers)
         ? data.youDrivers.map(x => String(x || "").trim()).filter(Boolean)
         : [];
-
       const youNumsArr = Array.isArray(data.youNums) ? data.youNums : [];
       const n1 = (youNumsArr.length > 0 && String(youNumsArr[0] ?? "").trim() !== "") ? String(youNumsArr[0]).trim() : "";
       const n2 = (youNumsArr.length > 1 && String(youNumsArr[1] ?? "").trim() !== "") ? String(youNumsArr[1]).trim() : "";
-
       const opp = String(data.opponent || "").trim();
       const hasRealOpponent =
         !!opp &&
         opp !== "-" &&
         opp.toLowerCase() !== "tbd" &&
         opp.toLowerCase() !== "bye";
-
       const tour = String(data.tournament ?? "").trim();
       const rnd  = String(data.round ?? "").trim();
       const hasRealContext =
         tour !== "" && tour !== "0" &&
         rnd  !== "" && rnd  !== "0";
-
       const youListLabel = youDriversArr.length
         ? "Your drivers:"
         : ((n1 || n2) ? "Your numbers:" : "");
-
       const youListText = youDriversArr.length
         ? youDriversArr.join("<br>")
         : ((n1 || n2) ? [n1,n2].filter(Boolean).join(", ") : "");
-
       const youListHtml = youDriversArr.length ? youListText : escapeHtml(youListText);
-
       // If not started / no opponent context, keep your existing behavior.
       if (!hasRealOpponent || !hasRealContext) {
         out.innerHTML = `
@@ -2329,7 +2317,6 @@
             <div class="microMeta elimSub">
               ${escapeHtml(getEarlyMessage())}
             </div>
-
             ${youListText ? `
               <div style="margin-top:10px;">
                 <div class="microTitle">${escapeHtml(youListLabel)}</div>
@@ -2348,7 +2335,6 @@
             <div class="microMeta elimSub">
               ${escapeHtml(data.you || name)}, you're eliminated…but here's your stuff anyway. Maybe you can still win $25. Try not to make this a lifestyle.<br><br>
             </div>
-
             ${youListText ? `
               <div class="microTitle">${escapeHtml(youListLabel)}</div>
               <div class="microMeta">${youListHtml}</div>
@@ -2360,21 +2346,17 @@
 
       const youMeta = formatDriversOrNumbers(data.youDrivers, data.youNums);
       const oppMeta = formatDriversOrNumbers(data.oppDrivers, data.oppNums);
-
       // Spoilers OFF: replace non-you microBox with shrug emoji.
       if (!spoilersOn_()){
         out.innerHTML = `
           <div class="mmHeader">
             Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
           </div>
-
           <div class="microBox youBox">
             <div class="microTitle">${escapeHtml(data.you)}</div>
             ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
           </div>
-
           <div class="centerVS">VS</div>
-
           <div class="microBox" style="display:flex; align-items:center; justify-content:center; min-height:64px;">
             <div style="font-size:34px; line-height:1;">🤷</div>
           </div>
@@ -2387,14 +2369,11 @@
         <div class="mmHeader">
           Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
         </div>
-
         <div class="microBox youBox">
           <div class="microTitle">${escapeHtml(data.you)}</div>
           ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
         </div>
-
         <div class="centerVS">VS</div>
-
         <div class="microBox">
           <div class="microTitle">${escapeHtml(data.opponent)}</div>
           ${oppMeta ? `<div class="microMeta">${escapeHtml(oppMeta)}</div>` : ``}
