@@ -2234,6 +2234,28 @@
       }
 
       setRaceSelectValue_(curT, curR);
+
+      if (!Array.isArray(currentRaceData.matchups) || currentRaceData.matchups.length === 0) {
+        area.innerHTML = `
+          <div class="microBox" style="margin-top:10px;">
+            <div class="microTitle">Back to the future?</div>
+            <div class="microMeta" style="color: var(--muted); font-weight:700;">
+              This race ain’t even fuckin’ started, you mouth-breathin’ dipshit.<br><br>
+              The haulers are still sittin’ in the lot, tires ain’t even warm, drivers are prolly still
+              scratchin’ their balls and arguin’ over who gets the last Moon Pie, and your dumb redneck
+              ass is already hollerin’ for lap times like a coonhound that just seen a squirrel.<br><br>
+              The goddamn sun ain’t even set on yesterday’s bullshit and you’re out here demandin’
+              results like you think time bends over for your broke-ass attention span.<br><br>
+              Go choke on a chicken bone, slam another Natty Light, and sit your impatient hillbilly
+              carcass down. The checkered flag don’t give a rat’s ass about your toddler tantrum.<br><br>
+              We’ll let ya know when the real men finish racin’. Until then… shut the entire fuck up.
+            </div>
+          </div>
+        `;
+        elim.innerHTML = "";
+        return;
+      }
+
       await renderMatchupsInto_(currentRaceData);
 
       // Eliminated list only when spoilers are ON.
