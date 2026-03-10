@@ -92,25 +92,27 @@ export async function onRequestGet(context) {
     }
 
     // Current race logic:
-    // first race in master races table with no results yet
-    // fallback to the last race in the master races table
+    // pick the first race with no results yet; if all known races are completed,
+    // fall back to the highest race_number (latest race in schedule)
     let currentRace = null;
+
     for (const r of races || []) {
       if (!completedRaceIds.has(Number(r.id))) {
         currentRace = r;
         break;
       }
     }
+
     if (!currentRace && races?.length) {
       currentRace = races[races.length - 1];
     }
 
-    // Try to map current race to a tournament round if it exists
+    // Tournament/round context is separate from season race context.
+    // If the current race is part of a tournament round, include it.
+    // Otherwise leave tournament/round blank.
     let currentMeta = null;
     if (currentRace) {
-      currentMeta =
-        roundMeta.find(r => r.raceId === Number(currentRace.id)) ||
-        null;
+      currentMeta = roundMeta.find(r => r.raceId === Number(currentRace.id)) || null;
     }
 
     const raceList = roundMeta.map(r => ({
@@ -164,20 +166,15 @@ export async function onRequestGet(context) {
       ok: true,
       raceList,
       matchups: {
-        current: currentMeta
-          ? {
-              tournament: currentMeta.tournament,
-              race: currentMeta.race,
-              round: currentMeta.round,
-            }
-          : {
-              tournament: "",
-              race:
-                String(currentRace?.race_short || "").trim() ||
-                String(currentRace?.race_name || "").trim() ||
-                "",
-              round: "",
-            },
+        current: {
+          tournament: currentMeta ? currentMeta.tournament : "",
+          race:
+            currentMeta?.race ||
+            String(currentRace?.race_short || "").trim() ||
+            String(currentRace?.race_name || "").trim() ||
+            "",
+          round: currentMeta ? currentMeta.round : "",
+        },
         races: racesBlob,
       },
     });
