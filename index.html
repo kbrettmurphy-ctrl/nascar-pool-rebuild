@@ -1417,11 +1417,13 @@
     return data.data || {};
   }
 
-  async function getPlayerBracket_(){
-    const res = await fetch("/api/player-bracket", {
+  async function getPlayerBracket_(tournament){
+    const qs = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
+    const res = await fetch(`/api/player-bracket${qs}`, {
       cache: "no-store"
     });
     const data = await res.json();
+
     if (!res.ok || !data || !data.ok) {
       throw new Error(data?.error || "player-bracket failed");
     }
@@ -1854,6 +1856,7 @@
   let _raceSelectIsProgrammatic = false;
   let _bracketHistoryBlob = null;
   let _playerRaceData = null;
+  let _selectedBracketTournament = "";
 
   async function getBracketHistory_(){
     if (_bracketHistoryBlob) return _bracketHistoryBlob;
@@ -3288,7 +3291,7 @@
   async function loadBracket(){
     const sub = document.getElementById("bracketSub");
     const area = document.getElementById("bracketArea");
-
+  
     // Spoilers OFF: do not render bracket.
     if (!spoilersOn_()){
       sub.textContent = "Spoilers are OFF";
@@ -3309,16 +3312,34 @@
     const fmtAvg = (n) => (n == null ? "" : Number(n).toFixed(1).replace(/\.0$/,""));
 
     try{
-      const data = await getPlayerBracket_();
-
+      const data = await getPlayerBracket_(_selectedBracketTournament);
       const tour  = data.tournament ?? "";
       const race  = data.currentRace ?? data.race ?? "";
       const round = data.currentRound ?? data.round ?? "";
+
+      if (!_selectedBracketTournament && tour) {
+        _selectedBracketTournament = String(tour);
+      }
 
       const leftText =
         `Tourney ${tour}` +
         (race ? ` · ${race}` : "") +
         (round !== "" ? ` · ${roundLabel(round)}` : "");
+
+      const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
+      const selectorHtml = tournamentOptions.length
+        ? `
+          <div class="statsControls" style="margin-top:8px;">
+            <select id="bracketTournamentPick" style="width:auto; min-width:180px;">
+              ${tournamentOptions.map(opt => `
+                <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
+                  Tournament ${escapeHtml(opt.tournament)}
+                </option>
+              `).join("")}
+            </select>
+          </div>
+        `
+        : "";
 
       sub.innerHTML = `
         <div class="legendRow">
@@ -3329,6 +3350,7 @@
             <span class="legendItem"><span class="winDot"></span> H2H W</span>
           </div>
         </div>
+        ${selectorHtml}
       `;
 
       const rounds = data.rounds || [];
@@ -3337,7 +3359,7 @@
       const sticky = document.getElementById("bracketSticky");
       if (sticky) {
         sticky.innerHTML = rounds.map((r, idx) => {
-          const label = r.isCurrent ? "CURRENT" : `ROUND ${r.round}`;
+          const label = r.isCurrent ? "CURRENT" : roundLabel(r.round);
           const race = r.raceLabel || "";
           return `
             <div class="chip" data-idx="${idx}">
@@ -3353,10 +3375,8 @@
           ? `<span class="roundTag">CURRENT</span>`
           : `<span class="roundTag">${escapeHtml(roundLabel(r.round))}</span>`;
 
-        const isFuture = !r.isCurrent && (r.round > data.currentRound);
-
         html += `
-          <div class="bracketCol ${isFuture ? "isFuture" : ""}">
+          <div class="bracketCol">
             <div class="bracketHdr">
               <div class="title">${tag}</div>
               <div class="raceTag">${escapeHtml(r.raceLabel || "")}</div>
@@ -3365,33 +3385,11 @@
 
         (r.matchups || []).forEach(m => {
           const norm = (s) => String(s ?? "").trim().toLowerCase();
-
-          let winnerName = String(m.winner ?? "").trim();
-          if (!winnerName || /^tie$/i.test(winnerName)) {
-            winnerName = String(
-              m.tieBreakerWinner ??
-              m.tiebreakerWinner ??
-              m.tieBreakWinner ??
-              m.tieWinner ??
-              m.advances ??
-              m.advance ??
-              m.winnerName ??
-              ""
-            ).trim();
-          }
-
-          const winnerSide = (m.winnerSide ?? m.sideWinner ?? m.winnerIdx ?? null);
-
+          const winnerName = String(m.winner ?? "").trim();
           const p1Name = String(m.p1 ?? "").trim();
           const p2Name = String(m.p2 ?? "").trim();
-
-          const p1Win =
-            (winnerSide === 1) ||
-            (winnerName && p1Name && norm(winnerName) === norm(p1Name));
-
-          const p2Win =
-            (winnerSide === 2) ||
-            (winnerName && p2Name && norm(winnerName) === norm(p2Name));
+          const p1Win = winnerName && p1Name && norm(winnerName) === norm(p1Name);
+          const p2Win = winnerName && p2Name && norm(winnerName) === norm(p2Name);
 
           html += `
             <div class="ticket">
@@ -3427,6 +3425,14 @@
 
       html += `</div>`;
       area.innerHTML = html;
+
+      const pick = document.getElementById("bracketTournamentPick");
+      if (pick) {
+        pick.onchange = () => {
+          _selectedBracketTournament = String(pick.value || "").trim();
+          loadBracket();
+        };
+      }
 
       const grid = area.querySelector(".bracketGrid");
       if (grid && sticky) {
