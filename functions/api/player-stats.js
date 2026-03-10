@@ -26,7 +26,15 @@ export async function onRequestGet(context) {
     }
 
     const matchupRows = await getJson(
-      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&order=tournament_id.asc,round_number.asc`
+      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&order=tournament_id.asc,round_number.asc`
+    );
+
+    const scoreRows = await getJson(
+      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_finish,driver_2_finish`
+    );
+
+    const scoreMap = new Map(
+      (scoreRows || []).map(r => [`${r.race_id}||${r.player_id}`, r])
     );
 
     const statsMap = new Map();
@@ -40,15 +48,27 @@ export async function onRequestGet(context) {
           W: 0,
           L: 0,
           avg_sum: 0,
-          match_count: 0
+          match_count: 0,
+          min_finish: 99999
         });
       }
       return statsMap.get(key);
     }
 
+    function updateMinFinish(playerRow, scoreRow) {
+      if (!scoreRow) return;
+
+      const f1 = Number(scoreRow.driver_1_finish);
+      const f2 = Number(scoreRow.driver_2_finish);
+
+      if (Number.isFinite(f1) && f1 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f1);
+      if (Number.isFinite(f2) && f2 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f2);
+    }
+
     for (const row of matchupRows || []) {
       const p1Id = Number(row.player1_id);
       const p2Id = Number(row.player2_id);
+      const raceId = Number(row.race_id);
 
       const p1 = getPlayerRow(p1Id, row.player1_name);
       const p2 = getPlayerRow(p2Id, row.player2_name);
@@ -60,8 +80,8 @@ export async function onRequestGet(context) {
       p1.match_count += 1;
       p2.match_count += 1;
 
-      if (Number.isFinite(a1)) p1.avg_sum += a1;
-      if (Number.isFinite(a2)) p2.avg_sum += a2;
+      if (Number.isFinite(a1) && a1 !== 0) p1.avg_sum += a1;
+      if (Number.isFinite(a2) && a2 !== 0) p2.avg_sum += a2;
 
       if (winnerId && winnerId === p1Id) {
         p1.W += 1;
@@ -70,39 +90,52 @@ export async function onRequestGet(context) {
         p2.W += 1;
         p1.L += 1;
       }
+
+      updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
+      updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
     }
 
     const overall = Array.from(statsMap.values()).map(r => {
       const rawAvg =
-        r.match_count > 0 && Number.isFinite(r.avg_sum)
+        r.match_count > 0
           ? (r.avg_sum / r.match_count)
-          : null;
+          : 0;
 
       const rawWinPct =
         r.match_count > 0
           ? (r.W / r.match_count)
           : 0;
 
+      let winPctDisplay = rawWinPct.toFixed(3);
+      if (winPctDisplay.startsWith("0")) {
+        winPctDisplay = winPctDisplay.slice(1);
+      }
+
       return {
         Rank: 0,
         Name: r.Name,
         W: r.W,
         L: r.L,
-        Avg: rawAvg == null ? "" : rawAvg.toFixed(2),   // 00.00
-        "W%": rawWinPct.toFixed(3),                     // .000-ish string
-        __rawAvg: rawAvg == null ? 9999 : rawAvg
+        Avg: rawAvg.toFixed(2),
+        "W%": winPctDisplay,
+        __rawWinPct: rawWinPct,
+        __rawAvg: rawAvg,
+        __minFinish: r.min_finish
       };
     });
 
     overall.sort((a, b) => {
-      if (b.W !== a.W) return b.W - a.W;
+      if (b.__rawWinPct !== a.__rawWinPct) return b.__rawWinPct - a.__rawWinPct;
       if (a.__rawAvg !== b.__rawAvg) return a.__rawAvg - b.__rawAvg;
+      if (a.__minFinish !== b.__minFinish) return a.__minFinish - b.__minFinish;
       return String(a.Name).localeCompare(String(b.Name));
     });
 
     overall.forEach((row, idx) => {
       row.Rank = idx + 1;
+      delete row.__rawWinPct;
       delete row.__rawAvg;
+      delete row.__minFinish;
     });
 
     return json({
