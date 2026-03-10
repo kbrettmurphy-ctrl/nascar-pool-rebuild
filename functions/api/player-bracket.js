@@ -26,7 +26,9 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    // Use the same current-race context your player page already uses
+    const requestedTournamentNumber = Number(url.searchParams.get("tournament") || 0);
+
+    // Use player-race-data to determine the default/current tournament if none requested
     const raceDataRes = await fetch(`${url.origin}/api/player-race-data`, {
       headers: { "Content-Type": "application/json" }
     });
@@ -37,27 +39,40 @@ export async function onRequestGet(context) {
     }
 
     const current = raceData?.matchups?.current || {};
-    const currentTournamentNumber = Number(current?.tournament || 0);
+    const defaultTournamentNumber = Number(current?.tournament || 0);
 
-    if (!currentTournamentNumber) {
+    const tournamentNumber = requestedTournamentNumber || defaultTournamentNumber;
+
+    // Tournament list for selector
+    const allTournaments = await getJson(
+      `/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`
+    );
+
+    const tournamentOptions = (allTournaments || []).map(t => ({
+      tournament: Number(t.tournament_number),
+      tournamentId: Number(t.id),
+      seasonYear: Number(t.season_year)
+    }));
+
+    if (!tournamentNumber) {
       return json({
         ok: true,
         data: {
           tournament: "",
           currentRace: current?.race || "",
           currentRound: current?.round || "",
-          rounds: []
+          rounds: [],
+          tournamentOptions
         }
       });
     }
 
-    const tournaments = await getJson(
-      `/rest/v1/tournaments?select=id,tournament_number,season_year&tournament_number=eq.${currentTournamentNumber}`
+    const tournament = (allTournaments || []).find(
+      t => Number(t.tournament_number) === tournamentNumber
     );
 
-    const tournament = Array.isArray(tournaments) && tournaments.length ? tournaments[0] : null;
     if (!tournament) {
-      throw new Error(`Tournament ${currentTournamentNumber} not found`);
+      throw new Error(`Tournament ${tournamentNumber} not found`);
     }
 
     const tournamentId = Number(tournament.id);
@@ -104,17 +119,14 @@ export async function onRequestGet(context) {
       (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
     );
 
-    function isPlayerRaceWinner(raceId, scoreRow, sideIdx) {
+    function isPlayerRaceWinner(raceId, scoreRow) {
       const winnerDriverId = raceWinnerDriverByRaceId.get(Number(raceId));
       if (!winnerDriverId || !scoreRow) return false;
 
-      const driverName =
-        sideIdx === 1
-          ? String(scoreRow.driver_1_name || "").trim()
-          : String(scoreRow.driver_2_name || "").trim();
+      const d1 = driverIdByName.get(normalizeName(scoreRow.driver_1_name || ""));
+      const d2 = driverIdByName.get(normalizeName(scoreRow.driver_2_name || ""));
 
-      const driverId = driverIdByName.get(normalizeName(driverName));
-      return Number(driverId) === Number(winnerDriverId);
+      return Number(d1) === Number(winnerDriverId) || Number(d2) === Number(winnerDriverId);
     }
 
     const roundsOut = (rounds || []).map(rnd => {
@@ -130,7 +142,9 @@ export async function onRequestGet(context) {
       return {
         round: roundNumber,
         raceLabel,
-        isCurrent: Number(current?.round || 0) === roundNumber,
+        isCurrent:
+          tournamentNumber === defaultTournamentNumber &&
+          Number(current?.round || 0) === roundNumber,
         matchups: rows.map(m => {
           const p1Id = Number(m.player1_id);
           const p2Id = Number(m.player2_id);
@@ -151,8 +165,8 @@ export async function onRequestGet(context) {
                 : Number(m.winner_id) === p2Id
                   ? (m.player2_name || "")
                   : "",
-            p1RaceWinner: isPlayerRaceWinner(raceId, p1Score, 1) || isPlayerRaceWinner(raceId, p1Score, 2),
-            p2RaceWinner: isPlayerRaceWinner(raceId, p2Score, 1) || isPlayerRaceWinner(raceId, p2Score, 2),
+            p1RaceWinner: isPlayerRaceWinner(raceId, p1Score),
+            p2RaceWinner: isPlayerRaceWinner(raceId, p2Score),
           };
         })
       };
@@ -161,10 +175,11 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       data: {
-        tournament: currentTournamentNumber,
+        tournament: tournamentNumber,
         currentRace: current?.race || "",
         currentRound: current?.round || "",
-        rounds: roundsOut
+        rounds: roundsOut,
+        tournamentOptions
       }
     });
   } catch (err) {
