@@ -1,418 +1,461 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NASCAR Pool Rebuild</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 40px;
-      background: #111;
-      color: #f5f5f5;
-    }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NASCAR Pool Rebuild</title>
 
-    .card {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 24px;
-      border: 1px solid #444;
-      border-radius: 12px;
-      background: #1b1b1b;
-    }
+<style>
 
-    h1, h2, h3 {
-      margin-top: 0;
-    }
+body{
+  font-family:Arial,sans-serif;
+  margin:0;
+  padding:40px;
+  background:#111;
+  color:#f5f5f5;
+}
 
-    .small {
-      color: #bbb;
-    }
+.card{
+  max-width:900px;
+  margin:40px auto;
+  padding:24px;
+  border:1px solid #444;
+  border-radius:12px;
+  background:#1b1b1b;
+}
 
-    .error {
-      color: #ff8a8a;
-      white-space: pre-wrap;
-    }
+h1,h2,h3{
+  margin-top:0;
+}
 
-    .controls {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin: 18px 0 20px;
-    }
+.small{
+  color:#bbb;
+}
 
-    select, button {
-      font: inherit;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #444;
-    }
+.error{
+  color:#ff8a8a;
+  white-space:pre-wrap;
+}
 
-    select {
-      background: #222;
-      color: #f5f5f5;
-      min-width: 280px;
-    }
+.controls{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin:18px 0 20px;
+}
 
-    button {
-      background: #2d5ea8;
-      color: white;
-      cursor: pointer;
-    }
+select,button{
+  font:inherit;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #444;
+}
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+select{
+  background:#222;
+  color:#f5f5f5;
+  min-width:200px;
+}
 
-    .player-block {
-      margin-top: 16px;
-      padding: 14px;
-      background: #222;
-      border-radius: 10px;
-      border: 1px solid #333;
-    }
+button{
+  background:#2d5ea8;
+  color:white;
+  cursor:pointer;
+}
 
-    .assignment-line {
-      margin-top: 8px;
-      color: #ddd;
-    }
+button:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+}
 
-    .muted {
-      color: #aaa;
-      font-size: 0.95rem;
-    }
+.player-block{
+  margin-top:16px;
+  padding:14px;
+  background:#222;
+  border-radius:10px;
+  border:1px solid #333;
+}
 
-    #actionStatus {
-      margin-top: 10px;
-      color: #bbb;
-      white-space: pre-wrap;
-    }
-  </style>
+.assignment-line{
+  margin-top:8px;
+  color:#ddd;
+}
+
+.muted{
+  color:#aaa;
+  font-size:.95rem;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th,td{
+  padding:8px;
+  border-bottom:1px solid #333;
+  text-align:left;
+}
+
+#actionStatus{
+  margin-top:10px;
+  color:#bbb;
+  white-space:pre-wrap;
+}
+
+</style>
 </head>
+
 <body>
-  <div class="card">
-    <h1>NASCAR Pool Rebuild</h1>
-    <p class="small">Same frontend direction. New backend.</p>
 
-    <div class="controls">
-      <label for="raceSelect">Race:</label>
-      <select id="raceSelect"></select>
-      <button id="generateAssignmentsBtn" type="button">Generate Assignments</button>
-      <button id="importQualBtn" type="button">Import Qualifying</button>
-      <button id="importResultsBtn" type="button">Import Results</button>
-    </div>
+<div class="card">
 
-    <div id="actionStatus"></div>
-    <div id="status">Loading assignments...</div>
-    <div id="results"></div>
-  </div>
+<h1>NASCAR Pool Rebuild</h1>
+<p class="small">Same frontend direction. New backend.</p>
 
-  <script>
-    const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
-    const ADMIN_KEY = "BMurf1083!@"; // development only
+<div class="controls">
 
-    const raceSelect = document.getElementById("raceSelect");
-    const generateAssignmentsBtn = document.getElementById("generateAssignmentsBtn");
-    const importQualBtn = document.getElementById("importQualBtn");
-    const importResultsBtn = document.getElementById("importResultsBtn");
-    const statusEl = document.getElementById("status");
-    const resultsEl = document.getElementById("results");
-    const actionStatusEl = document.getElementById("actionStatus");
+<label>Race:</label>
+<select id="raceSelect"></select>
 
-    async function loadRaces() {
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
+<label>Tournament:</label>
+<select id="tournamentSelect"></select>
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load races: ${text}`);
-        }
+<label>Round:</label>
+<select id="roundSelect">
+<option value="1">Round 1</option>
+<option value="2">Round 2</option>
+<option value="3">Round 3</option>
+<option value="4">Round 4</option>
+</select>
 
-        const races = await response.json();
+<button id="generateAssignmentsBtn">Generate Assignments</button>
+<button id="importQualBtn">Import Qualifying</button>
+<button id="importResultsBtn">Import Results</button>
 
-        raceSelect.innerHTML = "";
+</div>
 
-        races.forEach(race => {
-          const option = document.createElement("option");
-          option.value = race.id;
-          option.textContent = `Race ${race.race_number}: ${race.race_name}`;
-          raceSelect.appendChild(option);
-        });
+<div id="actionStatus"></div>
 
-        if (races.length > 0) {
-          await loadAssignments(raceSelect.value);
-          await loadScores(raceSelect.value);
-        } else {
-          statusEl.textContent = "No races found.";
-        }
-      } catch (err) {
-        console.error(err);
-        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
-      }
-    }
+<div id="status">Loading assignments...</div>
+<div id="results"></div>
 
-    async function loadAssignments(raceId) {
-      statusEl.textContent = "Loading assignments...";
-      resultsEl.innerHTML = "";
+<h2>Swiss Matchups</h2>
+<div id="matchups"></div>
 
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
+<h2>Swiss Standings</h2>
+<div id="standings"></div>
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load assignments: ${text}`);
-        }
+</div>
 
-        const data = await response.json();
+<script>
 
-        if (!data || data.length === 0) {
-          statusEl.textContent = "No assignments found for this race.";
-          return;
-        }
+const SUPABASE_URL="https://adhqiqniqxwfcruwrlfh.supabase.co";
+const SUPABASE_KEY="sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
+const ADMIN_KEY="BMurf1083!@";
 
-        const players = {};
+const raceSelect=document.getElementById("raceSelect");
+const tournamentSelect=document.getElementById("tournamentSelect");
+const roundSelect=document.getElementById("roundSelect");
 
-        data.forEach(row => {
-          if (!players[row.player_name]) {
-            players[row.player_name] = [];
-          }
-          players[row.player_name].push(row);
-        });
+const generateAssignmentsBtn=document.getElementById("generateAssignmentsBtn");
+const importQualBtn=document.getElementById("importQualBtn");
+const importResultsBtn=document.getElementById("importResultsBtn");
 
-        const html = Object.entries(players).map(([playerName, assignments]) => {
-          assignments.sort((a, b) => a.assignment_slot - b.assignment_slot);
+const statusEl=document.getElementById("status");
+const resultsEl=document.getElementById("results");
+const actionStatusEl=document.getElementById("actionStatus");
 
-          return `
-            <div class="player-block">
-              <h3>${playerName}</h3>
-              ${assignments.map(a => `
-                <div class="assignment-line">
-                  <strong>Driver ${a.assignment_slot}:</strong>
-                  ${a.driver_name ?? "Not resolved yet"}${a.car_number ? ` (#${a.car_number})` : ""}
-                  <div class="muted">Assigned qualifying position: ${a.qualifying_position}</div>
-                </div>
-              `).join("")}
-            </div>
-          `;
-        }).join("");
+const matchupsEl=document.getElementById("matchups");
+const standingsEl=document.getElementById("standings");
 
-        statusEl.textContent = "";
-        resultsEl.innerHTML = html;
-      } catch (err) {
-        console.error(err);
-        statusEl.innerHTML = `<div class="error">${err.message || err}</div>`;
-      }
-    }
+async function loadRaces(){
 
-    async function loadScores(raceId) {
-      try {
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,
-          {
-            headers: {
-              "apikey": SUPABASE_KEY,
-              "Authorization": `Bearer ${SUPABASE_KEY}`
-            }
-          }
-        );
+const response=await fetch(`${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
 
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Failed to load scores: ${text}`);
-        }
+const races=await response.json();
 
-        const data = await response.json();
+raceSelect.innerHTML="";
 
-        if (!data || data.length === 0 || data.every(r => r.average_finish === null)) {
-          return;
-        }
+races.forEach(r=>{
+const o=document.createElement("option");
+o.value=r.id;
+o.textContent=`Race ${r.race_number}: ${r.race_name}`;
+raceSelect.appendChild(o);
+});
 
-        resultsEl.innerHTML = data.map(row => `
-          <div class="player-block">
-            <h3>${row.player_name}</h3>
+if(races.length){
+await loadAssignments(raceSelect.value);
+await loadScores(raceSelect.value);
+}
 
-            <div class="assignment-line">
-              <strong>Driver 1:</strong>
-              ${row.driver_1_name ?? "—"}${row.driver_1_car_number ? ` (#${row.driver_1_car_number})` : ""}
-              <div class="muted">
-                Qualifying position: ${row.driver_1_qualifying_position ?? "—"} | Finish: ${row.driver_1_finish ?? "—"}
-              </div>
-            </div>
+}
 
-            <div class="assignment-line">
-              <strong>Driver 2:</strong>
-              ${row.driver_2_name ?? "—"}${row.driver_2_car_number ? ` (#${row.driver_2_car_number})` : ""}
-              <div class="muted">
-                Qualifying position: ${row.driver_2_qualifying_position ?? "—"} | Finish: ${row.driver_2_finish ?? "—"}
-              </div>
-            </div>
+async function loadTournaments(){
 
-            <div style="margin-top:8px;color:#9ad;">
-              <strong>Avg Finish:</strong> ${row.average_finish ?? "—"}
-            </div>
-          </div>
-        `).join("");
+const response=await fetch(`${SUPABASE_URL}/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
 
-        statusEl.textContent = "";
-      } catch (err) {
-        console.error(err);
-        actionStatusEl.innerHTML = `<span class="error">Load scores failed: ${err.message || err}</span>`;
-      }
-    }
+const data=await response.json();
 
-    async function generateAssignmentsForSelectedRace() {
-      const raceId = Number(raceSelect.value);
+tournamentSelect.innerHTML="";
 
-      if (!raceId) {
-        actionStatusEl.textContent = "Pick a race first.";
-        return;
-      }
+data.forEach(t=>{
+const o=document.createElement("option");
+o.value=t.id;
+o.textContent=`Tournament ${t.tournament_number} (${t.season_year})`;
+tournamentSelect.appendChild(o);
+});
 
-      generateAssignmentsBtn.disabled = true;
-      actionStatusEl.textContent = "Generating assignments...";
-      statusEl.textContent = "Refreshing assignments...";
-      resultsEl.innerHTML = "";
+}
 
-      try {
-        const response = await fetch("/api/generate-assignments", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": ADMIN_KEY
-          },
-          body: JSON.stringify({ raceId })
-        });
+async function loadAssignments(raceId){
 
-        const result = await response.json();
+statusEl.textContent="Loading assignments...";
+resultsEl.innerHTML="";
 
-        if (!response.ok || !result.ok) {
-          throw new Error(JSON.stringify(result));
-        }
+const response=await fetch(`${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
 
-        actionStatusEl.textContent = result.message;
-        await loadAssignments(raceId);
-        await loadScores(raceId);
-      } catch (err) {
-        console.error(err);
-        actionStatusEl.innerHTML = `<span class="error">Generate failed: ${err.message || err}</span>`;
-      } finally {
-        generateAssignmentsBtn.disabled = false;
-      }
-    }
+const data=await response.json();
 
-    async function importQualifyingForSelectedRace() {
-      const raceId = Number(raceSelect.value);
+if(!data.length){
+statusEl.textContent="No assignments.";
+return;
+}
 
-      if (!raceId) {
-        actionStatusEl.textContent = "Pick a race first.";
-        return;
-      }
+const players={};
 
-      importQualBtn.disabled = true;
-      actionStatusEl.textContent = "Importing qualifying...";
-      statusEl.textContent = "Refreshing assignments...";
-      resultsEl.innerHTML = "";
+data.forEach(r=>{
+if(!players[r.player_name])players[r.player_name]=[];
+players[r.player_name].push(r);
+});
 
-      try {
-        const response = await fetch("/api/import-qualifying", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": ADMIN_KEY
-          },
-          body: JSON.stringify({ raceId })
-        });
+resultsEl.innerHTML=Object.entries(players).map(([name,a])=>{
 
-        const result = await response.json();
+a.sort((x,y)=>x.assignment_slot-y.assignment_slot);
 
-        if (!response.ok || !result.ok) {
-          throw new Error(JSON.stringify(result));
-        }
+return`
+<div class="player-block">
+<h3>${name}</h3>
+${a.map(r=>`
+<div class="assignment-line">
+<strong>Driver ${r.assignment_slot}:</strong>
+${r.driver_name??"Not resolved yet"}${r.car_number?` (#${r.car_number})`:""}
+<div class="muted">Assigned qualifying position: ${r.qualifying_position}</div>
+</div>
+`).join("")}
+</div>
+`;
 
-        actionStatusEl.textContent =
-          `Imported qualifying for ${result.raceName}. ` +
-          `Rows written: ${result.rowsWritten}. ` +
-          `Run used: ${result.chosenRunName}`;
+}).join("");
 
-        await loadAssignments(raceId);
-        await loadScores(raceId);
-      } catch (err) {
-        console.error(err);
-        actionStatusEl.innerHTML = `<span class="error">Import failed: ${err.message || err}</span>`;
-      } finally {
-        importQualBtn.disabled = false;
-      }
-    }
+statusEl.textContent="";
 
-    async function importResultsForSelectedRace() {
-      const raceId = Number(raceSelect.value);
+}
 
-      if (!raceId) {
-        actionStatusEl.textContent = "Pick a race first.";
-        return;
-      }
+async function loadScores(raceId){
 
-      importResultsBtn.disabled = true;
-      actionStatusEl.textContent = "Importing results...";
+const response=await fetch(`${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
 
-      try {
-        const response = await fetch("/api/import-results", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": ADMIN_KEY
-          },
-          body: JSON.stringify({ raceId })
-        });
+const data=await response.json();
 
-        const result = await response.json();
+if(!data.length)return;
 
-        if (!response.ok || !result.ok) {
-          throw new Error(JSON.stringify(result));
-        }
+resultsEl.innerHTML=data.map(r=>`
+<div class="player-block">
 
-        actionStatusEl.textContent =
-          `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+<h3>${r.player_name}</h3>
 
-        await loadScores(raceId);
-      } catch (err) {
-        console.error(err);
-        actionStatusEl.innerHTML = `<span class="error">Import results failed: ${err.message || err}</span>`;
-      } finally {
-        importResultsBtn.disabled = false;
-      }
-    }
+<div class="assignment-line">
+<strong>Driver 1:</strong>
+${r.driver_1_name??"—"}${r.driver_1_car_number?` (#${r.driver_1_car_number})`:""}
+<div class="muted">
+Qual: ${r.driver_1_qualifying_position??"—"} | Finish: ${r.driver_1_finish??"—"}
+</div>
+</div>
 
-    raceSelect.addEventListener("change", async () => {
-      await loadAssignments(raceSelect.value);
-      await loadScores(raceSelect.value);
-    });
+<div class="assignment-line">
+<strong>Driver 2:</strong>
+${r.driver_2_name??"—"}${r.driver_2_car_number?` (#${r.driver_2_car_number})`:""}
+<div class="muted">
+Qual: ${r.driver_2_qualifying_position??"—"} | Finish: ${r.driver_2_finish??"—"}
+</div>
+</div>
 
-    generateAssignmentsBtn.addEventListener("click", generateAssignmentsForSelectedRace);
-    importQualBtn.addEventListener("click", importQualifyingForSelectedRace);
-    importResultsBtn.addEventListener("click", importResultsForSelectedRace);
+<div style="margin-top:8px;color:#9ad">
+<strong>Avg Finish:</strong> ${r.average_finish??"—"}
+</div>
 
-    loadRaces();
-  </script>
+</div>
+`).join("");
+
+statusEl.textContent="";
+
+}
+
+async function loadSwissMatchups(){
+
+const t=tournamentSelect.value;
+const r=roundSelect.value;
+
+if(!t)return;
+
+const response=await fetch(`${SUPABASE_URL}/rest/v1/swiss_matchup_results?tournament_id=eq.${t}&round_number=eq.${r}&order=match_number`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
+
+const data=await response.json();
+
+if(!data.length){
+matchupsEl.innerHTML="No matchups yet.";
+return;
+}
+
+matchupsEl.innerHTML=data.map(m=>`
+<div class="player-block">
+<strong>Match ${m.match_number}</strong>
+<div class="assignment-line">${m.player1_name} — Avg ${m.player1_avg??"-"}</div>
+<div class="assignment-line">${m.player2_name} — Avg ${m.player2_avg??"-"}</div>
+</div>
+`).join("");
+
+}
+
+async function loadSwissStandings(){
+
+const t=tournamentSelect.value;
+if(!t)return;
+
+const response=await fetch(`${SUPABASE_URL}/rest/v1/swiss_standings?tournament_id=eq.${t}&order=wins.desc,avg_sum.asc`,{
+headers:{
+apikey:SUPABASE_KEY,
+Authorization:`Bearer ${SUPABASE_KEY}`
+}
+});
+
+const data=await response.json();
+
+if(!data.length){
+standingsEl.innerHTML="No standings.";
+return;
+}
+
+standingsEl.innerHTML=`
+<table>
+<tr>
+<th>Player</th>
+<th>W</th>
+<th>L</th>
+<th>Matches</th>
+<th>Avg</th>
+</tr>
+${data.map(p=>`
+<tr>
+<td>${p.player_name}</td>
+<td>${p.wins}</td>
+<td>${p.losses}</td>
+<td>${p.matches}</td>
+<td>${p.avg??"-"}</td>
+</tr>
+`).join("")}
+</table>
+`;
+
+}
+
+raceSelect.addEventListener("change",async()=>{
+await loadAssignments(raceSelect.value);
+await loadScores(raceSelect.value);
+});
+
+tournamentSelect.addEventListener("change",async()=>{
+await loadSwissMatchups();
+await loadSwissStandings();
+});
+
+roundSelect.addEventListener("change",loadSwissMatchups);
+
+generateAssignmentsBtn.addEventListener("click",async()=>{
+
+const raceId=Number(raceSelect.value);
+
+const response=await fetch("/api/generate-assignments",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"x-admin-key":ADMIN_KEY
+},
+body:JSON.stringify({raceId})
+});
+
+await loadAssignments(raceId);
+await loadScores(raceId);
+
+});
+
+importQualBtn.addEventListener("click",async()=>{
+
+const raceId=Number(raceSelect.value);
+
+await fetch("/api/import-qualifying",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"x-admin-key":ADMIN_KEY
+},
+body:JSON.stringify({raceId})
+});
+
+await loadAssignments(raceId);
+await loadScores(raceId);
+
+});
+
+importResultsBtn.addEventListener("click",async()=>{
+
+const raceId=Number(raceSelect.value);
+
+await fetch("/api/import-results",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"x-admin-key":ADMIN_KEY
+},
+body:JSON.stringify({raceId})
+});
+
+await loadScores(raceId);
+
+});
+
+loadRaces();
+loadTournaments();
+
+</script>
+
 </body>
 </html>
