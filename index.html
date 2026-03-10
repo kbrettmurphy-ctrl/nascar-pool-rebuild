@@ -2209,21 +2209,32 @@
         return;
       }
 
-      const curT = ALL_MATCHUPS.current.tournament;
-      const curR = ALL_MATCHUPS.current.race;
+      const curT = ALL_MATCHUPS.current.tournament ?? "";
+      const curR = ALL_MATCHUPS.current.race ?? "";
 
-      if (!curT || !curR) {
+      if (!curR) {
         area.innerHTML = "Current race not set yet.";
         return;
       }
 
       const currentKey = raceKey_(curT, curR);
-      const currentRaceData = ALL_MATCHUPS.races[currentKey];
+      let currentRaceData = ALL_MATCHUPS.races[currentKey] || null;
 
+      // If current race exists but is not part of a tournament yet,
+      // synthesize a minimal current-race object so the page can still default to it.
       if (!currentRaceData) {
-        area.innerHTML = "Current race data not found.";
-        return;
+        currentRaceData = {
+          tournament: curT,
+          race: curR,
+          round: ALL_MATCHUPS.current.round ?? "",
+          raceWinnerDriver: "",
+          matchups: [],
+          eliminated: []
+        };
       }
+
+setRaceSelectValue_(curT, curR);
+await renderMatchupsInto_(currentRaceData);
 
       setRaceSelectValue_(curT, curR);
 
