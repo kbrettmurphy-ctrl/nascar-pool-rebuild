@@ -6,7 +6,6 @@
 <title>NASCAR Pool Rebuild</title>
 
 <style>
-
 body{
   font-family:Arial,sans-serif;
   margin:0;
@@ -55,7 +54,7 @@ select,button{
 select{
   background:#222;
   color:#f5f5f5;
-  min-width:200px;
+  min-width:165px;
 }
 
 button{
@@ -105,6 +104,9 @@ th,td{
   white-space:pre-wrap;
 }
 
+.section{
+  margin-top:28px;
+}
 </style>
 </head>
 
@@ -112,365 +114,427 @@ th,td{
 
 <div class="card">
 
-<h1>NASCAR Pool Rebuild</h1>
-<p class="small">Same frontend direction. New backend.</p>
+  <h1>NASCAR Pool Rebuild</h1>
+  <p class="small">Same frontend direction. New backend.</p>
 
-<div class="controls">
+  <div class="controls">
+    <label for="raceSelect">Race:</label>
+    <select id="raceSelect"></select>
 
-<label>Race:</label>
-<select id="raceSelect"></select>
+    <label for="tournamentSelect">Tournament:</label>
+    <select id="tournamentSelect"></select>
 
-<label>Tournament:</label>
-<select id="tournamentSelect"></select>
+    <label for="roundSelect">Round:</label>
+    <select id="roundSelect">
+      <option value="1">Round 1</option>
+      <option value="2">Round 2</option>
+      <option value="3">Round 3</option>
+      <option value="4">Round 4</option>
+    </select>
 
-<label>Round:</label>
-<select id="roundSelect">
-<option value="1">Round 1</option>
-<option value="2">Round 2</option>
-<option value="3">Round 3</option>
-<option value="4">Round 4</option>
-</select>
+    <button id="generateAssignmentsBtn" type="button">Generate Assignments</button>
+    <button id="importQualBtn" type="button">Import Qualifying</button>
+    <button id="importResultsBtn" type="button">Import Results</button>
+  </div>
 
-<button id="generateAssignmentsBtn">Generate Assignments</button>
-<button id="importQualBtn">Import Qualifying</button>
-<button id="importResultsBtn">Import Results</button>
+  <div id="actionStatus"></div>
 
-</div>
+  <div class="section">
+    <div id="status">Loading assignments...</div>
+    <div id="results"></div>
+  </div>
 
-<div id="actionStatus"></div>
+  <div class="section">
+    <h2>Swiss Matchups</h2>
+    <div id="matchups"></div>
+  </div>
 
-<div id="status">Loading assignments...</div>
-<div id="results"></div>
-
-<h2>Swiss Matchups</h2>
-<div id="matchups"></div>
-
-<h2>Swiss Standings</h2>
-<div id="standings"></div>
+  <div class="section">
+    <h2>Swiss Standings</h2>
+    <div id="standings"></div>
+  </div>
 
 </div>
 
 <script>
+const SUPABASE_URL = "https://adhqiqniqxwfcruwrlfh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
+const ADMIN_KEY = "BMurf1083!@";
 
-const SUPABASE_URL="https://adhqiqniqxwfcruwrlfh.supabase.co";
-const SUPABASE_KEY="sb_publishable_6cZQmGc_Ceq_XfjfrxcdgA_YeAF5Pp8";
-const ADMIN_KEY="BMurf1083!@";
+const raceSelect = document.getElementById("raceSelect");
+const tournamentSelect = document.getElementById("tournamentSelect");
+const roundSelect = document.getElementById("roundSelect");
 
-const raceSelect=document.getElementById("raceSelect");
-const tournamentSelect=document.getElementById("tournamentSelect");
-const roundSelect=document.getElementById("roundSelect");
+const generateAssignmentsBtn = document.getElementById("generateAssignmentsBtn");
+const importQualBtn = document.getElementById("importQualBtn");
+const importResultsBtn = document.getElementById("importResultsBtn");
 
-const generateAssignmentsBtn=document.getElementById("generateAssignmentsBtn");
-const importQualBtn=document.getElementById("importQualBtn");
-const importResultsBtn=document.getElementById("importResultsBtn");
+const statusEl = document.getElementById("status");
+const resultsEl = document.getElementById("results");
+const actionStatusEl = document.getElementById("actionStatus");
 
-const statusEl=document.getElementById("status");
-const resultsEl=document.getElementById("results");
-const actionStatusEl=document.getElementById("actionStatus");
+const matchupsEl = document.getElementById("matchups");
+const standingsEl = document.getElementById("standings");
 
-const matchupsEl=document.getElementById("matchups");
-const standingsEl=document.getElementById("standings");
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const text = await response.text();
 
-async function loadRaces(){
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
 
-const response=await fetch(`${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
+  if (!response.ok) {
+    throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+  }
 
-const races=await response.json();
-
-raceSelect.innerHTML="";
-
-races.forEach(r=>{
-const o=document.createElement("option");
-o.value=r.id;
-o.textContent=`Race ${r.race_number}: ${r.race_name}`;
-raceSelect.appendChild(o);
-});
-
-if(races.length){
-await loadAssignments(raceSelect.value);
-await loadScores(raceSelect.value);
+  return data;
 }
 
+function authHeaders() {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`
+  };
 }
 
-async function loadTournaments(){
-
-const response=await fetch(`${SUPABASE_URL}/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
-
-const data=await response.json();
-
-tournamentSelect.innerHTML="";
-
-data.forEach(t=>{
-const o=document.createElement("option");
-o.value=t.id;
-o.textContent=`Tournament ${t.tournament_number} (${t.season_year})`;
-tournamentSelect.appendChild(o);
-});
-
-}
-
-async function loadAssignments(raceId){
-
-statusEl.textContent="Loading assignments...";
-resultsEl.innerHTML="";
-
-const response=await fetch(`${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
-
-const data=await response.json();
-
-if(!data.length){
-statusEl.textContent="No assignments.";
-return;
-}
-
-const players={};
-
-data.forEach(r=>{
-if(!players[r.player_name])players[r.player_name]=[];
-players[r.player_name].push(r);
-});
-
-resultsEl.innerHTML=Object.entries(players).map(([name,a])=>{
-
-a.sort((x,y)=>x.assignment_slot-y.assignment_slot);
-
-return`
-<div class="player-block">
-<h3>${name}</h3>
-${a.map(r=>`
-<div class="assignment-line">
-<strong>Driver ${r.assignment_slot}:</strong>
-${r.driver_name??"Not resolved yet"}${r.car_number?` (#${r.car_number})`:""}
-<div class="muted">Assigned qualifying position: ${r.qualifying_position}</div>
-</div>
-`).join("")}
-</div>
-`;
-
-}).join("");
-
-statusEl.textContent="";
-
-}
-
-async function loadScores(raceId){
-
-const response=await fetch(`${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
-
-const data=await response.json();
-
-if(!data.length)return;
-
-resultsEl.innerHTML=data.map(r=>`
-<div class="player-block">
-
-<h3>${r.player_name}</h3>
-
-<div class="assignment-line">
-<strong>Driver 1:</strong>
-${r.driver_1_name??"—"}${r.driver_1_car_number?` (#${r.driver_1_car_number})`:""}
-<div class="muted">
-Qual: ${r.driver_1_qualifying_position??"—"} | Finish: ${r.driver_1_finish??"—"}
-</div>
-</div>
-
-<div class="assignment-line">
-<strong>Driver 2:</strong>
-${r.driver_2_name??"—"}${r.driver_2_car_number?` (#${r.driver_2_car_number})`:""}
-<div class="muted">
-Qual: ${r.driver_2_qualifying_position??"—"} | Finish: ${r.driver_2_finish??"—"}
-</div>
-</div>
-
-<div style="margin-top:8px;color:#9ad">
-<strong>Avg Finish:</strong> ${r.average_finish??"—"}
-</div>
-
-</div>
-`).join("");
-
-statusEl.textContent="";
-
-}
-
-async function loadSwissMatchups(){
-
-const t=tournamentSelect.value;
-const r=roundSelect.value;
-
-if(!t)return;
-
-const response=await fetch(`${SUPABASE_URL}/rest/v1/swiss_matchup_results?tournament_id=eq.${t}&round_number=eq.${r}&order=match_number`,{
-headers:{
-apikey:SUPABASE_KEY,
-Authorization:`Bearer ${SUPABASE_KEY}`
-}
-});
-
-const data=await response.json();
-
-if(!data.length){
-matchupsEl.innerHTML="No matchups yet.";
-return;
-}
-
-matchupsEl.innerHTML=data.map(m=>`
-<div class="player-block">
-<strong>Match ${m.match_number}</strong>
-<div class="assignment-line">${m.player1_name} — Avg ${m.player1_avg??"-"}</div>
-<div class="assignment-line">${m.player2_name} — Avg ${m.player2_avg??"-"}</div>
-</div>
-`).join("");
-
-}
-
-async function loadSwissStandings(){
-
-  const t=tournamentSelect.value;
-  if(!t)return;
-
-  const response=await fetch(
-    `${SUPABASE_URL}/rest/v1/swiss_standings?tournament_id=eq.${t}&order=wins.desc,avg_sum.asc,player_name.asc`,
-    {
-      headers:{
-        apikey:SUPABASE_KEY,
-        Authorization:`Bearer ${SUPABASE_KEY}`
-      }
-    }
+async function loadRaces() {
+  const races = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/races?select=id,race_name,race_number,season_year&order=race_number.asc`,
+    { headers: authHeaders() }
   );
 
-  const data=await response.json();
+  raceSelect.innerHTML = "";
 
-  if(!data.length){
-    standingsEl.innerHTML="No standings.";
+  races.forEach(r => {
+    const o = document.createElement("option");
+    o.value = r.id;
+    o.textContent = `Race ${r.race_number}: ${r.race_name}`;
+    raceSelect.appendChild(o);
+  });
+
+  return races;
+}
+
+async function loadTournaments() {
+  const tournaments = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`,
+    { headers: authHeaders() }
+  );
+
+  tournamentSelect.innerHTML = "";
+
+  tournaments.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t.id;
+    o.textContent = `Tournament ${t.tournament_number} (${t.season_year})`;
+    tournamentSelect.appendChild(o);
+  });
+
+  return tournaments;
+}
+
+async function loadAssignments(raceId) {
+  statusEl.textContent = "Loading assignments...";
+  resultsEl.innerHTML = "";
+
+  const data = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/resolved_assignments?race_id=eq.${raceId}&select=*&order=player_name.asc,assignment_slot.asc`,
+    { headers: authHeaders() }
+  );
+
+  if (!data.length) {
+    statusEl.textContent = "No assignments.";
     return;
   }
 
-  standingsEl.innerHTML=`
-  <table>
-    <tr>
-      <th>Player</th>
-      <th>W</th>
-      <th>L</th>
-      <th>Matches</th>
-      <th>Avg</th>
-    </tr>
-    ${data.map(p=>`
+  const players = {};
+  data.forEach(r => {
+    if (!players[r.player_name]) players[r.player_name] = [];
+    players[r.player_name].push(r);
+  });
+
+  resultsEl.innerHTML = Object.entries(players).map(([name, a]) => {
+    a.sort((x, y) => x.assignment_slot - y.assignment_slot);
+
+    return `
+      <div class="player-block">
+        <h3>${name}</h3>
+        ${a.map(r => `
+          <div class="assignment-line">
+            <strong>Driver ${r.assignment_slot}:</strong>
+            ${r.driver_name ?? "Not resolved yet"}${r.car_number ? ` (#${r.car_number})` : ""}
+            <div class="muted">Assigned qualifying position: ${r.qualifying_position}</div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }).join("");
+
+  statusEl.textContent = "";
+}
+
+async function loadScores(raceId) {
+  const data = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/player_race_scores?race_id=eq.${raceId}&select=*&order=average_finish.asc.nullslast,player_name.asc`,
+    { headers: authHeaders() }
+  );
+
+  if (!data.length) return;
+
+  resultsEl.innerHTML = data.map(r => `
+    <div class="player-block">
+      <h3>${r.player_name}</h3>
+
+      <div class="assignment-line">
+        <strong>Driver 1:</strong>
+        ${r.driver_1_name ?? "—"}${r.driver_1_car_number ? ` (#${r.driver_1_car_number})` : ""}
+        <div class="muted">
+          Qual: ${r.driver_1_qualifying_position ?? "—"} | Finish: ${r.driver_1_finish ?? "—"}
+        </div>
+      </div>
+
+      <div class="assignment-line">
+        <strong>Driver 2:</strong>
+        ${r.driver_2_name ?? "—"}${r.driver_2_car_number ? ` (#${r.driver_2_car_number})` : ""}
+        <div class="muted">
+          Qual: ${r.driver_2_qualifying_position ?? "—"} | Finish: ${r.driver_2_finish ?? "—"}
+        </div>
+      </div>
+
+      <div style="margin-top:8px;color:#9ad">
+        <strong>Avg Finish:</strong> ${r.average_finish ?? "—"}
+      </div>
+    </div>
+  `).join("");
+
+  statusEl.textContent = "";
+}
+
+async function loadSwissMatchups() {
+  const t = tournamentSelect.value;
+  const r = roundSelect.value;
+
+  if (!t) {
+    matchupsEl.innerHTML = "";
+    return;
+  }
+
+  const data = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/swiss_matchup_results?tournament_id=eq.${t}&round_number=eq.${r}&select=*&order=match_number.asc`,
+    { headers: authHeaders() }
+  );
+
+  if (!data.length) {
+    matchupsEl.innerHTML = "No matchups yet.";
+    return;
+  }
+
+  matchupsEl.innerHTML = data.map(m => `
+    <div class="player-block">
+      <strong>Match ${m.match_number}</strong>
+      <div class="assignment-line">${m.player1_name} — Avg ${m.player1_avg ?? "-"}</div>
+      <div class="assignment-line">${m.player2_name} — Avg ${m.player2_avg ?? "-"}</div>
+    </div>
+  `).join("");
+}
+
+async function loadSwissStandings() {
+  const t = tournamentSelect.value;
+
+  if (!t) {
+    standingsEl.innerHTML = "";
+    return;
+  }
+
+  const data = await fetchJson(
+    `${SUPABASE_URL}/rest/v1/swiss_standings?tournament_id=eq.${t}&select=*&order=wins.desc,avg_sum.asc,player_name.asc`,
+    { headers: authHeaders() }
+  );
+
+  if (!data.length) {
+    standingsEl.innerHTML = "No standings.";
+    return;
+  }
+
+  standingsEl.innerHTML = `
+    <table>
       <tr>
-        <td>${p.player_name}</td>
-        <td>${p.wins}</td>
-        <td>${p.losses}</td>
-        <td>${p.matches}</td>
-        <td>${p.avg??"-"}</td>
+        <th>Player</th>
+        <th>W</th>
+        <th>L</th>
+        <th>Matches</th>
+        <th>Avg</th>
       </tr>
-    `).join("")}
-  </table>
+      ${data.map(p => `
+        <tr>
+          <td>${p.player_name}</td>
+          <td>${p.wins}</td>
+          <td>${p.losses}</td>
+          <td>${p.matches}</td>
+          <td>${p.avg ?? "-"}</td>
+        </tr>
+      `).join("")}
+    </table>
   `;
 }
 
-raceSelect.addEventListener("change",async()=>{
-await loadAssignments(raceSelect.value);
-await loadScores(raceSelect.value);
-});
+async function refreshRaceSection() {
+  const raceId = raceSelect.value;
+  if (!raceId) return;
 
-tournamentSelect.addEventListener("change",async()=>{
-await loadSwissMatchups();
-await loadSwissStandings();
-});
-
-roundSelect.addEventListener("change",async()=>{
-  await loadSwissMatchups();
-  await loadSwissStandings();
-});
-generateAssignmentsBtn.addEventListener("click",async()=>{
-
-const raceId=Number(raceSelect.value);
-
-const response=await fetch("/api/generate-assignments",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"x-admin-key":ADMIN_KEY
-},
-body:JSON.stringify({raceId})
-});
-
-await loadAssignments(raceId);
-await loadScores(raceId);
-
-});
-
-importQualBtn.addEventListener("click",async()=>{
-
-const raceId=Number(raceSelect.value);
-
-await fetch("/api/import-qualifying",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"x-admin-key":ADMIN_KEY
-},
-body:JSON.stringify({raceId})
-});
-
-await loadAssignments(raceId);
-await loadScores(raceId);
-
-});
-
-importResultsBtn.addEventListener("click",async()=>{
-
-  const raceId=Number(raceSelect.value);
-
-  actionStatusEl.textContent="Importing results...";
-
-  const response=await fetch("/api/import-results",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "x-admin-key":ADMIN_KEY
-    },
-    body:JSON.stringify({raceId})
-  });
-
-  const result=await response.json();
-
-  if(!response.ok || !result.ok){
-    actionStatusEl.innerHTML=`<span class="error">Import results failed: ${JSON.stringify(result)}</span>`;
-    return;
-  }
-
-  actionStatusEl.textContent=`Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
-
+  await loadAssignments(raceId);
   await loadScores(raceId);
+}
+
+async function refreshSwissSection() {
   await loadSwissMatchups();
   await loadSwissStandings();
+}
 
+raceSelect.addEventListener("change", async () => {
+  try {
+    await refreshRaceSection();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
+  }
 });
+
+tournamentSelect.addEventListener("change", async () => {
+  try {
+    await refreshSwissSection();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
+  }
+});
+
+roundSelect.addEventListener("change", async () => {
+  try {
+    await loadSwissMatchups();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
+  }
+});
+
+generateAssignmentsBtn.addEventListener("click", async () => {
+  const raceId = Number(raceSelect.value);
+  if (!raceId) return;
+
+  try {
+    actionStatusEl.textContent = "Generating assignments...";
+
+    const response = await fetch("/api/generate-assignments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": ADMIN_KEY
+      },
+      body: JSON.stringify({ raceId })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(JSON.stringify(result));
+    }
+
+    actionStatusEl.textContent = result.message || "Assignments generated.";
+    await refreshRaceSection();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">Generate failed: ${err.message || err}</span>`;
+  }
+});
+
+importQualBtn.addEventListener("click", async () => {
+  const raceId = Number(raceSelect.value);
+  if (!raceId) return;
+
+  try {
+    actionStatusEl.textContent = "Importing qualifying...";
+
+    const response = await fetch("/api/import-qualifying", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": ADMIN_KEY
+      },
+      body: JSON.stringify({ raceId })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(JSON.stringify(result));
+    }
+
+    actionStatusEl.textContent =
+      `Imported qualifying for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+    await refreshRaceSection();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">Import qualifying failed: ${err.message || err}</span>`;
+  }
+});
+
+importResultsBtn.addEventListener("click", async () => {
+  const raceId = Number(raceSelect.value);
+  if (!raceId) return;
+
+  try {
+    actionStatusEl.textContent = "Importing results...";
+
+    const response = await fetch("/api/import-results", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-key": ADMIN_KEY
+      },
+      body: JSON.stringify({ raceId })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(JSON.stringify(result));
+    }
+
+    actionStatusEl.textContent =
+      `Imported results for ${result.raceName}. Rows written: ${result.rowsWritten}.`;
+
+    await loadScores(raceId);
+    await refreshSwissSection();
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">Import results failed: ${err.message || err}</span>`;
+  }
+});
+
+async function init() {
+  try {
+    actionStatusEl.textContent = "Loading...";
+
+    const races = await loadRaces();
+    const tournaments = await loadTournaments();
+
+    if (!races.length) {
+      statusEl.textContent = "No races found.";
+    }
+
+    if (!tournaments.length) {
+      matchupsEl.innerHTML = "No tournaments found.";
+      standingsEl.innerHTML = "";
+    } else {
+      await refreshSwissSection();
+    }
+
+    actionStatusEl.textContent = "";
+  } catch (err) {
+    actionStatusEl.innerHTML = `<span class="error">${err.message || err}</span>`;
+  }
+}
 
 init();
-
 </script>
 
 </body>
