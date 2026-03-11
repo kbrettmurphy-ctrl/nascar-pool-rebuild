@@ -11,7 +11,7 @@ export async function onRequestPost(context) {
     const tournamentId = Number(body?.tournamentId);
     const seeds = Array.isArray(body?.seeds) ? body.seeds : [];
 
-    if (!Number.isInteger(tournamentId)) {
+    if (!Number.isInteger(tournamentId) || tournamentId <= 0) {
       return json({ ok: false, error: "tournamentId is required" }, 400);
     }
 
@@ -19,53 +19,62 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "seeds array is required" }, 400);
     }
 
+    const rows = seeds.map((row) => {
+      const playerId = Number(row?.playerId);
+      const seed = Number(row?.seed);
+
+      if (!Number.isInteger(playerId) || playerId <= 0 || !Number.isInteger(seed) || seed <= 0) {
+        throw new Error("Each seed row needs valid playerId and seed");
+      }
+
+      return {
+        tournament_id: tournamentId,
+        player_id: playerId,
+        seed
+      };
+    });
+
+    const uniquePlayers = new Set(rows.map(r => r.player_id));
+    const uniqueSeeds = new Set(rows.map(r => r.seed));
+
+    if (uniquePlayers.size !== rows.length) {
+      return json({ ok: false, error: "Each player can only be used once" }, 400);
+    }
+
+    if (uniqueSeeds.size !== rows.length) {
+      return json({ ok: false, error: "Each seed can only be used once" }, 400);
+    }
+
     const headers = {
       "Content-Type": "application/json",
       apikey: env.SUPABASE_SECRET_KEY,
       Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      Prefer: "return=representation"
+      Prefer: "resolution=merge-duplicates,return=representation"
     };
 
-    const updatedRows = [];
-
-    for (const row of seeds) {
-      const playerId = Number(row?.playerId);
-      const seed = Number(row?.seed);
-
-      if (!Number.isInteger(playerId) || !Number.isInteger(seed)) {
-        return json({ ok: false, error: "Each seed row needs playerId and seed" }, 400);
+    const res = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/tournament_players?on_conflict=tournament_id,player_id`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(rows)
       }
+    );
 
-      const res = await fetch(
-        `${env.SUPABASE_URL}/rest/v1/tournament_players?tournament_id=eq.${tournamentId}&player_id=eq.${playerId}`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({ seed })
-        }
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!res.ok) {
+      return json(
+        { ok: false, error: data?.message || text || "Failed saving round-one seeds" },
+        500
       );
-
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : [];
-
-      if (!res.ok) {
-        return json({ ok: false, error: text || `Failed updating player ${playerId}` }, 500);
-      }
-
-      if (!Array.isArray(data) || data.length === 0) {
-        return json({
-          ok: false,
-          error: `No tournament_players row found for tournament ${tournamentId}, player ${playerId}`
-        }, 400);
-      }
-
-      updatedRows.push(...data);
     }
 
     return json({
       ok: true,
-      message: `Saved ${updatedRows.length} round-one seeds`,
-      data: updatedRows
+      message: `Saved ${Array.isArray(data) ? data.length : 0} round-one seeds`,
+      data: Array.isArray(data) ? data : []
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
