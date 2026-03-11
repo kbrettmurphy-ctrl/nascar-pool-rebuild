@@ -174,10 +174,16 @@ export async function onRequestGet(context) {
         r => Number(r.tournament_id) === tournamentId
       );
 
-      const built = buildStatsMap(rows);
+      const built = buildStatsMap(rows).map(r => ({
+        rank: r.rank,
+        player: r.player,
+        W: r.W,
+        L: r.L,
+        Avg: r.Avg
+      }));
 
-      tournamentHeaders.push(label);
-      tournamentsOut[label] = built;
+tournamentHeaders.push(label);
+tournamentsOut[label] = built;
     }
 
     return json({
