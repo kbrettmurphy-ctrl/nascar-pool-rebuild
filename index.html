@@ -3522,14 +3522,17 @@
       const startPress = (e) => {
         _adminLongPressTriggered = false;
         clearTimeout(_adminLongPressTimer);
+
         _adminLongPressTimer = setTimeout(() => {
-          _adminLongPressTriggered = true;
-          openAdminPin_();
-        }, 900);
+          if (!_adminLongPressTriggered) {
+            _adminLongPressTriggered = true;
+            openAdminPin_();  // This should ONLY trigger after the long press
+          }
+        }, 900); // Adjust duration if necessary
       };
 
       const cancelPress = () => {
-        clearTimeout(_adminLongPressTimer);
+        clearTimeout(_adminLongPressTimer);  // Clear the timer if the press is canceled
       };
 
       portal.addEventListener("touchstart", startPress, { passive: true });
@@ -3540,6 +3543,7 @@
       portal.addEventListener("mouseleave", cancelPress);
     }
 
+    // Ensure that the modal is not being triggered on page load
     document.getElementById("adminPinCancel")?.addEventListener("click", closeAdminPin_);
     document.getElementById("adminPinSubmit")?.addEventListener("click", unlockAdmin_);
     document.getElementById("adminCloseBtn")?.addEventListener("click", closeAdminOverlay_);
