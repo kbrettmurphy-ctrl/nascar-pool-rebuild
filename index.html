@@ -1715,7 +1715,17 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ raceId })
       });
+
       setAdminStatus_(statusId, data.message || `${label} done.`);
+
+      if (url.includes("generate-assignments") && Array.isArray(data.data)) {
+        const msg = data.data
+          .map((row, i) => `${i + 1}. ${row.player_name} ${row.assigned_numbers}`)
+          .join("\n");
+
+        alert(`Assignments Generated\n\n${msg}`);
+      }
+
       refreshActiveView();
     } catch (err) {
       setAdminStatus_(statusId, err.message || String(err), true);
