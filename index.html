@@ -3572,6 +3572,55 @@
   if (cancelBtn) {
     cancelBtn.addEventListener("click", closeAdminPin_);
   }
+  
+  const submitBtn = document.getElementById("adminPinSubmit");
+
+if (submitBtn) {
+  submitBtn.addEventListener("click", async () => {
+
+    const pin = document.getElementById("adminPinInput")?.value.trim();
+    const status = document.getElementById("adminPinStatus");
+
+    if (!pin) {
+      status.textContent = "Enter PIN";
+      return;
+    }
+
+    status.textContent = "Verifying...";
+
+    try {
+
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ pin })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        status.textContent = data.error || "Invalid PIN";
+        return;
+      }
+
+      // store token
+      localStorage.setItem("adminToken", data.token);
+
+      // close pin modal
+      closeAdminPin_();
+
+      // open admin panel
+      const overlay = document.getElementById("adminOverlay");
+      if (overlay) overlay.hidden = false;
+
+    } catch (err) {
+      status.textContent = "Login failed";
+    }
+
+  });
+}
 
   document.getElementById("adminAssignBtn")
     ?.addEventListener("click", () =>
