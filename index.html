@@ -3579,36 +3579,34 @@
   pinCancel?.addEventListener("click", closePin);
 
   pinSubmit?.addEventListener("click", async () => {
+  const pin = pinInput.value.trim();
+  if (!pin) return;
 
-    const pin = pinInput.value.trim();
+  try {
+    const res = await fetch("/api/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin })
+    });
 
-    if (!pin) return;
+    const data = await res.json();
 
-    try {
-
-      const res = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
-      });
-
-      const data = await res.json();
-
-      if (!data.ok) {
-        alert("Invalid PIN");
-        return;
-      }
-
-      localStorage.setItem("adminToken", data.token);
-
-      closePin();
-      openAdminOverlay();
-
-    } catch (err) {
-      console.error(err);
+    if (!data.ok) {
+      alert("Invalid PIN");
+      return;
     }
 
-  });
+    setAdminToken_(data.token);
+
+    closePin();
+    openAdminOverlay_();
+    await loadAdminContext();
+
+  } catch (err) {
+    console.error(err);
+  }
+});
+
 
   /* --------------------------
      OPEN ADMIN PANEL
@@ -3630,15 +3628,14 @@
      HEADER BUTTONS
   --------------------------- */
 
-  closeBtn?.addEventListener("click", closeAdminOverlay);
+  closeBtn?.addEventListener("click", () => {
+  closeAdminOverlay_();
+});
 
-  lockBtn?.addEventListener("click", () => {
-
-    localStorage.removeItem("adminToken");
-
-    closeAdminOverlay();
-
-  });
+lockBtn?.addEventListener("click", () => {
+  clearAdminToken_();
+  closeAdminOverlay_();
+});
 
   /* --------------------------
      LOAD TOURNAMENT / RACE
