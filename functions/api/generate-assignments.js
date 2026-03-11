@@ -2,8 +2,8 @@ export async function onRequestPost(context) {
   try {
     const { request, env } = context;
 
-    const adminKey = request.headers.get("x-admin-key");
-    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+    const ok = await verifyAdminRequest(request, env);
+    if (!ok) {
       return json({ ok: false, error: "Unauthorized" }, 401);
     }
 
