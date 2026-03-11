@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
 
     // 1) Load race metadata from Supabase
     const raceRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name`,
+      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name,tournament_id`,
       {
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
@@ -31,6 +31,7 @@ export async function onRequestPost(context) {
     }
 
     const race = raceRows[0];
+    const tournamentId = race.tournament_id;
 
     // 2) Fetch NASCAR race list
     const raceListUrl = `https://cf.nascar.com/cacher/${race.season_year}/race_list_basic.json`;
@@ -255,7 +256,23 @@ export async function onRequestPost(context) {
           Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
         },
         body: JSON.stringify({
-          p_tournament_id: 1
+          p_tournament_id: tournamentId
+        })
+      }
+    );
+    
+    // 11) Generate next Swiss round pairings
+    await fetch(
+      `${env.SUPABASE_URL}/rest/v1/rpc/generate_next_swiss_round`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+        body: JSON.stringify({
+          p_tournament_id: tournamentId
         })
       }
     );
