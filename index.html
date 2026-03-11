@@ -2766,11 +2766,9 @@
       const data = duesMap[name] || null;
       const paid = Number(data?.paid ?? 0);
       const winnings = Number(data?.winnings ?? 0);
-
-      // “Paid up to current race” can be satisfied by cash OR winnings credit.
       const effectivePaid = paid + winnings;
-      const behind = required - effectivePaid;
-      if(!(behind > 0.0001)) return;
+      const behind = Number(data?.currentBehind ?? 0);
+      if (!(behind > 0.0001)) return;
 
       // Mark seen immediately (so refresh spam doesn't re-open it)
       localStorage.setItem(seenKey, "1");
