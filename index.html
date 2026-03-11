@@ -1718,13 +1718,10 @@
 
       setAdminStatus_(statusId, data.message || `${label} done.`);
 
-      if (url.includes("generate-assignments") && Array.isArray(data.data)) {
-        const msg = data.data
-          .map((row, i) => `${i + 1}. ${row.player_name} ${row.assigned_numbers}`)
-          .join("\n");
-
-        alert(`Assignments Generated\n\n${msg}`);
-      }
+      if (url.includes("generate-assignments")) {
+  console.log("generate-assignments response:", data);
+  alert(JSON.stringify(data, null, 2));
+}
 
       refreshActiveView();
     } catch (err) {
