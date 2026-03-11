@@ -1,3 +1,5 @@
+import { verifyAdminRequest, json } from "./_admin-auth";
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
@@ -30,22 +32,15 @@ export async function onRequestPost(context) {
     const text = await response.text();
 
     if (!response.ok) {
-      return json({ ok: false, error: text }, 500);
+      return json({ ok: false, error: text || "Failed to generate assignments" }, 500);
     }
 
     return json({
       ok: true,
       raceId,
-      message: `Assignments generated for race ${raceId}`
+      message: `Assignments generated for race ${raceId}`,
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }
