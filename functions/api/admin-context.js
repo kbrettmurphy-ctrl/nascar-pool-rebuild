@@ -20,13 +20,13 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    const [races, rounds, players] = await Promise.all([
+    const [races, rounds, players, raceResults] = await Promise.all([
       getJson(`/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`),
       getJson(`/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id,tournaments(tournament_number)&order=tournament_id.asc,round_number.asc`),
-      getJson(`/rest/v1/players?select=id,name&order=name.asc`)
+      getJson(`/rest/v1/players?select=id,name&order=name.asc`),
+      getJson(`/rest/v1/race_results?select=race_id`),
     ]);
 
-    const raceResults = await getJson(`/rest/v1/race_results?select=race_id`);
     const completedRaceIds = new Set((raceResults || []).map(r => Number(r.race_id)));
 
     let currentRace = null;
@@ -42,44 +42,57 @@ export async function onRequestGet(context) {
     const tournamentSet = new Map();
 
     for (const row of rounds || []) {
-      const tNum = Number(row?.tournaments?.tournament_number ?? row.tournament_id);
+      const nestedTournament = Array.isArray(row?.tournaments)
+        ? row.tournaments[0]
+        : row?.tournaments;
+
+      const tNum = Number(
+        nestedTournament?.tournament_number ?? row?.tournament_id ?? 0
+      );
+
       roundByRaceId.set(Number(row.race_id), {
         tournamentId: Number(row.tournament_id),
         tournamentNumber: tNum,
         roundNumber: Number(row.round_number),
       });
+
       tournamentSet.set(Number(row.tournament_id), {
         id: Number(row.tournament_id),
-        label: `Tournament ${tNum}`
+        label: `Tournament ${tNum}`,
       });
     }
 
-    const raceOptions = (races || []).map(r => {
+    const raceOptions = (races || []).map((r) => {
       const meta = roundByRaceId.get(Number(r.id));
       const shortName = String(r.race_short || r.race_name || "").trim();
+
       return {
         id: Number(r.id),
         raceNumber: Number(r.race_number),
-        label: `Race ${r.race_number} · ${shortName}`,
-        tournamentId: meta?.tournamentId ?? 0,
+        label: `Race ${r.race_number} Â· ${shortName}`,
+        tournamentId: Number(meta?.tournamentId || 0),
         tournamentNumber: meta?.tournamentNumber ?? "",
         roundNumber: meta?.roundNumber ?? "",
-        name: shortName
+        name: shortName,
       };
     });
+
+    const currentMeta = currentRace
+      ? roundByRaceId.get(Number(currentRace.id))
+      : null;
 
     return json({
       ok: true,
       data: {
         currentRaceId: Number(currentRace?.id || 0),
-        tournamentId: meta?.tournamentId ?? 0,
+        currentTournamentId: Number(currentMeta?.tournamentId || 0),
         tournaments: [...tournamentSet.values()].sort((a, b) => a.id - b.id),
         races: raceOptions,
-        players: (players || []).map(p => ({
+        players: (players || []).map((p) => ({
           id: Number(p.id),
-          name: String(p.name || "").trim()
-        }))
-      }
+          name: String(p.name || "").trim(),
+        })),
+      },
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
