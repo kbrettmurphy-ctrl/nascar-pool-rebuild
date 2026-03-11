@@ -3525,109 +3525,75 @@
   }
 
   function initAdminControls_() {
-    const portal = document.getElementById("playerPortalPill");
-    if (portal && !portal.dataset.bound) {
-      portal.dataset.bound = "1";
 
-      const startPress = (e) => {
-        _adminLongPressTriggered = false;
-        clearTimeout(_adminLongPressTimer);
+  const portal = document.getElementById("playerPortalPill");
+  const backdrop = document.getElementById("adminPinBackdrop");
+  const cancelBtn = document.getElementById("adminPinCancel");
 
-        _adminLongPressTimer = setTimeout(() => {
-          if (!_adminLongPressTriggered) {
-            _adminLongPressTriggered = true;
-            openAdminPin_();  // This should ONLY trigger after the long press
-          }
-        }, 900); // Adjust duration if necessary
-      };
+  let longPressTimer = null;
 
-      const cancelPress = () => {
-        clearTimeout(_adminLongPressTimer);  // Clear the timer if the press is canceled
-      };
+  // Ensure modal starts hidden
+  if (backdrop) backdrop.hidden = true;
 
-      portal.addEventListener("touchstart", startPress, { passive: true });
-      portal.addEventListener("touchend", cancelPress);
-      portal.addEventListener("touchcancel", cancelPress);
-      portal.addEventListener("mousedown", startPress);
-      portal.addEventListener("mouseup", cancelPress);
-      portal.addEventListener("mouseleave", cancelPress);
-    }
-
-    // Ensure that the modal is not being triggered on page load
-    document.addEventListener("DOMContentLoaded", function() {
-      const portal = document.getElementById("playerPortalPill");
-      const backdrop = document.getElementById("adminPinBackdrop");
-      const adminPinCancelBtn = document.getElementById("adminPinCancel");
-      let _adminLongPressTimer = null;
-      let _adminLongPressTriggered = false;
-
-      if (portal && !portal.dataset.bound) {
-        portal.dataset.bound = "1";
-
-        // Start press event to trigger long press timer
-        portal.addEventListener("touchstart", startPress);
-        portal.addEventListener("mousedown", startPress);
-
-        // Cancel press event to clear the long press timer
-        portal.addEventListener("touchend", cancelPress);
-        portal.addEventListener("mouseup", cancelPress);
-        portal.addEventListener("touchcancel", cancelPress);
-        portal.addEventListener("mouseleave", cancelPress);
-
-        // Function to start the long press timer
-        function startPress(e) {
-          _adminLongPressTriggered = false;
-          clearTimeout(_adminLongPressTimer);
-          _adminLongPressTimer = setTimeout(() => {
-            if (!_adminLongPressTriggered) {
-              _adminLongPressTriggered = true;
-              openAdminPin_();  // Modal opens only after the long press
-            }
-          }, 900); // Adjust duration if necessary
-        }
-
-        // Function to cancel the press event if released too early
-        function cancelPress() {
-          clearTimeout(_adminLongPressTimer);  // Clear the timer
-        }
-      }
-
-      // Cancel button closes the admin PIN modal
-      if (adminPinCancelBtn) {
-        adminPinCancelBtn.addEventListener("click", closeAdminPin_);
-      }
-
-      // Open the Admin PIN modal
-      function openAdminPin_() {
-        if (backdrop) {
-          backdrop.hidden = false;
-          setTimeout(() => document.getElementById("adminPinInput").focus(), 20); // Focus on the PIN input after opening
-        }
-      }
-
-      // Close the Admin PIN modal
-      function closeAdminPin_() {
-        if (backdrop) {
-          backdrop.hidden = true;
-        }
-      }
-    });
-
-    document.getElementById("adminAssignBtn")?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/generate-assignments", "adminRaceOpsStatus", "Generating assignments")
-    );
-
-    document.getElementById("adminQualBtn")?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/import-qualifying", "adminRaceOpsStatus", "Importing qualifying")
-    );
-
-    document.getElementById("adminResultsBtn")?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/import-results", "adminRaceOpsStatus", "Importing results")
-    );
-
-    document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
-    document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
+  function openAdminPin_() {
+    if (!backdrop) return;
+    backdrop.hidden = false;
+    setTimeout(() => {
+      document.getElementById("adminPinInput")?.focus();
+    }, 20);
   }
+
+  function closeAdminPin_() {
+    if (!backdrop) return;
+    backdrop.hidden = true;
+  }
+
+  function startPress() {
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      openAdminPin_();
+    }, 900);
+  }
+
+  function cancelPress() {
+    clearTimeout(longPressTimer);
+  }
+
+  if (portal) {
+    portal.addEventListener("touchstart", startPress, { passive: true });
+    portal.addEventListener("mousedown", startPress);
+
+    portal.addEventListener("touchend", cancelPress);
+    portal.addEventListener("mouseup", cancelPress);
+    portal.addEventListener("touchcancel", cancelPress);
+    portal.addEventListener("mouseleave", cancelPress);
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", closeAdminPin_);
+  }
+
+  document.getElementById("adminAssignBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/generate-assignments","adminRaceOpsStatus","Generating assignments")
+    );
+
+  document.getElementById("adminQualBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-qualifying","adminRaceOpsStatus","Importing qualifying")
+    );
+
+  document.getElementById("adminResultsBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-results","adminRaceOpsStatus","Importing results")
+    );
+
+  document.getElementById("adminSaveSeedsBtn")
+    ?.addEventListener("click", saveAdminSeeds_);
+
+  document.getElementById("adminAddFundsBtn")
+    ?.addEventListener("click", addFunds_);
+}
 
   window.addEventListener("resize", () => {
     if (_statsMode !== "overall" && _statsMode !== "tourney") return;
