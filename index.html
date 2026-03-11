@@ -3573,6 +3573,33 @@
     document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
   }
 
+  // Open the Admin PIN modal
+  function openAdminPin_() {
+    const backdrop = document.getElementById("adminPinBackdrop");
+    const input = document.getElementById("adminPinInput");
+    const status = document.getElementById("adminPinStatus");
+
+    // Ensure modal is shown
+    backdrop.hidden = false;
+    status.textContent = "";
+    input.value = "";
+
+    setTimeout(() => input.focus(), 20);  // Focus on the input after opening
+  }
+
+  // Close the Admin PIN modal
+  function closeAdminPin_() {
+    const backdrop = document.getElementById("adminPinBackdrop");
+    backdrop.hidden = true;
+  }
+
+  // Close the Admin overlay
+  function closeAdminOverlay_() {
+    const overlay = document.getElementById("adminOverlay");
+    if (overlay) overlay.hidden = true;
+    document.body.style.overflow = "";
+  }
+
   window.addEventListener("resize", () => {
     if (_statsMode !== "overall" && _statsMode !== "tourney") return;
 
