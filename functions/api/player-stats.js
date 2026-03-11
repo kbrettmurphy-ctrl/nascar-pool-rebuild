@@ -30,20 +30,35 @@ export async function onRequestGet(context) {
     );
 
     const scoreRows = await getJson(
-      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_finish,driver_2_finish`
+      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_finish,driver_2_finish`
+    );
+
+    const raceResults = await getJson(
+      `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
+    );
+
+    const drivers = await getJson(
+      `/rest/v1/drivers?select=id,name`
     );
 
     const tournaments = await getJson(
       `/rest/v1/tournaments?select=id,tournament_number&order=tournament_number.asc`
     );
 
-    const tournamentNumById = new Map(
-      (tournaments || []).map(t => [Number(t.id), Number(t.tournament_number)])
-    );
-
     const scoreMap = new Map(
       (scoreRows || []).map(r => [`${r.race_id}||${r.player_id}`, r])
     );
+
+    const driverIdByName = new Map(
+      (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
+    );
+
+    const raceWinnerDriverByRaceId = new Map();
+    for (const row of raceResults || []) {
+      if (Number(row.finishing_position) === 1) {
+        raceWinnerDriverByRaceId.set(Number(row.race_id), Number(row.driver_id));
+      }
+    }
 
     function buildStatsMap(rows) {
       const statsMap = new Map();
@@ -105,15 +120,8 @@ export async function onRequestGet(context) {
       }
 
       const out = Array.from(statsMap.values()).map(r => {
-        const rawAvg =
-          r.match_count > 0
-            ? (r.avg_sum / r.match_count)
-            : 0;
-
-        const rawWinPct =
-          r.match_count > 0
-            ? (r.W / r.match_count)
-            : 0;
+        const rawAvg = r.match_count > 0 ? (r.avg_sum / r.match_count) : 0;
+        const rawWinPct = r.match_count > 0 ? (r.W / r.match_count) : 0;
 
         let winPctDisplay = rawWinPct.toFixed(3);
         if (winPctDisplay.startsWith("0")) {
@@ -123,6 +131,7 @@ export async function onRequestGet(context) {
         return {
           rank: 0,
           player: r.Name,
+          player_id: r.player_id,
           W: r.W,
           L: r.L,
           Avg: rawAvg.toFixed(2),
@@ -142,9 +151,6 @@ export async function onRequestGet(context) {
 
       out.forEach((row, idx) => {
         row.rank = idx + 1;
-        delete row.__rawWinPct;
-        delete row.__rawAvg;
-        delete row.__minFinish;
       });
 
       return out;
@@ -161,7 +167,7 @@ export async function onRequestGet(context) {
       "W%": r["W%"]
     }));
 
-    // TOURNAMENTS
+    // TOURNAMENT RANKS
     const tournamentHeaders = [];
     const tournamentsOut = {};
 
@@ -182,8 +188,87 @@ export async function onRequestGet(context) {
         Avg: r.Avg
       }));
 
-tournamentHeaders.push(label);
-tournamentsOut[label] = built;
+      tournamentHeaders.push(label);
+      tournamentsOut[label] = built;
+    }
+
+    // WINS
+    const winsMap = new Map();
+
+    function getWinsRow(playerId, playerName) {
+      const key = String(playerId);
+      if (!winsMap.has(key)) {
+        winsMap.set(key, {
+          player: String(playerName || "").trim(),
+          raceWins: 0,
+          bracketWins: 0,
+          tourneyWins: 0
+        });
+      }
+      return winsMap.get(key);
+    }
+
+    // bracket wins from winner_id
+    for (const row of matchupRows || []) {
+      const winnerId = Number(row.winner_id);
+      if (!winnerId) continue;
+
+      let winnerName = "";
+      if (winnerId === Number(row.player1_id)) winnerName = row.player1_name || "";
+      if (winnerId === Number(row.player2_id)) winnerName = row.player2_name || "";
+
+      const w = getWinsRow(winnerId, winnerName);
+      w.bracketWins += 1;
+    }
+
+    // race wins from player_race_scores containing the winning driver
+    for (const row of scoreRows || []) {
+      const raceId = Number(row.race_id);
+      const playerId = Number(row.player_id);
+      const winningDriverId = raceWinnerDriverByRaceId.get(raceId);
+      if (!winningDriverId) continue;
+
+      const d1 = driverIdByName.get(normalizeName(row.driver_1_name || ""));
+      const d2 = driverIdByName.get(normalizeName(row.driver_2_name || ""));
+
+      if (Number(d1) === Number(winningDriverId) || Number(d2) === Number(winningDriverId)) {
+        // need player name from overallRaw if possible
+        const playerName =
+          overallRaw.find(x => Number(x.player_id) === playerId)?.player || "";
+        const w = getWinsRow(playerId, playerName);
+        w.raceWins += 1;
+      }
+    }
+
+    // tournament wins = rank 1 in each tournament
+    for (const t of tournaments || []) {
+      const label = `Tournament ${Number(t.tournament_number)}`;
+      const rows = tournamentsOut[label] || [];
+      const winner = rows.find(r => Number(r.rank) === 1);
+      if (winner) {
+        // find player_id from overallRaw by player name
+        const found = overallRaw.find(x => String(x.player) === String(winner.player));
+        if (found) {
+          const w = getWinsRow(Number(found.player_id), found.player);
+          w.tourneyWins += 1;
+        }
+      }
+    }
+
+    const wins = {};
+    for (const row of overallRaw) {
+      const found = winsMap.get(String(row.player_id)) || {
+        player: row.player,
+        raceWins: 0,
+        bracketWins: 0,
+        tourneyWins: 0
+      };
+
+      wins[row.player] = {
+        raceWins: found.raceWins,
+        bracketWins: found.bracketWins,
+        tourneyWins: found.tourneyWins
+      };
     }
 
     return json({
@@ -192,12 +277,21 @@ tournamentsOut[label] = built;
         overallHeaders: ["Rank", "Name", "W", "L", "Avg", "W%"],
         overall,
         tournamentHeaders,
-        tournaments: tournamentsOut
+        tournaments: tournamentsOut,
+        wins
       }
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
+}
+
+function normalizeName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function json(data, status = 200) {
