@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
     }
 
     const [races, rounds, players] = await Promise.all([
-      getJson(`/rest/v1/races?select=id,race_number,race_name,race_short,tournament_id&order=race_number.asc`),
+      getJson(`/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`),
       getJson(`/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id,tournaments(tournament_number)&order=tournament_id.asc,round_number.asc`),
       getJson(`/rest/v1/players?select=id,name&order=name.asc`)
     ]);
@@ -61,7 +61,7 @@ export async function onRequestGet(context) {
         id: Number(r.id),
         raceNumber: Number(r.race_number),
         label: `Race ${r.race_number} · ${shortName}`,
-        tournamentId: meta?.tournamentId ?? Number(r.tournament_id || 0),
+        tournamentId: meta?.tournamentId ?? 0,
         tournamentNumber: meta?.tournamentNumber ?? "",
         roundNumber: meta?.roundNumber ?? "",
         name: shortName
@@ -72,7 +72,7 @@ export async function onRequestGet(context) {
       ok: true,
       data: {
         currentRaceId: Number(currentRace?.id || 0),
-        currentTournamentId: Number(roundByRaceId.get(Number(currentRace?.id))?.tournamentId || currentRace?.tournament_id || 0),
+        tournamentId: meta?.tournamentId ?? 0,
         tournaments: [...tournamentSet.values()].sort((a, b) => a.id - b.id),
         races: raceOptions,
         players: (players || []).map(p => ({
