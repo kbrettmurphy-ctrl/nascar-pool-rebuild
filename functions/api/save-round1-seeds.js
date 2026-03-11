@@ -20,40 +20,40 @@ export async function onRequestPost(context) {
     }
 
     const headers = {
-      "Content-Type": "application/json",
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-    };
+  "Content-Type": "application/json",
+  apikey: env.SUPABASE_SECRET_KEY,
+  Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+  Prefer: "return=representation",
+};
 
-    for (const row of seeds) {
-      const playerId = Number(row?.playerId);
-      const seed = Number(row?.seed);
+for (const row of seeds) {
+  const playerId = Number(row?.playerId);
+  const seed = Number(row?.seed);
 
-      if (!Number.isInteger(playerId) || !Number.isInteger(seed)) {
-        return json({ ok: false, error: "Each seed row needs playerId and seed" }, 400);
-      }
+  if (!Number.isInteger(playerId) || !Number.isInteger(seed)) {
+    return json({ ok: false, error: "Each seed row needs playerId and seed" }, 400);
+  }
 
-      const res = await fetch(
-        `${env.SUPABASE_URL}/rest/v1/tournament_players?tournament_id=eq.${tournamentId}&player_id=eq.${playerId}`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({ seed })
-        }
-      );
-
-      if (!res.ok) {
-        const text = await res.text();
-        return json({ ok: false, error: text || `Failed updating player ${playerId}` }, 500);
-      }
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tournament_players?tournament_id=eq.${tournamentId}&player_id=eq.${playerId}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ seed })
     }
+  );
 
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : [];
+
+  if (!res.ok) {
+    return json({ ok: false, error: text || `Failed updating player ${playerId}` }, 500);
+  }
+
+  if (!Array.isArray(data) || data.length === 0) {
     return json({
-      ok: true,
-      message: `Saved ${seeds.length} round-one seeds`,
-      data: { tournamentId, count: seeds.length }
-    });
-  } catch (err) {
-    return json({ ok: false, error: err.message || String(err) }, 500);
+      ok: false,
+      error: `No tournament_players row matched tournament ${tournamentId}, player ${playerId}`
+    }, 400);
   }
 }
