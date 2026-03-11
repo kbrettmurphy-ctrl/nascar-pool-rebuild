@@ -3525,159 +3525,194 @@
   }
 
   function initAdminControls_() {
-    const portal = document.getElementById("playerPortalPill");
-    const backdrop = document.getElementById("adminPinBackdrop");
-    const cancelBtn = document.getElementById("adminPinCancel");
-  
-    let longPressTimer = null;
 
-    // Ensure modal starts hidden
-    if (backdrop) backdrop.hidden = true;
+  const portal = document.getElementById("playerPortalPill");
+  const pinBackdrop = document.getElementById("adminPinBackdrop");
+  const pinInput = document.getElementById("adminPinInput");
+  const pinSubmit = document.getElementById("adminPinSubmit");
+  const pinCancel = document.getElementById("adminPinCancel");
 
-    function openAdminPin_() {
-      if (!backdrop) return;
-      backdrop.hidden = false;
-      setTimeout(() => {
-        document.getElementById("adminPinInput")?.focus();
-      }, 20);
+  const overlay = document.getElementById("adminOverlay");
+
+  const closeBtn = document.getElementById("adminCloseBtn");
+  const lockBtn = document.getElementById("adminLockBtn");
+
+  const tournamentSel = document.getElementById("adminTournamentSelect");
+  const raceSel = document.getElementById("adminRaceSelect");
+
+  let pressTimer = null;
+
+  /* --------------------------
+     LONG PRESS TO OPEN PIN
+  --------------------------- */
+
+  function startPress() {
+    pressTimer = setTimeout(() => {
+      pinBackdrop.hidden = false;
+      pinInput.focus();
+    }, 900);
+  }
+
+  function cancelPress() {
+    clearTimeout(pressTimer);
+  }
+
+  if (portal) {
+    portal.addEventListener("mousedown", startPress);
+    portal.addEventListener("touchstart", startPress);
+
+    portal.addEventListener("mouseup", cancelPress);
+    portal.addEventListener("mouseleave", cancelPress);
+    portal.addEventListener("touchend", cancelPress);
+    portal.addEventListener("touchcancel", cancelPress);
+  }
+
+  /* --------------------------
+     PIN MODAL
+  --------------------------- */
+
+  function closePin() {
+    pinBackdrop.hidden = true;
+    pinInput.value = "";
+  }
+
+  pinCancel?.addEventListener("click", closePin);
+
+  pinSubmit?.addEventListener("click", async () => {
+
+    const pin = pinInput.value.trim();
+
+    if (!pin) return;
+
+    try {
+
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        alert("Invalid PIN");
+        return;
+      }
+
+      localStorage.setItem("adminToken", data.token);
+
+      closePin();
+      openAdminOverlay();
+
+    } catch (err) {
+      console.error(err);
     }
 
-    function closeAdminPin_() {
-      if (!backdrop) return;
-      backdrop.hidden = true;
-    }
+  });
 
-    function startPress() {
-      clearTimeout(longPressTimer);
-      longPressTimer = setTimeout(() => {
-        openAdminPin_();
-      }, 900); // Adjust duration if necessary
-    }
+  /* --------------------------
+     OPEN ADMIN PANEL
+  --------------------------- */
 
-    function cancelPress() {
-      clearTimeout(longPressTimer);
-    }
-  
-    if (portal) {
-      portal.addEventListener("touchstart", startPress, { passive: true });
-      portal.addEventListener("mousedown", startPress);
-      portal.addEventListener("touchend", cancelPress);
-      portal.addEventListener("mouseup", cancelPress);
-      portal.addEventListener("touchcancel", cancelPress);
-      portal.addEventListener("mouseleave", cancelPress);
-    }
+  async function openAdminOverlay() {
 
-    if (cancelBtn) {
-      cancelBtn.addEventListener("click", closeAdminPin_);
-    }
+    overlay.hidden = false;
 
-    const submitBtn = document.getElementById("adminPinSubmit");
+    await loadAdminContext();
 
-    if (submitBtn) {
-      submitBtn.addEventListener("click", async () => {
+  }
 
-        const pin = document.getElementById("adminPinInput")?.value.trim();
-        const status = document.getElementById("adminPinStatus");
+  function closeAdminOverlay() {
+    overlay.hidden = true;
+  }
 
-        if (!pin) {
-          status.textContent = "Enter PIN";
-          return;
-        }
+  /* --------------------------
+     HEADER BUTTONS
+  --------------------------- */
 
-        status.textContent = "Verifying...";
+  closeBtn?.addEventListener("click", closeAdminOverlay);
 
-        try {
+  lockBtn?.addEventListener("click", () => {
 
-          const res = await fetch("/api/admin-login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ pin })
-          });
+    localStorage.removeItem("adminToken");
 
-          const data = await res.json();
+    closeAdminOverlay();
 
-          if (!res.ok) {
-            status.textContent = data.error || "Invalid PIN";
-            return;
-          }
+  });
 
-          // Store token
-          localStorage.setItem("adminToken", data.token);
+  /* --------------------------
+     LOAD TOURNAMENT / RACE
+  --------------------------- */
 
-          // Close the PIN modal
-          closeAdminPin_();
+  async function loadAdminContext() {
 
-          // Open the admin panel
-          const overlay = document.getElementById("adminOverlay");
-          if (overlay) overlay.hidden = false;
+    try {
 
-          // Load admin context
-          loadAdminContext_();
+      const ctx = await getAdminContext_();
 
-        } catch (err) {
-          status.textContent = "Login failed";
-        }
+      tournamentSel.innerHTML = "";
+      raceSel.innerHTML = "";
+
+      (ctx.tournaments || []).forEach(t => {
+
+        const opt = document.createElement("option");
+
+        opt.value = t.id;
+        opt.textContent = t.label;
+
+        if (t.id === ctx.currentTournamentId) opt.selected = true;
+
+        tournamentSel.appendChild(opt);
 
       });
+
+      (ctx.races || []).forEach(r => {
+
+        const opt = document.createElement("option");
+
+        opt.value = r.id;
+        opt.textContent = r.label;
+
+        if (r.id === ctx.currentRaceId) opt.selected = true;
+
+        raceSel.appendChild(opt);
+
+      });
+
+    } catch (err) {
+
+      console.error("Admin context failed", err);
+
     }
 
-    // Admin action buttons
-    document.getElementById("adminAssignBtn")
-      ?.addEventListener("click", () =>
-        runAdminRaceOp_("/api/generate-assignments", "adminRaceOpsStatus", "Generating assignments")
-      );
-    document.getElementById("adminQualBtn")
-      ?.addEventListener("click", () =>
-        runAdminRaceOp_("/api/import-qualifying", "adminRaceOpsStatus", "Importing qualifying")
-      );
-    document.getElementById("adminResultsBtn")
-      ?.addEventListener("click", () =>
-        runAdminRaceOp_("/api/import-results", "adminRaceOpsStatus", "Importing results")
-      );
-    document.getElementById("adminSaveSeedsBtn")
-      ?.addEventListener("click", saveAdminSeeds_);
-    document.getElementById("adminAddFundsBtn")
-      ?.addEventListener("click", addFunds_);
-
-    // Fetch and load the admin context (e.g., current tournaments/races)
-    async function loadAdminContext_() {
-      try {
-        const res = await fetch("/api/admin-context");
-        const data = await res.json();
-        const tSel = document.getElementById("adminTournamentSelect");
-        const rSel = document.getElementById("adminRaceSelect");
-
-        if (!tSel || !rSel) return;
-
-        // Clear previous options
-        tSel.innerHTML = "";
-        rSel.innerHTML = "";
-
-        // Populate Tournament options
-        data.tournaments.forEach(t => {
-          const opt = document.createElement("option");
-          opt.value = t.id;
-          opt.textContent = t.name;
-          if (t.id === data.currentTournamentId) opt.selected = true;
-          tSel.appendChild(opt);
-        });
-
-        // Populate Race options
-        data.races.forEach(r => {
-          const opt = document.createElement("option");
-          opt.value = r.id;
-          opt.textContent = r.name;
-          if (r.id === data.currentRaceId) opt.selected = true;
-          rSel.appendChild(opt);
-        });
-
-      } catch (err) {
-        console.error("Admin context failed", err);
-      }
-    }
   }
+
+  /* --------------------------
+     ADMIN BUTTONS
+  --------------------------- */
+
+  document.getElementById("adminAssignBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/generate-assignments","adminRaceOpsStatus","Generating assignments")
+    );
+
+  document.getElementById("adminQualBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-qualifying","adminRaceOpsStatus","Importing qualifying")
+    );
+
+  document.getElementById("adminResultsBtn")
+    ?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-results","adminRaceOpsStatus","Importing results")
+    );
+
+  document.getElementById("adminSaveSeedsBtn")
+    ?.addEventListener("click", saveAdminSeeds_);
+
+  document.getElementById("adminAddFundsBtn")
+    ?.addEventListener("click", addFunds_);
+
+}
 
   window.addEventListener("resize", () => {
     if (_statsMode !== "overall" && _statsMode !== "tourney") return;
