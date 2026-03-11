@@ -69,7 +69,7 @@ export async function onRequestGet(context) {
       return {
         id: Number(r.id),
         raceNumber: Number(r.race_number),
-        label: `Race ${r.race_number} Â· ${shortName}`,
+        label: `Race ${r.race_number} · ${shortName}`,
         tournamentId: Number(meta?.tournamentId || 0),
         tournamentNumber: meta?.tournamentNumber ?? "",
         roundNumber: meta?.roundNumber ?? "",
