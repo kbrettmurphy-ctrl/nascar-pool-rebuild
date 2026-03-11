@@ -352,7 +352,6 @@ export async function onRequestGet(context) {
           const aMatches = a.wins + a.losses;
           const bMatches = b.wins + b.losses;
           if (bMatches !== aMatches) return bMatches - aMatches;
-          if (b.wins !== a.wins) return b.wins - a.wins;
           return String(a.opponent).localeCompare(String(b.opponent));
         });
 
