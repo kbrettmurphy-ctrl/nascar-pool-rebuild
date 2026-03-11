@@ -3187,60 +3187,60 @@
   }
 
   async function renderWins_(box){
-    const you = loadPlayerName().trim();
+  const you = loadPlayerName().trim();
 
-    box.innerHTML = `
-      <div class="big">Wins</div>
-      <div class="muted">Race wins, bracket wins, and tourney wins</div>
-      <div class="statsControls">
-        <select id="winsPick"></select>
-      </div>
-      <div id="winsOut" style="margin-top:10px;">Loading…</div>
-    `;
-    resetStatPillScrollSoon(box);
+  box.innerHTML = `
+    <div class="big">Wins</div>
+    <div class="muted">Race wins, bracket wins, and tourney wins</div>
+    <div class="statsControls">
+      <select id="winsPick"></select>
+    </div>
+    <div id="winsOut" style="margin-top:10px;">Loading…</div>
+  `;
+  resetStatPillScrollSoon(box);
 
-    const players = await getData_("players", "playerGetPlayerList");
-    const sel = document.getElementById("winsPick");
-    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+  const players = await getData_("players", "playerGetPlayerList");
+  const sel = document.getElementById("winsPick");
+  sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
 
-    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
-
-    const out = document.getElementById("winsOut");
-    const load = async () => {
-      out.textContent = "Loading…";
-      try{
-        const player = String(sel.value || "").trim();
-        const res = await getData_("wins", "playerGetWinCounts", { player });
-        const w = (res && (res.raceWins!=null || res.bracketWins!=null || res.tourneyWins!=null)) ? res : (res && res[player] ? res[player] : {});
-
-        const raceWins = w?.raceWins ?? "—";
-        const bracketWins = w?.bracketWins ?? "—";
-        const tourneyWins = w?.tourneyWins ?? "—";
-
-        out.innerHTML = `
-          <div class="tiles">
-            <div class="tile">
-              <div class="tLabel">🏁 Race Wins</div>
-              <div class="tVal">${escapeHtml(raceWins)}</div>
-            </div>
-            <div class="tile">
-              <div class="tLabel">🏆 Bracket Wins</div>
-              <div class="tVal">${escapeHtml(bracketWins)}</div>
-            </div>
-            <div class="tile">
-              <div class="tLabel">🎯 Tourney Wins</div>
-              <div class="tVal">${escapeHtml(tourneyWins)}</div>
-            </div>
-          </div>
-        `;
-      }catch(e){
-        out.innerHTML = `<div class="muted">Wins failed to load. (Likely missing endpoint.)</div>`;
-      }
-    };
-
-    sel.onchange = load;
-    load();
+  if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) {
+    sel.value = you;
   }
+
+  const out = document.getElementById("winsOut");
+
+  const load = async () => {
+    out.textContent = "Loading…";
+
+    try{
+      const player = String(sel.value || "").trim();
+      const winsBlob = (_cache_standings && _cache_standings.wins) ? _cache_standings.wins : {};
+      const w = winsBlob[player] || { raceWins: 0, bracketWins: 0, tourneyWins: 0 };
+
+      out.innerHTML = `
+        <div class="tiles">
+          <div class="tile">
+            <div class="tLabel">🏁 Race Wins</div>
+            <div class="tVal">${escapeHtml(w.raceWins ?? 0)}</div>
+          </div>
+          <div class="tile">
+            <div class="tLabel">🏆 Bracket Wins</div>
+            <div class="tVal">${escapeHtml(w.bracketWins ?? 0)}</div>
+          </div>
+          <div class="tile">
+            <div class="tLabel">🎯 Tourney Wins</div>
+            <div class="tVal">${escapeHtml(w.tourneyWins ?? 0)}</div>
+          </div>
+        </div>
+      `;
+    }catch(e){
+      out.innerHTML = `<div class="muted">Wins failed to load.</div>`;
+    }
+  };
+
+  sel.onchange = load;
+  load();
+}
 
   async function renderDrivers_(box){
     const you = loadPlayerName().trim();
