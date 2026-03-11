@@ -1596,32 +1596,43 @@
   }
 
   async function unlockAdmin_() {
-    const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
-    if (!pin) {
-      setAdminStatus_("adminPinStatus", "Enter PIN.", true);
-      return;
-    }
-
-    setAdminStatus_("adminPinStatus", "Checking...");
-    try {
-      const res = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok || !data?.token) {
-        throw new Error(data?.error || "Invalid PIN");
-      }
-
-      setAdminToken_(data.token);
-      closeAdminPin_();
-      await initAdminOverlay_();
-      openAdminOverlay_();
-    } catch (err) {
-      setAdminStatus_("adminPinStatus", err.message || String(err), true);
-    }
+  const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
+  if (!pin) {
+    setAdminStatus_("adminPinStatus", "Enter PIN.", true);
+    return;
   }
+
+  setAdminStatus_("adminPinStatus", "Checking...");
+
+  try {
+    const res = await fetch("/api/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.ok || !data?.token) {
+      throw new Error(data?.error || "Invalid PIN");
+    }
+
+    setAdminToken_(data.token);
+    _adminContext = null;
+
+    // Load admin data FIRST while PIN modal is still open
+    await initAdminOverlay_();
+
+    // Only close PIN after admin overlay is ready
+    closeAdminPin_();
+    openAdminOverlay_();
+
+  } catch (err) {
+    clearAdminToken_();
+    _adminContext = null;
+    setAdminStatus_("adminPinStatus", err.message || String(err), true);
+  }
+}
 
   async function initAdminOverlay_() {
     const ctx = await getAdminContext_();
