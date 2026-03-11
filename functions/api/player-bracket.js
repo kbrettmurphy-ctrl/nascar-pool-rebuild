@@ -26,9 +26,82 @@ export async function onRequestGet(context) {
       return data;
     }
 
+    function seedPairings_() {
+      return [
+        [1, 16],
+        [8, 9],
+        [5, 12],
+        [4, 13],
+        [6, 11],
+        [3, 14],
+        [7, 10],
+        [2, 15],
+      ];
+    }
+
+    function normalizeName(s) {
+      return String(s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function buildRoundOneBracketMatchups_({ tournamentPlayers, raceId, scoreMap, raceWinnerDriverByRaceId, driverIdByName }) {
+      const bySeed = new Map();
+
+      for (const row of tournamentPlayers || []) {
+        const seed = Number(row?.seed);
+        const playerId = Number(row?.player_id);
+        const playerName = String(row?.players?.name || "").trim();
+
+        if (!Number.isInteger(seed) || !playerId || !playerName) continue;
+
+        bySeed.set(seed, {
+          playerId,
+          playerName,
+          seed,
+        });
+      }
+
+      function isPlayerRaceWinner(scoreRow) {
+        const winnerDriverId = raceWinnerDriverByRaceId.get(Number(raceId));
+        if (!winnerDriverId || !scoreRow) return false;
+
+        const d1 = driverIdByName.get(normalizeName(scoreRow.driver_1_name || ""));
+        const d2 = driverIdByName.get(normalizeName(scoreRow.driver_2_name || ""));
+
+        return Number(d1) === Number(winnerDriverId) || Number(d2) === Number(winnerDriverId);
+      }
+
+      const out = [];
+
+      for (const [s1, s2] of seedPairings_()) {
+        const a = bySeed.get(s1);
+        const b = bySeed.get(s2);
+        if (!a || !b) continue;
+
+        const aScore = scoreMap.get(`${raceId}||${a.playerId}`) || null;
+        const bScore = scoreMap.get(`${raceId}||${b.playerId}`) || null;
+
+        out.push({
+          s1: a.seed,
+          s2: b.seed,
+          p1: a.playerName,
+          p2: b.playerName,
+          a1: null,
+          a2: null,
+          winner: "",
+          p1RaceWinner: isPlayerRaceWinner(aScore),
+          p2RaceWinner: isPlayerRaceWinner(bScore),
+        });
+      }
+
+      return out;
+    }
+
     const requestedTournamentNumber = Number(url.searchParams.get("tournament") || 0);
 
-    // Use player-race-data to determine the default/current tournament if none requested
     const raceDataRes = await fetch(`${url.origin}/api/player-race-data`, {
       headers: { "Content-Type": "application/json" }
     });
@@ -40,10 +113,8 @@ export async function onRequestGet(context) {
 
     const current = raceData?.matchups?.current || {};
     const defaultTournamentNumber = Number(current?.tournament || 0);
-
     const tournamentNumber = requestedTournamentNumber || defaultTournamentNumber;
 
-    // Tournament list for selector
     const allTournaments = await getJson(
       `/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`
     );
@@ -78,7 +149,7 @@ export async function onRequestGet(context) {
     const tournamentId = Number(tournament.id);
 
     const tournamentPlayers = await getJson(
-      `/rest/v1/tournament_players?select=player_id,seed&tournament_id=eq.${tournamentId}`
+      `/rest/v1/tournament_players?select=player_id,seed,players(name)&tournament_id=eq.${tournamentId}`
     );
 
     const seedMap = new Map(
@@ -139,13 +210,10 @@ export async function onRequestGet(context) {
 
       const rows = (matchupRows || []).filter(m => Number(m.round_number) === roundNumber);
 
-      return {
-        round: roundNumber,
-        raceLabel,
-        isCurrent:
-          tournamentNumber === defaultTournamentNumber &&
-          Number(current?.round || 0) === roundNumber,
-        matchups: rows.map(m => {
+      let matchups = [];
+
+      if (rows.length) {
+        matchups = rows.map(m => {
           const p1Id = Number(m.player1_id);
           const p2Id = Number(m.player2_id);
 
@@ -168,7 +236,24 @@ export async function onRequestGet(context) {
             p1RaceWinner: isPlayerRaceWinner(raceId, p1Score),
             p2RaceWinner: isPlayerRaceWinner(raceId, p2Score),
           };
-        })
+        });
+      } else if (roundNumber === 1) {
+        matchups = buildRoundOneBracketMatchups_({
+          tournamentPlayers,
+          raceId,
+          scoreMap,
+          raceWinnerDriverByRaceId,
+          driverIdByName,
+        });
+      }
+
+      return {
+        round: roundNumber,
+        raceLabel,
+        isCurrent:
+          tournamentNumber === defaultTournamentNumber &&
+          Number(current?.round || 0) === roundNumber,
+        matchups,
       };
     });
 
@@ -185,14 +270,6 @@ export async function onRequestGet(context) {
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
-}
-
-function normalizeName(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function json(data, status = 200) {
