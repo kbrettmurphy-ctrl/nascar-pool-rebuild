@@ -17,30 +17,45 @@ export async function onRequestPost(context) {
     }
 
     const response = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/rpc/generate_assignments_for_race`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-        },
-        body: JSON.stringify({ target_race_id: raceId }),
-      }
-    );
-
-    const text = await response.text();
-
-    if (!response.ok) {
-      return json({ ok: false, error: text || "Failed to generate assignments" }, 500);
-    }
-
-    return json({
-      ok: true,
-      raceId,
-      message: `Assignments generated for race ${raceId}`,
-    });
-  } catch (err) {
-    return json({ ok: false, error: err.message || String(err) }, 500);
+  `${env.SUPABASE_URL}/rest/v1/rpc/generate_assignments_for_race`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: env.SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+    },
+    body: JSON.stringify({ target_race_id: raceId }),
   }
+);
+
+const text = await response.text();
+let data = null;
+
+try {
+  data = text ? JSON.parse(text) : null;
+} catch {
+  data = text;
 }
+
+if (!response.ok) {
+  return json({ ok: false, error: text || "Failed to generate assignments" }, 500);
+}
+
+if (
+  data == null ||
+  (Array.isArray(data) && data.length === 0) ||
+  (typeof data === "object" && !Array.isArray(data) && Object.keys(data).length === 0)
+) {
+  return json({
+    ok: false,
+    error: `generate_assignments_for_race returned no assignment data for race ${raceId}`
+  }, 500);
+}
+
+return json({
+  ok: true,
+  raceId,
+  message: `Assignments generated for race ${raceId}`,
+  data
+});
