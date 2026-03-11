@@ -3,8 +3,8 @@ export async function onRequestPost(context) {
     const { request, env } = context;
 
     // Simple admin protection
-    const adminKey = request.headers.get("x-admin-key");
-    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+    const ok = await verifyAdminRequest(request, env);
+    if (!ok) {
       return json({ ok: false, error: "Unauthorized" }, 401);
     }
 
@@ -296,11 +296,4 @@ function normalizeName(s) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }
