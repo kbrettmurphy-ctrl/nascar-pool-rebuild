@@ -37,20 +37,12 @@ export async function onRequestGet(context) {
       `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
     );
 
-    const drivers = await getJson(
-      `/rest/v1/drivers?select=id,name`
-    );
-
     const tournaments = await getJson(
       `/rest/v1/tournaments?select=id,tournament_number&order=tournament_number.asc`
     );
 
     const scoreMap = new Map(
       (scoreRows || []).map(r => [`${r.race_id}||${r.player_id}`, r])
-    );
-
-    const driverIdByName = new Map(
-      (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
     );
 
     const raceWinnerDriverByRaceId = new Map();
@@ -208,7 +200,6 @@ export async function onRequestGet(context) {
       return winsMap.get(key);
     }
 
-    // bracket wins from winner_id
     for (const row of matchupRows || []) {
       const winnerId = Number(row.winner_id);
       if (!winnerId) continue;
@@ -221,7 +212,15 @@ export async function onRequestGet(context) {
       w.bracketWins += 1;
     }
 
-    // race wins from player_race_scores containing the winning driver
+    // Race wins from best-available race winner match against player_race_scores driver names
+    const drivers = await getJson(
+      `/rest/v1/drivers?select=id,name`
+    );
+
+    const driverIdByName = new Map(
+      (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
+    );
+
     for (const row of scoreRows || []) {
       const raceId = Number(row.race_id);
       const playerId = Number(row.player_id);
@@ -232,7 +231,6 @@ export async function onRequestGet(context) {
       const d2 = driverIdByName.get(normalizeName(row.driver_2_name || ""));
 
       if (Number(d1) === Number(winningDriverId) || Number(d2) === Number(winningDriverId)) {
-        // need player name from overallRaw if possible
         const playerName =
           overallRaw.find(x => Number(x.player_id) === playerId)?.player || "";
         const w = getWinsRow(playerId, playerName);
@@ -240,13 +238,11 @@ export async function onRequestGet(context) {
       }
     }
 
-    // tournament wins = rank 1 in each tournament
     for (const t of tournaments || []) {
       const label = `Tournament ${Number(t.tournament_number)}`;
       const rows = tournamentsOut[label] || [];
       const winner = rows.find(r => Number(r.rank) === 1);
       if (winner) {
-        // find player_id from overallRaw by player name
         const found = overallRaw.find(x => String(x.player) === String(winner.player));
         if (found) {
           const w = getWinsRow(Number(found.player_id), found.player);
@@ -271,6 +267,40 @@ export async function onRequestGet(context) {
       };
     }
 
+    // DRIVER USAGE
+    const driversByPlayer = {};
+
+    for (const row of scoreRows || []) {
+      const playerName =
+        overallRaw.find(x => Number(x.player_id) === Number(row.player_id))?.player || "";
+
+      if (!playerName) continue;
+
+      if (!driversByPlayer[playerName]) {
+        driversByPlayer[playerName] = {};
+      }
+
+      const d1 = String(row.driver_1_name || "").trim();
+      const d2 = String(row.driver_2_name || "").trim();
+
+      if (d1) {
+        driversByPlayer[playerName][d1] = (driversByPlayer[playerName][d1] || 0) + 1;
+      }
+      if (d2) {
+        driversByPlayer[playerName][d2] = (driversByPlayer[playerName][d2] || 0) + 1;
+      }
+    }
+
+    const driversOut = {};
+    for (const [playerName, driverCounts] of Object.entries(driversByPlayer)) {
+      driversOut[playerName] = Object.entries(driverCounts)
+        .map(([driver, count]) => ({ driver, count }))
+        .sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return String(a.driver).localeCompare(String(b.driver));
+        });
+    }
+
     return json({
       ok: true,
       data: {
@@ -278,7 +308,8 @@ export async function onRequestGet(context) {
         overall,
         tournamentHeaders,
         tournaments: tournamentsOut,
-        wins
+        wins,
+        drivers: driversOut
       }
     });
   } catch (err) {
