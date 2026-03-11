@@ -3544,17 +3544,63 @@
     }
 
     // Ensure that the modal is not being triggered on page load
-    document.getElementById("adminPinCancel")?.addEventListener("click", closeAdminPin_);
-    document.getElementById("adminPinSubmit")?.addEventListener("click", unlockAdmin_);
-    document.getElementById("adminCloseBtn")?.addEventListener("click", closeAdminOverlay_);
-    document.getElementById("adminLockBtn")?.addEventListener("click", () => {
-      clearAdminToken_();
-      _adminContext = null;
-      closeAdminOverlay_();
-    });
+    document.addEventListener("DOMContentLoaded", function() {
+      const portal = document.getElementById("playerPortalPill");
+      const backdrop = document.getElementById("adminPinBackdrop");
+      const adminPinCancelBtn = document.getElementById("adminPinCancel");
+      let _adminLongPressTimer = null;
+      let _adminLongPressTriggered = false;
 
-    document.querySelectorAll(".adminTab").forEach(btn => {
-      btn.addEventListener("click", () => setAdminTab_(btn.dataset.adminTab));
+      if (portal && !portal.dataset.bound) {
+        portal.dataset.bound = "1";
+
+        // Start press event to trigger long press timer
+        portal.addEventListener("touchstart", startPress);
+        portal.addEventListener("mousedown", startPress);
+
+        // Cancel press event to clear the long press timer
+        portal.addEventListener("touchend", cancelPress);
+        portal.addEventListener("mouseup", cancelPress);
+        portal.addEventListener("touchcancel", cancelPress);
+        portal.addEventListener("mouseleave", cancelPress);
+
+        // Function to start the long press timer
+        function startPress(e) {
+          _adminLongPressTriggered = false;
+          clearTimeout(_adminLongPressTimer);
+          _adminLongPressTimer = setTimeout(() => {
+            if (!_adminLongPressTriggered) {
+              _adminLongPressTriggered = true;
+              openAdminPin_();  // Modal opens only after the long press
+            }
+          }, 900); // Adjust duration if necessary
+        }
+
+        // Function to cancel the press event if released too early
+        function cancelPress() {
+          clearTimeout(_adminLongPressTimer);  // Clear the timer
+        }
+      }
+
+      // Cancel button closes the admin PIN modal
+      if (adminPinCancelBtn) {
+        adminPinCancelBtn.addEventListener("click", closeAdminPin_);
+      }
+
+      // Open the Admin PIN modal
+      function openAdminPin_() {
+        if (backdrop) {
+          backdrop.hidden = false;
+          setTimeout(() => document.getElementById("adminPinInput").focus(), 20); // Focus on the PIN input after opening
+        }
+      }
+
+      // Close the Admin PIN modal
+      function closeAdminPin_() {
+        if (backdrop) {
+          backdrop.hidden = true;
+        }
+      }
     });
 
     document.getElementById("adminAssignBtn")?.addEventListener("click", () =>
