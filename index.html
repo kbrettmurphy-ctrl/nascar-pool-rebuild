@@ -1035,7 +1035,17 @@
     justify-content:center;
     padding:18px;
   }
+  .adminBackdrop{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
 
+.adminBackdrop[hidden],
+.adminOverlay[hidden]{
+  display:none !important;
+}
   .adminPinModal,
   .adminSheet{
     width:min(100%, 760px);
