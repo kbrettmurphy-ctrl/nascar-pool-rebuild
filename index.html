@@ -1012,6 +1012,165 @@
   }
   *::-webkit-scrollbar-thumb:hover{ background: rgba(0,122,194,.60); }
   *::-webkit-scrollbar-corner{ background: transparent; }
+
+  #playerPortalPill{
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:manipulation;
+  }
+
+  .adminBackdrop,
+  .adminOverlay{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    background:rgba(2,11,18,.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .adminBackdrop{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+  }
+
+  .adminPinModal,
+  .adminSheet{
+    width:min(100%, 760px);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
+    border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .adminPinModal{
+    padding:16px;
+  }
+
+  .adminSheet{
+    margin:14px auto;
+    padding:14px;
+    max-height:calc(100vh - 28px);
+    overflow:auto;
+  }
+
+  .adminModalTitle{
+    font-size:20px;
+    font-weight:900;
+    margin-bottom:6px;
+  }
+
+  .adminSheetHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    margin-bottom:12px;
+  }
+
+  .adminHeaderBtns{
+    display:flex;
+    gap:8px;
+  }
+
+  .adminContextBar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:12px;
+  }
+
+  .adminField{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .adminField select,
+  .adminField input,
+  #adminPinInput{
+    width:100%;
+    background:rgba(0,122,194,.14);
+  }
+
+  .adminTabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+
+  .adminTab{
+    background:rgba(255,255,255,.08);
+    color:var(--text);
+    border:1px solid var(--line);
+    padding:8px 12px;
+  }
+
+  .adminTab.active{
+    background:rgba(228,0,43,.28);
+    border-color:rgba(228,0,43,.42);
+  }
+
+  .adminTabPane{ display:none; }
+  .adminTabPane.active{ display:block; }
+
+  .adminCardGrid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  .adminRow{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .adminRow > *{
+    flex:1;
+  }
+
+  .adminStatus{
+    margin-top:10px;
+    font-size:13px;
+    color:var(--muted);
+    white-space:pre-wrap;
+  }
+
+  .adminSeedsGrid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:8px;
+  }
+
+  .adminSeedRow{
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:8px;
+    align-items:center;
+  }
+
+  .adminSeedNum{
+    text-align:center;
+    font-weight:900;
+    color:var(--yellow);
+    border:1px solid rgba(255,214,89,.28);
+    background:rgba(255,214,89,.08);
+    border-radius:12px;
+    padding:10px 8px;
+  }
+
+  @media (max-width: 640px){
+    .adminContextBar,
+    .adminSeedsGrid{
+      grid-template-columns:1fr;
+    }
+  }
   </style>
 </head>
 
@@ -1022,7 +1181,7 @@
   </div>
 
   <div class="sub subRow">
-    <span class="pill">Player Portal</span>
+    <span class="pill" id="playerPortalPill">Player Portal</span>
     <div class="subRowRight">
       <select id="globalPlayer"></select>
     </div>
@@ -1107,10 +1266,88 @@
     </div>
   </div>
 
+  <div id="adminPinBackdrop" class="adminBackdrop" hidden>
+    <div class="adminPinModal">
+      <div class="adminModalTitle">Admin Access</div>
+      <div class="muted">Enter PIN</div>
+      <input id="adminPinInput" type="password" inputmode="numeric" placeholder="PIN" maxlength="10" />
+      <div class="adminRow">
+        <button id="adminPinCancel" class="secondary" type="button">Cancel</button>
+        <button id="adminPinSubmit" class="primary" type="button">Unlock</button>
+      </div>
+      <div id="adminPinStatus" class="adminStatus"></div>
+    </div>
+  </div>
+
+  <div id="adminOverlay" class="adminOverlay" hidden>
+    <div class="adminSheet">
+      <div class="adminSheetHeader">
+        <div>
+          <div class="pill">Admin Tools</div>
+        </div>
+        <div class="adminHeaderBtns">
+          <button id="adminLockBtn" class="topactions" type="button">Lock</button>
+          <button id="adminCloseBtn" class="topactions" type="button">✕</button>
+        </div>
+      </div>
+
+      <div class="adminContextBar">
+        <div class="adminField">
+          <label for="adminTournamentSelect">Tournament</label>
+          <select id="adminTournamentSelect"></select>
+        </div>
+        <div class="adminField">
+          <label for="adminRaceSelect">Race</label>
+          <select id="adminRaceSelect"></select>
+        </div>
+      </div>
+
+      <div class="adminTabs">
+        <button class="adminTab active" data-admin-tab="raceops" type="button">Race Ops</button>
+        <button class="adminTab" data-admin-tab="seeds" type="button">Seeds</button>
+        <button class="adminTab" data-admin-tab="funds" type="button">Funds</button>
+      </div>
+
+      <div id="adminTab-raceops" class="adminTabPane active">
+        <div class="adminCardGrid">
+          <button id="adminAssignBtn" class="primary" type="button">Generate Assignments</button>
+          <button id="adminQualBtn" class="primary" type="button">Import Qualifying</button>
+          <button id="adminResultsBtn" class="primary" type="button">Import Results</button>
+        </div>
+        <div id="adminRaceOpsStatus" class="adminStatus"></div>
+      </div>
+
+      <div id="adminTab-seeds" class="adminTabPane">
+        <div class="muted" style="margin-bottom:8px;">Round 1 manual seeds for selected tournament</div>
+        <div id="adminSeedsGrid" class="adminSeedsGrid"></div>
+        <div class="adminRow" style="margin-top:10px;">
+          <button id="adminSaveSeedsBtn" class="primary" type="button">Save Seeds</button>
+        </div>
+        <div id="adminSeedsStatus" class="adminStatus"></div>
+      </div>
+
+      <div id="adminTab-funds" class="adminTabPane">
+        <div class="adminField">
+          <label for="adminFundsPlayer">Player</label>
+          <select id="adminFundsPlayer"></select>
+        </div>
+        <div class="adminField">
+          <label for="adminFundsAmount">Amount</label>
+          <input id="adminFundsAmount" type="number" min="0" step="0.01" placeholder="25.00" />
+        </div>
+        <div class="adminRow">
+          <button id="adminAddFundsBtn" class="primary" type="button">Add Funds</button>
+        </div>
+        <div id="adminFundsStatus" class="adminStatus"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
   const STORAGE_KEY = "nascar_pool_player_name";
   const VIEW_KEY = "nascar_pool_active_view";
   const SPOILER_KEY = "nascar_pool_spoilers_on";
+  const ADMIN_TOKEN_KEY = "nascar_pool_admin_token";
 
   const TOURNAMENT_PAYOUTS = {
     1: "🖕🏻$100",
@@ -1134,6 +1371,9 @@
   let _statsMode = "overall";
   let _nameWTimer = null;
   let _selectedBracketTournament = "";
+  let _adminContext = null;
+  let _adminLongPressTimer = null;
+  let _adminLongPressTriggered = false;
 
   function spoilersOn_(){
     const v = String(localStorage.getItem(SPOILER_KEY) ?? "1");
@@ -1264,6 +1504,268 @@
     _playerDues = data.data || {};
     return _playerDues;
   }
+
+  function getAdminToken_() {
+    return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+  }
+
+  function setAdminToken_(token) {
+    if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  }
+
+  function clearAdminToken_() {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+
+  async function adminFetch_(url, options = {}) {
+    const token = getAdminToken_();
+    const headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    };
+
+    const res = await fetch(url, { ...options, headers });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.ok) {
+      throw new Error(data?.error || data?.message || `Request failed: ${res.status}`);
+    }
+
+    return data;
+  }
+
+  async function getAdminContext_() {
+    if (_adminContext) return _adminContext;
+    const data = await adminFetch_("/api/admin-context", { cache: "no-store" });
+    _adminContext = data.data || {};
+    return _adminContext;
+  }
+
+  function openAdminPin_() {
+    const backdrop = document.getElementById("adminPinBackdrop");
+    const input = document.getElementById("adminPinInput");
+    const status = document.getElementById("adminPinStatus");
+    if (!backdrop) return;
+    status.textContent = "";
+    input.value = "";
+    backdrop.hidden = false;
+    setTimeout(() => input.focus(), 20);
+  }
+
+  function closeAdminPin_() {
+    const backdrop = document.getElementById("adminPinBackdrop");
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  function openAdminOverlay_() {
+    const el = document.getElementById("adminOverlay");
+    if (el) el.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeAdminOverlay_() {
+    const el = document.getElementById("adminOverlay");
+    if (el) el.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function setAdminStatus_(id, msg, isError = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || "";
+    el.style.color = isError ? "var(--red)" : "var(--muted)";
+  }
+
+  function setAdminTab_(tabName) {
+    document.querySelectorAll(".adminTab").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.adminTab === tabName);
+    });
+    document.querySelectorAll(".adminTabPane").forEach(pane => {
+      pane.classList.toggle("active", pane.id === `adminTab-${tabName}`);
+    });
+  }
+
+  async function unlockAdmin_() {
+    const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
+    if (!pin) {
+      setAdminStatus_("adminPinStatus", "Enter PIN.", true);
+      return;
+    }
+
+    setAdminStatus_("adminPinStatus", "Checking...");
+    try {
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok || !data?.token) {
+        throw new Error(data?.error || "Invalid PIN");
+      }
+
+      setAdminToken_(data.token);
+      closeAdminPin_();
+      await initAdminOverlay_();
+      openAdminOverlay_();
+    } catch (err) {
+      setAdminStatus_("adminPinStatus", err.message || String(err), true);
+    }
+  }
+
+  async function initAdminOverlay_() {
+    const ctx = await getAdminContext_();
+
+    const tSel = document.getElementById("adminTournamentSelect");
+    const rSel = document.getElementById("adminRaceSelect");
+    const fundsSel = document.getElementById("adminFundsPlayer");
+
+    if (tSel && !tSel.dataset.bound) {
+      tSel.dataset.bound = "1";
+      tSel.addEventListener("change", refreshAdminRaceOptions_);
+    }
+
+    tSel.innerHTML = (ctx.tournaments || [])
+      .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
+      .join("");
+
+    fundsSel.innerHTML = `<option value="">Select player</option>` + (ctx.players || [])
+      .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+      .join("");
+
+    tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
+    refreshAdminRaceOptions_();
+
+    if (ctx.currentRaceId) {
+      rSel.value = String(ctx.currentRaceId);
+    }
+
+    renderAdminSeeds_();
+  }
+
+  function refreshAdminRaceOptions_() {
+    const ctx = _adminContext || {};
+    const tSel = document.getElementById("adminTournamentSelect");
+    const rSel = document.getElementById("adminRaceSelect");
+    const tournamentId = Number(tSel?.value || 0);
+
+    const races = (ctx.races || []).filter(r => Number(r.tournamentId) === tournamentId);
+    rSel.innerHTML = races.map(r => `<option value="${r.id}">${escapeHtml(r.label)}</option>`).join("");
+
+    renderAdminSeeds_();
+  }
+
+  function renderAdminSeeds_() {
+    const ctx = _adminContext || {};
+    const grid = document.getElementById("adminSeedsGrid");
+    if (!grid) return;
+
+    const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+    const players = [...(ctx.players || [])];
+
+    grid.innerHTML = Array.from({ length: 16 }, (_, i) => {
+      const seed = i + 1;
+      const options = [`<option value="">Select player</option>`]
+        .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
+        .join("");
+
+      return `
+        <div class="adminSeedRow">
+          <div class="adminSeedNum">#${seed}</div>
+          <select class="adminSeedSelect" data-seed="${seed}" data-tournament="${tournamentId}">
+            ${options}
+          </select>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function runAdminRaceOp_(url, statusId, label) {
+    const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
+    if (!raceId) {
+      setAdminStatus_(statusId, "Pick a race first.", true);
+      return;
+    }
+
+    setAdminStatus_(statusId, `${label}...`);
+    try {
+      const data = await adminFetch_(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raceId })
+      });
+      setAdminStatus_(statusId, data.message || `${label} done.`);
+      refreshActiveView();
+    } catch (err) {
+      setAdminStatus_(statusId, err.message || String(err), true);
+    }
+  }
+
+  async function saveAdminSeeds_() {
+    const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+    if (!tournamentId) {
+      setAdminStatus_("adminSeedsStatus", "Pick a tournament first.", true);
+      return;
+    }
+
+    const rows = [...document.querySelectorAll(".adminSeedSelect")].map(sel => ({
+      seed: Number(sel.dataset.seed),
+      playerId: Number(sel.value || 0)
+    }));
+
+    if (rows.some(r => !r.playerId)) {
+      setAdminStatus_("adminSeedsStatus", "Every seed slot needs a player.", true);
+      return;
+    }
+
+    const unique = new Set(rows.map(r => r.playerId));
+    if (unique.size !== rows.length) {
+      setAdminStatus_("adminSeedsStatus", "Each player can only be used once.", true);
+      return;
+    }
+
+    setAdminStatus_("adminSeedsStatus", "Saving seeds...");
+    try {
+      const data = await adminFetch_("/api/save-round1-seeds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournamentId, seeds: rows })
+      });
+      setAdminStatus_("adminSeedsStatus", data.message || "Seeds saved.");
+    } catch (err) {
+      setAdminStatus_("adminSeedsStatus", err.message || String(err), true);
+    }
+  }
+
+  async function addFunds_() {
+    const playerId = Number(document.getElementById("adminFundsPlayer")?.value || 0);
+    const amount = Number(document.getElementById("adminFundsAmount")?.value || 0);
+
+    if (!playerId) {
+      setAdminStatus_("adminFundsStatus", "Pick a player.", true);
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAdminStatus_("adminFundsStatus", "Enter a valid amount.", true);
+      return;
+    }
+
+    setAdminStatus_("adminFundsStatus", "Adding funds...");
+    try {
+      const data = await adminFetch_("/api/add-funds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, amount })
+      });
+      setAdminStatus_("adminFundsStatus", data.message || "Funds added.");
+      document.getElementById("adminFundsAmount").value = "";
+      _playerDues = null;
+      if (activeView === "dues") loadDues();
+    } catch (err) {
+      setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    }
+  }    
 
   async function getPlayerList_(){
     if (_playerList) return _playerList;
@@ -3012,6 +3514,61 @@
     }
   }
 
+  function initAdminControls_() {
+    const portal = document.getElementById("playerPortalPill");
+    if (portal && !portal.dataset.bound) {
+      portal.dataset.bound = "1";
+
+      const startPress = (e) => {
+        _adminLongPressTriggered = false;
+        clearTimeout(_adminLongPressTimer);
+        _adminLongPressTimer = setTimeout(() => {
+          _adminLongPressTriggered = true;
+          openAdminPin_();
+        }, 900);
+      };
+
+      const cancelPress = () => {
+        clearTimeout(_adminLongPressTimer);
+      };
+
+      portal.addEventListener("touchstart", startPress, { passive: true });
+      portal.addEventListener("touchend", cancelPress);
+      portal.addEventListener("touchcancel", cancelPress);
+      portal.addEventListener("mousedown", startPress);
+      portal.addEventListener("mouseup", cancelPress);
+      portal.addEventListener("mouseleave", cancelPress);
+    }
+
+    document.getElementById("adminPinCancel")?.addEventListener("click", closeAdminPin_);
+    document.getElementById("adminPinSubmit")?.addEventListener("click", unlockAdmin_);
+    document.getElementById("adminCloseBtn")?.addEventListener("click", closeAdminOverlay_);
+    document.getElementById("adminLockBtn")?.addEventListener("click", () => {
+      clearAdminToken_();
+      _adminContext = null;
+      closeAdminOverlay_();
+    });
+
+    document.querySelectorAll(".adminTab").forEach(btn => {
+      btn.addEventListener("click", () => setAdminTab_(btn.dataset.adminTab));
+    });
+
+    document.getElementById("adminAssignBtn")?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/generate-assignments", "adminRaceOpsStatus", "Generating assignments")
+    );
+
+    document.getElementById("adminQualBtn")?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-qualifying", "adminRaceOpsStatus", "Importing qualifying")
+    );
+
+    document.getElementById("adminResultsBtn")?.addEventListener("click", () =>
+      runAdminRaceOp_("/api/import-results", "adminRaceOpsStatus", "Importing results")
+    );
+
+    document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
+    document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
+  }
+
   window.addEventListener("resize", () => {
     if (_statsMode !== "overall" && _statsMode !== "tourney") return;
 
@@ -3022,6 +3579,7 @@
   });
 
   window.onload = () => {
+    initAdminControls_();
     loadPlayersThenInit();
     persistHScroll(".navInner", "nascar_nav_scroll");
   };
