@@ -25,12 +25,10 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    // Players + financials
     const rows = await getJson(
       `/rest/v1/player_financials?select=player_id,paid,winnings,players(name)&order=player_id.asc`
     );
 
-    // Completed points races = distinct race_ids with results that map to race_number 1..36
     const completedRows = await getJson(
       `/rest/v1/race_results?select=race_id,races(race_number)`
     );
@@ -49,7 +47,8 @@ export async function onRequestGet(context) {
 
     const completedRaceCount = completedRaceIds.size;
     const duesPerRace = 5;
-    const required = completedRaceCount * duesPerRace;
+    const seasonTotal = 180;
+    const requiredSoFar = completedRaceCount * duesPerRace;
 
     const out = {};
 
@@ -61,13 +60,16 @@ export async function onRequestGet(context) {
 
       const paid = Number(row.paid) || 0;
       const winnings = Number(row.winnings) || 0;
-      const balance = Math.max(0, required - paid - winnings);
+
+      const balance = seasonTotal - paid - winnings; // matches old sheet
+      const currentBehind = Math.max(0, requiredSoFar - paid - winnings); // for nag logic
 
       out[name] = {
         name,
         paid,
         winnings,
-        balance
+        balance,
+        currentBehind
       };
     }
 
