@@ -1442,6 +1442,21 @@
 
     return data.data || {};
   }
+
+  let _playerDues = null;
+
+  async function getPlayerDues_(){
+    if (_playerDues) return _playerDues;
+    const res = await fetch("/api/player-dues", {
+      cache: "no-store"
+    });
+    const data = await res.json();
+    if (!res.ok || !data || !data.ok) {
+      throw new Error(data?.error || "player-dues failed");
+    }
+    _playerDues = data.data || {};
+    return _playerDues;
+  }
   /* =========================
    * 5) Snapshot Loader (GitHub Pages /data/*.json)
    * ========================= */
@@ -1567,6 +1582,7 @@
     SNAP_CTX = null;
     _cache_myMatchupsAll = null;
     _playerRaceData = null;
+    _playerDues = null;
 
     if (activeView === "current") loadCurrent();
     else if (activeView === "standings") loadStandings();
@@ -2479,43 +2495,12 @@
     out.textContent = "Loading…";
 
     try {
-      const all = await getData_("dues", "playerGetDues", { name });
-
-      let data = null;
-
-      if (
-        all &&
-        typeof all === "object" &&
-        !Array.isArray(all) &&
-        (all.name || all.paid != null || all.balance != null || all.winnings != null)
-      ) {
-        data = all;
-      } else if (all && typeof all === "object" && !Array.isArray(all) && all[name]) {
-        data = all[name];
-      } else if (Array.isArray(all)) {
-        data =
-          all.find(
-            r =>
-              String(r?.name || "")
-                .trim()
-                .toLowerCase() === name.toLowerCase()
-          ) || null;
-      } else if (all && Array.isArray(all.dues)) {
-        data =
-          all.dues.find(
-            r =>
-              String(r?.name || "")
-                .trim()
-                .toLowerCase() === name.toLowerCase()
-          ) || null;
-      }
-
+      const all = await getPlayerDues_();
+      const data = all[name] || null;
       if (!data) throw new Error("No dues record found for " + name);
-
       const paid = Number(data.paid ?? 0);
       const winnings = Number(data.winnings ?? 0);
       const balance = Number(data.balance ?? 0);
-
       const paidLine =
         paid === 180
           ? `<span style="color: var(--green); opacity: 0.9;">Paid: $${paid.toFixed(2)}</span>`
@@ -2777,29 +2762,13 @@
       const required = completed * DUES_PER_RACE;
 
       // Pull dues record (may come back as per-player OR a map keyed by player)
-      const res = await getData_("dues", "playerGetDues", { name });
-
-      let data = null;
-
-      // Case 1: per-player object
-      if (res && typeof res === "object" && (
-        res.paid != null || res.winnings != null || res.balance != null
-      )) {
-        data = res;
-      }
-      // Case 2: map keyed by player name
-      else if (res && typeof res === "object") {
-        const want = name.toLowerCase();
-        const key = Object.keys(res).find(k => String(k || "").trim().toLowerCase() === want);
-        data = key ? res[key] : null;
-      }
-
+      const duesMap = await getPlayerDues_();
+      const data = duesMap[name] || null;
       const paid = Number(data?.paid ?? 0);
       const winnings = Number(data?.winnings ?? 0);
 
       // “Paid up to current race” can be satisfied by cash OR winnings credit.
       const effectivePaid = paid + winnings;
-
       const behind = required - effectivePaid;
       if(!(behind > 0.0001)) return;
 
