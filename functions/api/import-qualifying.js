@@ -1,3 +1,5 @@
+import { verifyAdminRequest, json } from "./_admin-auth";
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
