@@ -3243,59 +3243,63 @@
 }
 
   async function renderDrivers_(box){
-    const you = loadPlayerName().trim();
+  const you = loadPlayerName().trim();
 
-    box.innerHTML = `
-      <div class="big">Driver Usage</div>
-      <div class="muted">How many times you've been stuck with these drivers</div>
-      <div class="statsControls">
-        <select id="drvPick"></select>
-      </div>
-      <div id="drvOut" style="margin-top:10px;">Loading…</div>
-    `;
-    resetStatPillScrollSoon(box);
+  box.innerHTML = `
+    <div class="big">Driver Usage</div>
+    <div class="muted">How many times you've been stuck with these drivers</div>
+    <div class="statsControls">
+      <select id="drvPick"></select>
+    </div>
+    <div id="drvOut" style="margin-top:10px;">Loading…</div>
+  `;
+  resetStatPillScrollSoon(box);
 
-    const players = await getData_("players", "playerGetPlayerList");
-    const sel = document.getElementById("drvPick");
-    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+  const players = await getData_("players", "playerGetPlayerList");
+  const sel = document.getElementById("drvPick");
+  sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
 
-    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
-
-    const out = document.getElementById("drvOut");
-    const load = async () => {
-      out.textContent = "Loading…";
-      try{
-        const player = String(sel.value || "").trim();
-        const res = await getData_("drivers", "playerGetDriverUsage", { player });
-        const rows = Array.isArray(res?.rows) ? res.rows : (Array.isArray(res?.[player]) ? res[player] : []);
-
-        if (!rows.length){
-          out.innerHTML = `<div class="muted">(No driver usage data yet)</div>`;
-          return;
-        }
-
-        let html = ``;
-        rows.forEach(r => {
-          html += `
-            <div class="statsRow">
-              <div class="statsLeft">
-                <div class="statsName">${escapeHtml(r.driver || "")}</div>
-              </div>
-              <div class="statsBadges">
-                <span class="miniPill"><span class="k">Times:</span> ${escapeHtml(r.count ?? "")}</span>
-              </div>
-            </div>
-          `;
-        });
-        out.innerHTML = html;
-      }catch(e){
-        out.innerHTML = `<div class="muted">Driver usage failed to load. (Likely missing endpoint.)</div>`;
-      }
-    };
-
-    sel.onchange = load;
-    load();
+  if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) {
+    sel.value = you;
   }
+
+  const out = document.getElementById("drvOut");
+
+  const load = async () => {
+    out.textContent = "Loading…";
+
+    try{
+      const player = String(sel.value || "").trim();
+      const driversBlob = (_cache_standings && _cache_standings.drivers) ? _cache_standings.drivers : {};
+      const rows = Array.isArray(driversBlob[player]) ? driversBlob[player] : [];
+
+      if (!rows.length){
+        out.innerHTML = `<div class="muted">(No driver usage data yet)</div>`;
+        return;
+      }
+
+      let html = ``;
+      rows.forEach(r => {
+        html += `
+          <div class="statsRow">
+            <div class="statsLeft">
+              <div class="statsName">${escapeHtml(r.driver || "")}</div>
+            </div>
+            <div class="statsBadges">
+              <span class="miniPill"><span class="k">Times:</span> ${escapeHtml(r.count ?? "")}</span>
+            </div>
+          </div>
+        `;
+      });
+      out.innerHTML = html;
+    }catch(e){
+      out.innerHTML = `<div class="muted">Driver usage failed to load.</div>`;
+    }
+  };
+
+  sel.onchange = load;
+  load();
+}
 
   /* =========================
    * 11) Bracket
