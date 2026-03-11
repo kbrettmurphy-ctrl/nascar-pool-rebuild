@@ -1718,15 +1718,26 @@
 
     setAdminStatus_(statusId, data.message || `${label} done.`);
 
-    if (url.includes("generate-assignments") && Array.isArray(data.data) && data.data.length) {
-      const msg = data.data
-        .map((row, i) => `${i + 1}. ${row.player_name} ${row.assigned_numbers}`)
-        .join("\n");
+if (url.includes("generate-assignments") && Array.isArray(data.data) && data.data.length) {
+  const msg = data.data
+    .map((row, i) => `${i + 1}. ${row.player_name} ${row.assigned_numbers}`)
+    .join("\n");
 
-      alert(`Assignments Generated\n\n${msg}`);
-    }
+  alert(`Assignments Generated\n\n${msg}`);
+}
 
-    refreshActiveView();
+if (url.includes("import-qualifying") && Array.isArray(data.data) && data.data.length) {
+  const msg = data.data
+    .map((row, i) => {
+      const name = row.driver_name || row.name || row.driver || "Unknown";
+      return `${i + 1}. ${name}`;
+    })
+    .join("\n");
+
+  alert(`Qualifying Imported\n\n${msg}`);
+}
+
+refreshActiveView();
   } catch (err) {
     setAdminStatus_(statusId, err.message || String(err), true);
   }
