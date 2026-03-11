@@ -1702,32 +1702,35 @@
   }
 
   async function runAdminRaceOp_(url, statusId, label) {
-    const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
-    if (!raceId) {
-      setAdminStatus_(statusId, "Pick a race first.", true);
-      return;
-    }
-
-    setAdminStatus_(statusId, `${label}...`);
-    try {
-      const data = await adminFetch_(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raceId })
-      });
-
-      setAdminStatus_(statusId, data.message || `${label} done.`);
-
-      if (url.includes("generate-assignments")) {
-  console.log("generate-assignments response:", data);
-  alert(JSON.stringify(data, null, 2));
-}
-
-      refreshActiveView();
-    } catch (err) {
-      setAdminStatus_(statusId, err.message || String(err), true);
-    }
+  const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
+  if (!raceId) {
+    setAdminStatus_(statusId, "Pick a race first.", true);
+    return;
   }
+
+  setAdminStatus_(statusId, `${label}...`);
+  try {
+    const data = await adminFetch_(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raceId })
+    });
+
+    setAdminStatus_(statusId, data.message || `${label} done.`);
+
+    if (url.includes("generate-assignments") && Array.isArray(data.data) && data.data.length) {
+      const msg = data.data
+        .map((row, i) => `${i + 1}. ${row.player_name} ${row.assigned_numbers}`)
+        .join("\n");
+
+      alert(`Assignments Generated\n\n${msg}`);
+    }
+
+    refreshActiveView();
+  } catch (err) {
+    setAdminStatus_(statusId, err.message || String(err), true);
+  }
+}
 
   async function saveAdminSeeds_() {
     const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
