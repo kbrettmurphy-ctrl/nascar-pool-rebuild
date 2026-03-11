@@ -212,7 +212,6 @@ export async function onRequestGet(context) {
       w.bracketWins += 1;
     }
 
-    // Race wins from best-available race winner match against player_race_scores driver names
     const drivers = await getJson(
       `/rest/v1/drivers?select=id,name`
     );
@@ -301,6 +300,65 @@ export async function onRequestGet(context) {
         });
     }
 
+    // H2H
+    const h2hBuckets = new Map();
+
+    function getH2HRow(playerName, opponentName) {
+      const key = `${playerName}||${opponentName}`;
+      if (!h2hBuckets.has(key)) {
+        h2hBuckets.set(key, {
+          player: playerName,
+          opponent: opponentName,
+          wins: 0,
+          losses: 0
+        });
+      }
+      return h2hBuckets.get(key);
+    }
+
+    for (const row of matchupRows || []) {
+      const p1Id = Number(row.player1_id);
+      const p2Id = Number(row.player2_id);
+      const p1Name = String(row.player1_name || "").trim();
+      const p2Name = String(row.player2_name || "").trim();
+      const winnerId = Number(row.winner_id);
+
+      if (!p1Name || !p2Name) continue;
+
+      const p1vsP2 = getH2HRow(p1Name, p2Name);
+      const p2vsP1 = getH2HRow(p2Name, p1Name);
+
+      if (winnerId === p1Id) {
+        p1vsP2.wins += 1;
+        p2vsP1.losses += 1;
+      } else if (winnerId === p2Id) {
+        p2vsP1.wins += 1;
+        p1vsP2.losses += 1;
+      }
+    }
+
+    const h2h = {};
+    for (const row of overallRaw) {
+      const playerName = row.player;
+      const rows = Array.from(h2hBuckets.values())
+        .filter(x => x.player === playerName)
+        .map(x => ({
+          opponent: x.opponent,
+          wins: x.wins,
+          losses: x.losses,
+          record: `(${x.wins}-${x.losses})`
+        }))
+        .sort((a, b) => {
+          const aMatches = a.wins + a.losses;
+          const bMatches = b.wins + b.losses;
+          if (bMatches !== aMatches) return bMatches - aMatches;
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return String(a.opponent).localeCompare(String(b.opponent));
+        });
+
+      h2h[playerName] = rows;
+    }
+
     return json({
       ok: true,
       data: {
@@ -309,7 +367,8 @@ export async function onRequestGet(context) {
         tournamentHeaders,
         tournaments: tournamentsOut,
         wins,
-        drivers: driversOut
+        drivers: driversOut,
+        h2h
       }
     });
   } catch (err) {
