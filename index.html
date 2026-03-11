@@ -3131,60 +3131,63 @@
 }
 
   async function renderH2H_(box){
-    const you = loadPlayerName().trim();
+  const you = loadPlayerName().trim();
 
-    box.innerHTML = `
-      <div class="big">Head-to-Head</div>
-      <div class="muted">If not you, pick someone else, for fucks sake.</div>
-      <div class="statsControls">
-        <select id="h2hPick"></select>
-      </div>
-      <div id="h2hOut" style="margin-top:10px;">Loading…</div>
-    `;
-    resetStatPillScrollSoon(box);
+  box.innerHTML = `
+    <div class="big">Head-to-Head</div>
+    <div class="muted">If not you, pick someone else, for fucks sake.</div>
+    <div class="statsControls">
+      <select id="h2hPick"></select>
+    </div>
+    <div id="h2hOut" style="margin-top:10px;">Loading…</div>
+  `;
+  resetStatPillScrollSoon(box);
 
-    const players = await getData_("players", "playerGetPlayerList");
-    const sel = document.getElementById("h2hPick");
-    sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
+  const players = await getData_("players", "playerGetPlayerList");
+  const sel = document.getElementById("h2hPick");
+  sel.innerHTML = (players || []).map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join("");
 
-    if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) sel.value = you;
-
-    const out = document.getElementById("h2hOut");
-    const load = async () => {
-      out.textContent = "Loading…";
-      try{
-        const player = String(sel.value || "").trim();
-        const res = await getData_("h2h", "playerGetH2H", { player });
-        const rows = Array.isArray(res?.rows) ? res.rows : (Array.isArray(res?.[player]) ? res[player] : []);
-
-        if (!rows.length){
-          out.innerHTML = `<div class="muted">(No H2H data yet. If this is new season, compile H2H in Admin first.)</div>`;
-          return;
-        }
-
-        let html = ``;
-        rows.forEach(r => {
-          const rec = r.record || ((r.wins!=null && r.losses!=null) ? `(${r.wins}-${r.losses})` : "");
-          html += `
-            <div class="statsRow">
-              <div class="statsLeft">
-                <div class="statsName">vs ${escapeHtml(r.opponent || "")}</div>
-              </div>
-              <div class="statsBadges">
-                <span class="miniPill">${escapeHtml(rec || "")}</span>
-              </div>
-            </div>
-          `;
-        });
-        out.innerHTML = html;
-      }catch(e){
-        out.innerHTML = `<div class="muted">H2H failed to load. (Likely missing endpoint.)</div>`;
-      }
-    };
-
-    sel.onchange = load;
-    load();
+  if (you && (players || []).some(p => String(p).trim().toLowerCase() === you.toLowerCase())) {
+    sel.value = you;
   }
+
+  const out = document.getElementById("h2hOut");
+
+  const load = async () => {
+    out.textContent = "Loading…";
+    try{
+      const player = String(sel.value || "").trim();
+      const h2hBlob = (_cache_standings && _cache_standings.h2h) ? _cache_standings.h2h : {};
+      const rows = Array.isArray(h2hBlob[player]) ? h2hBlob[player] : [];
+
+      if (!rows.length){
+        out.innerHTML = `<div class="muted">(No H2H data yet)</div>`;
+        return;
+      }
+
+      let html = ``;
+      rows.forEach(r => {
+        const rec = r.record || ((r.wins != null && r.losses != null) ? `(${r.wins}-${r.losses})` : "");
+        html += `
+          <div class="statsRow">
+            <div class="statsLeft">
+              <div class="statsName">vs ${escapeHtml(r.opponent || "")}</div>
+            </div>
+            <div class="statsBadges">
+              <span class="miniPill">${escapeHtml(rec || "")}</span>
+            </div>
+          </div>
+        `;
+      });
+      out.innerHTML = html;
+    }catch(e){
+      out.innerHTML = `<div class="muted">H2H failed to load.</div>`;
+    }
+  };
+
+  sel.onchange = load;
+  load();
+}
 
   async function renderWins_(box){
   const you = loadPlayerName().trim();
