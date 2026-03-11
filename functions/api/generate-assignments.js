@@ -42,14 +42,10 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: text || "Failed to generate assignments" }, 500);
     }
 
-    if (
-      data == null ||
-      (Array.isArray(data) && data.length === 0) ||
-      (typeof data === "object" && !Array.isArray(data) && Object.keys(data).length === 0)
-    ) {
+    if (!Array.isArray(data) || data.length === 0) {
       return json({
         ok: false,
-        error: `generate_assignments_for_race returned no data for race ${raceId}`
+        error: `generate_assignments_for_race returned no rows for race ${raceId}`
       }, 500);
     }
 
