@@ -3525,41 +3525,52 @@
   }
 
   function initAdminControls_() {
-
   const portal = document.getElementById("playerPortalPill");
   const pinBackdrop = document.getElementById("adminPinBackdrop");
   const pinInput = document.getElementById("adminPinInput");
   const pinSubmit = document.getElementById("adminPinSubmit");
   const pinCancel = document.getElementById("adminPinCancel");
 
-  const overlay = document.getElementById("adminOverlay");
-
   const closeBtn = document.getElementById("adminCloseBtn");
   const lockBtn = document.getElementById("adminLockBtn");
 
-  const tournamentSel = document.getElementById("adminTournamentSelect");
-  const raceSel = document.getElementById("adminRaceSelect");
-
   let pressTimer = null;
 
-  /* --------------------------
-     LONG PRESS TO OPEN PIN
-  --------------------------- */
-
   function startPress() {
-    pressTimer = setTimeout(() => {
-      pinBackdrop.hidden = false;
-      pinInput.focus();
+    clearTimeout(pressTimer);
+
+    pressTimer = setTimeout(async () => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+
+      // If already unlocked, open admin tools directly.
+      if (getAdminToken_()) {
+        try {
+          await initAdminOverlay_();
+          openAdminOverlay_();
+          return;
+        } catch (err) {
+          // Token is stale/invalid, clear it and fall back to PIN.
+          clearAdminToken_();
+          _adminContext = null;
+          setAdminStatus_("adminPinStatus", "Session expired. Enter PIN again.", true);
+        }
+      }
+
+      openAdminPin_();
     }, 900);
   }
 
   function cancelPress() {
     clearTimeout(pressTimer);
+    pressTimer = null;
   }
 
-  if (portal) {
+  if (portal && !portal.dataset.adminBound) {
+    portal.dataset.adminBound = "1";
+
     portal.addEventListener("mousedown", startPress);
-    portal.addEventListener("touchstart", startPress);
+    portal.addEventListener("touchstart", startPress, { passive: true });
 
     portal.addEventListener("mouseup", cancelPress);
     portal.addEventListener("mouseleave", cancelPress);
@@ -3567,131 +3578,61 @@
     portal.addEventListener("touchcancel", cancelPress);
   }
 
-  /* --------------------------
-     PIN MODAL
-  --------------------------- */
-
-  function closePin() {
-    pinBackdrop.hidden = true;
-    pinInput.value = "";
+  if (pinCancel && !pinCancel.dataset.bound) {
+    pinCancel.dataset.bound = "1";
+    pinCancel.addEventListener("click", closeAdminPin_);
   }
 
-  pinCancel?.addEventListener("click", closePin);
+  if (pinSubmit && !pinSubmit.dataset.bound) {
+    pinSubmit.dataset.bound = "1";
+    pinSubmit.addEventListener("click", unlockAdmin_);
+  }
 
-  pinSubmit?.addEventListener("click", async () => {
-  const pin = pinInput.value.trim();
-  if (!pin) return;
-
-  try {
-    const res = await fetch("/api/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin })
+  if (pinInput && !pinInput.dataset.bound) {
+    pinInput.dataset.bound = "1";
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") unlockAdmin_();
     });
-
-    const data = await res.json();
-
-    if (!data.ok) {
-      alert("Invalid PIN");
-      return;
-    }
-
-    setAdminToken_(data.token);
-
-    closePin();
-    openAdminOverlay_();
-    await loadAdminContext();
-
-  } catch (err) {
-    console.error(err);
-  }
-});
-
-  /* --------------------------
-     HEADER BUTTONS
-  --------------------------- */
-
-  closeBtn?.addEventListener("click", () => {
-  closeAdminOverlay_();
-});
-
-lockBtn?.addEventListener("click", () => {
-  clearAdminToken_();
-  closeAdminOverlay_();
-});
-
-  /* --------------------------
-     LOAD TOURNAMENT / RACE
-  --------------------------- */
-
-  async function loadAdminContext() {
-
-    try {
-
-      const ctx = await getAdminContext_();
-
-      tournamentSel.innerHTML = "";
-      raceSel.innerHTML = "";
-
-      (ctx.tournaments || []).forEach(t => {
-
-        const opt = document.createElement("option");
-
-        opt.value = t.id;
-        opt.textContent = t.label;
-
-        if (t.id === ctx.currentTournamentId) opt.selected = true;
-
-        tournamentSel.appendChild(opt);
-
-      });
-
-      (ctx.races || []).forEach(r => {
-
-        const opt = document.createElement("option");
-
-        opt.value = r.id;
-        opt.textContent = r.label;
-
-        if (r.id === ctx.currentRaceId) opt.selected = true;
-
-        raceSel.appendChild(opt);
-
-      });
-
-    } catch (err) {
-
-      console.error("Admin context failed", err);
-
-    }
-
   }
 
-  /* --------------------------
-     ADMIN BUTTONS
-  --------------------------- */
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.dataset.bound = "1";
+    closeBtn.addEventListener("click", () => {
+      closeAdminOverlay_();
+    });
+  }
 
-  document.getElementById("adminAssignBtn")
-    ?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/generate-assignments","adminRaceOpsStatus","Generating assignments")
-    );
+  if (lockBtn && !lockBtn.dataset.bound) {
+    lockBtn.dataset.bound = "1";
+    lockBtn.addEventListener("click", () => {
+      clearAdminToken_();
+      _adminContext = null;
+      closeAdminOverlay_();
+    });
+  }
 
-  document.getElementById("adminQualBtn")
-    ?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/import-qualifying","adminRaceOpsStatus","Importing qualifying")
-    );
+  document.querySelectorAll(".adminTab").forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      setAdminTab_(btn.dataset.adminTab);
+    });
+  });
 
-  document.getElementById("adminResultsBtn")
-    ?.addEventListener("click", () =>
-      runAdminRaceOp_("/api/import-results","adminRaceOpsStatus","Importing results")
-    );
+  document.getElementById("adminAssignBtn")?.addEventListener("click", () =>
+    runAdminRaceOp_("/api/generate-assignments", "adminRaceOpsStatus", "Generating assignments")
+  );
 
-  document.getElementById("adminSaveSeedsBtn")
-    ?.addEventListener("click", saveAdminSeeds_);
+  document.getElementById("adminQualBtn")?.addEventListener("click", () =>
+    runAdminRaceOp_("/api/import-qualifying", "adminRaceOpsStatus", "Importing qualifying")
+  );
 
-  document.getElementById("adminAddFundsBtn")
-    ?.addEventListener("click", addFunds_);
+  document.getElementById("adminResultsBtn")?.addEventListener("click", () =>
+    runAdminRaceOp_("/api/import-results", "adminRaceOpsStatus", "Importing results")
+  );
 
+  document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
+  document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
 }
 
   window.addEventListener("resize", () => {
