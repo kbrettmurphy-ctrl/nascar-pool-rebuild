@@ -1,3 +1,5 @@
+import { verifyAdminRequest, json } from "./_admin-auth";
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
@@ -16,7 +18,7 @@ export async function onRequestPost(context) {
 
     // 1) Load race metadata from Supabase
     const raceRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name,tournament_id`,
+      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name`,
       {
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
@@ -31,10 +33,24 @@ export async function onRequestPost(context) {
     }
 
     const race = raceRows[0];
-    const tournamentId = race.tournament_id;
 
-    // Convert race number → tournament round (1-4)
-    const roundNumber = ((race.race_number - 1) % 4) + 1;
+    const roundRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/tournament_rounds?race_id=eq.${raceId}&select=tournament_id,round_number&limit=1`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+        },
+      }
+    );
+
+    const roundRows = await roundRes.json();
+    if (!roundRes.ok || !Array.isArray(roundRows) || !roundRows.length) {
+      return json({ ok: false, error: `No tournament_rounds row found for race ${raceId}` }, 404);
+    }
+
+    const tournamentId = Number(roundRows[0].tournament_id);
+    const roundNumber = Number(roundRows[0].round_number);
 
     // 2) Fetch NASCAR race list
     const raceListUrl = `https://cf.nascar.com/cacher/${race.season_year}/race_list_basic.json`;
@@ -242,4 +258,13 @@ export async function onRequestPost(context) {
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
+}
+
+
+function normalizeName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
