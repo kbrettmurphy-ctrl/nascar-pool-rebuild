@@ -32,6 +32,11 @@
   let _adminContext = null;
   let _adminLongPressTimer = null;
   let _adminLongPressTriggered = false;
+  let _currentLoaded = false;
+  let _standingsLoaded = false;
+  let _duesLoaded = false;
+  let _myMatchupLoaded = false;
+  let _bracketLoaded = false;
 
   /* ==========================================================
    Spoiler toggle
@@ -208,11 +213,18 @@
     return data;
   }
 
-  async function getAdminContext_() {
-    if (_adminContext) return _adminContext;
-    const data = await adminFetch_("/api/admin-context", { cache: "no-store" });
-    _adminContext = data.data || {};
-    return _adminContext;
+  async function getAdminContext() {
+    const cached = localStorage.getItem("adminContext");
+    const ts = localStorage.getItem("adminContext_ts");
+    if (cached && ts && Date.now() - Number(ts) < 600000) {
+      return JSON.parse(cached);
+    }
+    const res = await fetch("/api/admin-context");
+    const json = await res.json();
+    localStorage.setItem("adminContext", JSON.stringify(json));
+    localStorage.setItem("adminContext_ts", Date.now());
+
+    return json;
   }
 
   /* ==========================================================
@@ -647,23 +659,59 @@ async function clearAssignments_() {
       if (el) el.style.display = (v === which) ? "block" : "none";
     });
 
-    if (which === "current") loadCurrent();
-    if (which === "standings") loadStandings();
-    if (which === "dues") loadDues();
-    if (which === "mymatchup") loadMyMatchup();
-    if (which === "bracket") loadBracket();
+    if (which === "current" && !_currentLoaded) {
+      _currentLoaded = true;
+      loadCurrent();
+    }
+
+    if (which === "standings" && !_standingsLoaded) {
+      _standingsLoaded = true;
+      loadStandings();
+    }
+
+    if (which === "dues" && !_duesLoaded) {
+      _duesLoaded = true;
+      loadDues();
+    }
+
+    if (which === "mymatchup" && !_myMatchupLoaded) {
+      _myMatchupLoaded = true;
+      loadMyMatchup();
+    }
+
+    if (which === "bracket" && !_bracketLoaded) {
+      _bracketLoaded = true;
+      loadBracket();
+    }
   }
 
   function refreshActiveView() {
     _playerRaceData = null;
     _playerDues = null;
     _playerList = null;
+    _cache_standings = null;
+    _currentLoaded = false;
+    _standingsLoaded = false;
+    _duesLoaded = false;
+    _myMatchupLoaded = false;
+    _bracketLoaded = false;
 
-    if (activeView === "current") loadCurrent();
-    else if (activeView === "standings") loadStandings();
-    else if (activeView === "dues") loadDues();
-    else if (activeView === "mymatchup") loadMyMatchup();
-    else if (activeView === "bracket") loadBracket();
+    if (activeView === "current") {
+      _currentLoaded = true;
+      loadCurrent();
+    } else if (activeView === "standings") {
+      _standingsLoaded = true;
+      loadStandings();
+    } else if (activeView === "dues") {
+      _duesLoaded = true;
+      loadDues();
+    } else if (activeView === "mymatchup") {
+      _myMatchupLoaded = true;
+      loadMyMatchup();
+    } else if (activeView === "bracket") {
+      _bracketLoaded = true;
+      loadBracket();
+    }
   }
 
   function savePlayerName(name) {
