@@ -599,6 +599,7 @@
 
   #bracketSub > div:first-child{
     margin-bottom:2px;
+  }
     
   .legendRow{
     display:flex;
