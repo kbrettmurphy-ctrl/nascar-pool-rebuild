@@ -332,7 +332,7 @@
   }
   #currentHeader{ font-size: var(--big); font-weight:900; letter-spacing:-0.2px; }
   #currentSub{ font-size:13px; color: var(--muted); }
-
+  
   .matchupCard{
     border:1px solid var(--line);
     border-radius: var(--radius2);
@@ -454,7 +454,36 @@
     .pMeta{ white-space:normal; }
     #welcomeName{ max-width: 100%; }
   }
+  
+  .bracketHeaderRow{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
 
+  .bracketHeaderText{
+    min-width:0;
+    flex:1 1 auto;
+  }
+
+  #bracketTournamentPick{
+    width:auto;
+    min-width:150px;
+    max-width:150px;
+    flex:0 0 auto;
+  }
+
+  @media (max-width:700px){
+    .bracketHeaderRow{
+      align-items:flex-start;
+    }
+
+    #bracketTournamentPick{
+      min-width:140px;
+      max-width:140px;
+    }
+  }
   .bracketGrid{
     display:grid;
     grid-template-columns: repeat(4, 185px);
@@ -3597,24 +3626,26 @@ async function clearAssignments_() {
       const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
       const selectorHtml = tournamentOptions.length
         ? `
-          <div class="statsControls" style="margin-top:8px;">
-            <select id="bracketTournamentPick" style="width:auto; min-width:180px;">
-              ${tournamentOptions.map(opt => `
-                <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
-                  Tournament ${escapeHtml(opt.tournament)}
-                </option>
-              `).join("")}
-            </select>
-          </div>
+        <select id="bracketTournamentPick">
+            ${tournamentOptions.map(opt => `
+              <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
+                Tournament ${escapeHtml(opt.tournament)}
+              </option>
+            `).join("")}
+          </select>
         `
         : "";
 
       sub.innerHTML = `
-        <div>${escapeHtml(leftText)}</div>
-
-        <div class="legendRow" style="margin-top:8px;">
+        <div class="bracketHeaderRow">
+          <div class="bracketHeaderText">
+            <div>${escapeHtml(`Tourney ${tour}${race ? ` · ${race}` : ""}${round !== "" ? ` · ${roundLabel(round)}` : ""}`)}</div>
+          </div>
           ${selectorHtml}
+        </div>
 
+        <div class="legendRow" style="margin-top:8px; align-items:flex-end;">
+          <div></div>
           <div class="bracketLegend" aria-label="Legend">
             <span class="legendItem"><span class="raceDot"></span> Race W</span>
             <span class="legendSep">·</span>
