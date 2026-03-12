@@ -1636,32 +1636,43 @@
 
   async function initAdminOverlay_() {
     const ctx = await getAdminContext_();
-
     const tSel = document.getElementById("adminTournamentSelect");
     const rSel = document.getElementById("adminRaceSelect");
     const fundsSel = document.getElementById("adminFundsPlayer");
-
     if (tSel && !tSel.dataset.bound) {
       tSel.dataset.bound = "1";
-      tSel.addEventListener("change", refreshAdminRaceOptions_);
+      tSel.addEventListener("change", () => {
+        refreshAdminRaceOptions_();
+        document.querySelectorAll(".seed-player-select").forEach(select => {
+          if (!select.dataset.bound) {
+            select.dataset.bound = "1";
+            select.addEventListener("change", updateSeedDropdowns_);
+          }
+        });
+        updateSeedDropdowns_();
+      });
     }
-
     tSel.innerHTML = (ctx.tournaments || [])
       .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
       .join("");
-
-    fundsSel.innerHTML = `<option value="">Select player</option>` + (ctx.players || [])
-      .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-      .join("");
-
+    fundsSel.innerHTML =
+      `<option value="">Select player</option>` +
+      (ctx.players || [])
+        .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+        .join("");
     tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
     refreshAdminRaceOptions_();
-
     if (ctx.currentRaceId) {
       rSel.value = String(ctx.currentRaceId);
     }
-
     renderAdminSeeds_();
+    document.querySelectorAll(".seed-player-select").forEach(select => {
+      if (!select.dataset.bound) {
+        select.dataset.bound = "1";
+        select.addEventListener("change", updateSeedDropdowns_);
+      }
+    });
+    updateSeedDropdowns_();
   }
 
   function refreshAdminRaceOptions_() {
