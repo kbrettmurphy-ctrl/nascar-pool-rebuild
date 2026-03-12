@@ -211,7 +211,7 @@
     return data;
   }
 
-  async function getAdminContext() {
+  async function getAdminContext_() {
     const cached = localStorage.getItem("adminContext");
     const ts = localStorage.getItem("adminContext_ts");
     if (cached && ts && Date.now() - Number(ts) < 600000) {
