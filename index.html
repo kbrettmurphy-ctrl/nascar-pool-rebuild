@@ -1397,6 +1397,7 @@
       <div id="adminTab-raceops" class="adminTabPane active">
         <div class="adminCardGrid">
           <button id="adminAssignBtn" class="primary" type="button">Generate Assignments</button>
+          <button id="adminClearAssignmentsBtn" class="danger">Clear Assignments</button>
           <button id="adminQualBtn" class="primary" type="button">Import Qualifying</button>
           <button id="adminResultsBtn" class="primary" type="button">Import Results</button>
         </div>
@@ -1408,6 +1409,7 @@
         <div id="adminSeedsGrid" class="adminSeedsGrid"></div>
         <div class="adminRow" style="margin-top:10px;">
           <button id="adminSaveSeedsBtn" class="primary" type="button">Save Seeds</button>
+          <button id="adminClearSeedsBtn" class="danger">Clear Seeds</button>
         </div>
         <div id="adminSeedsStatus" class="adminStatus"></div>
       </div>
@@ -1930,6 +1932,37 @@ refreshActiveView();
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
     }
   }    
+  
+  async function clearSeeds_() {
+  const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+  if (!tournamentId) {
+    alert("Select a tournament first.");
+    return;
+  }
+
+  if (!confirm("Clear ALL seeds for this tournament?")) return;
+
+  const res = await fetch(`/api/clear-seeds?tournamentId=${tournamentId}`);
+  const data = await res.json();
+
+  alert(data.message || "Seeds cleared.");
+  renderAdminSeeds_();
+}
+
+async function clearAssignments_() {
+  const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
+  if (!raceId) {
+    alert("Select a race first.");
+    return;
+  }
+
+  if (!confirm("Clear all assignments for this race?")) return;
+
+  const res = await fetch(`/api/clear-assignments?raceId=${raceId}`);
+  const data = await res.json();
+
+  alert(data.message || "Assignments cleared.");
+}
 
   async function getPlayerList_(){
     if (_playerList) return _playerList;
@@ -3789,6 +3822,8 @@ refreshActiveView();
 
   document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
+  document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
+  document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
 }
 
   window.addEventListener("resize", () => {
