@@ -1345,16 +1345,19 @@
   </div>
 
   <div id="view-bracket" class="card" style="display:none;">
+  <div class="raceHeaderRow">
     <div class="big">Bracket</div>
-    <div class="muted" id="bracketSub">I'm slow...</div>
-
-    <div class="bracketWrap">
-      <div id="bracketSticky" class="bracketSticky"></div>
-      <div class="bracketFade left"></div>
-      <div class="bracketFade right"></div>
-      <div id="bracketArea">I'm slow...</div>
-    </div>
+    <div id="bracketHeaderSelect"></div>
   </div>
+  <div class="muted" id="bracketSub">I'm slow...</div>
+
+  <div class="bracketWrap">
+    <div id="bracketSticky" class="bracketSticky"></div>
+    <div class="bracketFade left"></div>
+    <div class="bracketFade right"></div>
+    <div id="bracketArea">I'm slow...</div>
+  </div>
+</div>
 
   <div class="sponsor-container">
     <div class="presented-by">PRESENTED BY</div>
@@ -3586,178 +3589,180 @@ async function clearAssignments_() {
   }
 
   async function loadBracket(){
-    const sub = document.getElementById("bracketSub");
-    const area = document.getElementById("bracketArea");
+  const sub = document.getElementById("bracketSub");
+  const area = document.getElementById("bracketArea");
+  const headerSelect = document.getElementById("bracketHeaderSelect");
 
-    if (!spoilersOn_()){
-      sub.textContent = "Spoilers are OFF";
-      area.innerHTML = `
-        <div class="microBox" style="margin-top:6px;">
-          <div class="microTitle">Bracket hidden</div>
-          <div class="microMeta" style="color: var(--muted); font-weight:700;">
-            Turn spoilers back ON if you want the bracket.
-          </div>
+  if (!spoilersOn_()){
+    if (headerSelect) headerSelect.innerHTML = "";
+    sub.textContent = "Spoilers are OFF";
+    area.innerHTML = `
+      <div class="microBox" style="margin-top:6px;">
+        <div class="microTitle">Bracket hidden</div>
+        <div class="microMeta" style="color: var(--muted); font-weight:700;">
+          Turn spoilers back ON if you want the bracket.
         </div>
-      `;
-      return;
+      </div>
+    `;
+    return;
+  }
+
+  if (headerSelect) headerSelect.innerHTML = "";
+  sub.textContent = "Loading…";
+  area.innerHTML = "Loading…";
+
+  const fmtAvg = (n) => (n == null ? "" : Number(n).toFixed(1).replace(/\.0$/,""));
+
+  try{
+    const data = await getPlayerBracket_(_selectedBracketTournament);
+
+    const tour  = data.tournament ?? "";
+    const race  = data.currentRace ?? data.race ?? "";
+    const round = data.currentRound ?? data.round ?? "";
+
+    if (!_selectedBracketTournament && tour) {
+      _selectedBracketTournament = String(tour);
     }
 
-    sub.textContent = "Loading…";
-    area.innerHTML = "Loading…";
+    const leftText =
+      `Tourney ${tour}` +
+      (race ? ` · ${race}` : "") +
+      (round !== "" ? ` · ${roundLabel(round)}` : "");
 
-    const fmtAvg = (n) => (n == null ? "" : Number(n).toFixed(1).replace(/\.0$/,""));
+    const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
+    const selectorHtml = tournamentOptions.length
+      ? `
+        <select id="bracketTournamentPick" style="width:150px; min-width:150px;">
+          ${tournamentOptions.map(opt => `
+            <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
+              Tournament ${escapeHtml(opt.tournament)}
+            </option>
+          `).join("")}
+        </select>
+      `
+      : "";
 
-    try{
-      const data = await getPlayerBracket_(_selectedBracketTournament);
+    if (headerSelect) {
+      headerSelect.innerHTML = selectorHtml;
+    }
 
-      const tour  = data.tournament ?? "";
-      const race  = data.currentRace ?? data.race ?? "";
-      const round = data.currentRound ?? data.round ?? "";
+    sub.innerHTML = `
+      <div>${escapeHtml(leftText)}</div>
+      <div class="legendRow" style="margin-top:6px; align-items:flex-end;">
+        <div></div>
+        <div class="bracketLegend" aria-label="Legend">
+          <span class="legendItem"><span class="raceDot"></span> Race W</span>
+          <span class="legendSep">·</span>
+          <span class="legendItem"><span class="winDot"></span> H2H W</span>
+        </div>
+      </div>
+    `;
 
-      if (!_selectedBracketTournament && tour) {
-        _selectedBracketTournament = String(tour);
-      }
+    const rounds = data.rounds || [];
+    let html = `<div class="bracketGrid">`;
 
-      const leftText =
-        `Tourney ${tour}` +
-        (race ? ` · ${race}` : "") +
-        (round !== "" ? ` · ${roundLabel(round)}` : "");
+    const sticky = document.getElementById("bracketSticky");
+    if (sticky) {
+      sticky.innerHTML = rounds.map((r, idx) => {
+        const label = r.isCurrent ? "CURRENT" : roundLabel(r.round);
+        const raceLabel = r.raceLabel || "";
+        return `
+          <div class="chip" data-idx="${idx}">
+            <span>${escapeHtml(label)}</span>
+            <span class="small">${escapeHtml(raceLabel)}</span>
+          </div>
+        `;
+      }).join("");
+    }
 
-      const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
-      const selectorHtml = tournamentOptions.length
-        ? `
-        <select id="bracketTournamentPick">
-            ${tournamentOptions.map(opt => `
-              <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
-                Tournament ${escapeHtml(opt.tournament)}
-              </option>
-            `).join("")}
-          </select>
-        `
-        : "";
+    rounds.forEach(r => {
+      const tag = r.isCurrent
+        ? `<span class="roundTag">CURRENT</span>`
+        : `<span class="roundTag">${escapeHtml(roundLabel(r.round))}</span>`;
 
-      sub.innerHTML = `
-  <div class="bracketTopRow">
-    <div class="bracketTopLeft">
-      <div>${escapeHtml(`Tourney ${tour} · ${race} · ${roundLabel(round)}`)}</div>
-    </div>
-    ${selectorHtml}
-  </div>
+      html += `
+        <div class="bracketCol">
+          <div class="bracketHdr">
+            <div class="title">${tag}</div>
+            <div class="raceTag">${escapeHtml(r.raceLabel || "")}</div>
+          </div>
+      `;
 
-  <div class="legendRow" style="margin-top:6px; align-items:flex-end;">
-    <div></div>
-    <div class="bracketLegend" aria-label="Legend">
-      <span class="legendItem"><span class="raceDot"></span> Race W</span>
-      <span class="legendSep">·</span>
-      <span class="legendItem"><span class="winDot"></span> H2H W</span>
-    </div>
-  </div>
-`;
+      (r.matchups || []).forEach(m => {
+        const norm = (s) => String(s ?? "").trim().toLowerCase();
+        const winnerName = String(m.winner ?? "").trim();
+        const p1Name = String(m.p1 ?? "").trim();
+        const p2Name = String(m.p2 ?? "").trim();
+        const p1Win = winnerName && p1Name && norm(winnerName) === norm(p1Name);
+        const p2Win = winnerName && p2Name && norm(winnerName) === norm(p2Name);
 
-      const rounds = data.rounds || [];
-      let html = `<div class="bracketGrid">`;
+        const p1Badge = Number(r.round) === 1
+          ? (m.s1 || "—")
+          : (m.p1Record || "—");
 
-      const sticky = document.getElementById("bracketSticky");
-      if (sticky) {
-        sticky.innerHTML = rounds.map((r, idx) => {
-          const label = r.isCurrent ? "CURRENT" : roundLabel(r.round);
-          const race = r.raceLabel || "";
-          return `
-            <div class="chip" data-idx="${idx}">
-              <span>${escapeHtml(label)}</span>
-              <span class="small">${escapeHtml(race)}</span>
-            </div>
-          `;
-        }).join("");
-      }
-
-      rounds.forEach(r => {
-        const tag = r.isCurrent
-          ? `<span class="roundTag">CURRENT</span>`
-          : `<span class="roundTag">${escapeHtml(roundLabel(r.round))}</span>`;
+        const p2Badge = Number(r.round) === 1
+          ? (m.s2 || "—")
+          : (m.p2Record || "—");
 
         html += `
-          <div class="bracketCol">
-            <div class="bracketHdr">
-              <div class="title">${tag}</div>
-              <div class="raceTag">${escapeHtml(r.raceLabel || "")}</div>
+          <div class="ticket">
+            <div class="ticketRow">
+              <div class="sideLeft">
+                <span class="seedBadge">${escapeHtml(p1Badge)}</span>
+                <span class="nameText">${escapeHtml(m.p1 || "")}</span>
+              </div>
+              <div class="sideRight">
+                <span class="winSlot">${m.p1RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                <span class="winSlot">${p1Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                <span class="avgBox ${m.a1 == null ? "empty" : ""}">${m.a1 == null ? "—" : escapeHtml(fmtAvg(m.a1))}</span>
+              </div>
             </div>
+
+            <div class="ticketRow">
+              <div class="sideLeft">
+                <span class="seedBadge">${escapeHtml(p2Badge)}</span>
+                <span class="nameText">${escapeHtml(m.p2 || "")}</span>
+              </div>
+              <div class="sideRight">
+                <span class="winSlot">${m.p2RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                <span class="winSlot">${p2Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                <span class="avgBox ${m.a2 == null ? "empty" : ""}">${m.a2 == null ? "—" : escapeHtml(fmtAvg(m.a2))}</span>
+              </div>
+            </div>
+          </div>
         `;
-
-        (r.matchups || []).forEach(m => {
-          const norm = (s) => String(s ?? "").trim().toLowerCase();
-          const winnerName = String(m.winner ?? "").trim();
-          const p1Name = String(m.p1 ?? "").trim();
-          const p2Name = String(m.p2 ?? "").trim();
-          const p1Win = winnerName && p1Name && norm(winnerName) === norm(p1Name);
-          const p2Win = winnerName && p2Name && norm(winnerName) === norm(p2Name);
-
-          const p1Badge = Number(r.round) === 1
-            ? (m.s1 || "—")
-            : (m.p1Record || "—");
-
-          const p2Badge = Number(r.round) === 1
-            ? (m.s2 || "—")
-            : (m.p2Record || "—");
-
-          html += `
-            <div class="ticket">
-              <div class="ticketRow">
-                <div class="sideLeft">
-                  <span class="seedBadge">${escapeHtml(p1Badge)}</span>
-                  <span class="nameText">${escapeHtml(m.p1 || "")}</span>
-                </div>
-                <div class="sideRight">
-                  <span class="winSlot">${m.p1RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
-                  <span class="winSlot">${p1Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
-                  <span class="avgBox ${m.a1 == null ? "empty" : ""}">${m.a1 == null ? "—" : escapeHtml(fmtAvg(m.a1))}</span>
-                </div>
-              </div>
-
-              <div class="ticketRow">
-                <div class="sideLeft">
-                  <span class="seedBadge">${escapeHtml(p2Badge)}</span>
-                  <span class="nameText">${escapeHtml(m.p2 || "")}</span>
-                </div>
-                <div class="sideRight">
-                  <span class="winSlot">${m.p2RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
-                  <span class="winSlot">${p2Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
-                  <span class="avgBox ${m.a2 == null ? "empty" : ""}">${m.a2 == null ? "—" : escapeHtml(fmtAvg(m.a2))}</span>
-                </div>
-              </div>
-            </div>
-          `;
-        });
-
-        html += `</div>`;
       });
 
       html += `</div>`;
-      area.innerHTML = html;
+    });
 
-      const pick = document.getElementById("bracketTournamentPick");
-      if (pick) {
-        pick.onchange = () => {
-          _selectedBracketTournament = String(pick.value || "").trim();
-          loadBracket();
-        };
-      }
+    html += `</div>`;
+    area.innerHTML = html;
 
-      const grid = area.querySelector(".bracketGrid");
-      if (grid && sticky) {
-        sticky.querySelectorAll(".chip").forEach(chip => {
-          chip.onclick = () => {
-            const idx = Number(chip.getAttribute("data-idx") || "0");
-            const col = grid.children[idx];
-            if (col) col.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-          };
-        });
-      }
-    }catch(e){
-      sub.textContent = "Bracket failed to load.";
-      area.innerHTML = "Error: " + (e && e.message ? e.message : e);
+    const pick = document.getElementById("bracketTournamentPick");
+    if (pick) {
+      pick.onchange = () => {
+        _selectedBracketTournament = String(pick.value || "").trim();
+        loadBracket();
+      };
     }
+
+    const grid = area.querySelector(".bracketGrid");
+    if (grid && sticky) {
+      sticky.querySelectorAll(".chip").forEach(chip => {
+        chip.onclick = () => {
+          const idx = Number(chip.getAttribute("data-idx") || "0");
+          const col = grid.children[idx];
+          if (col) col.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+        };
+      });
+    }
+  } catch(e){
+    if (headerSelect) headerSelect.innerHTML = "";
+    sub.textContent = "Bracket failed to load.";
+    area.innerHTML = "Error: " + (e && e.message ? e.message : e);
   }
+}
 
   function initAdminControls_() {
   const portal = document.getElementById("playerPortalPill");
