@@ -1735,39 +1735,31 @@
 }
 
   function updateSeedDropdowns_() {
-  const selects = [...document.querySelectorAll(".seed-player-select")];
-  if (!selects.length) return;
+    const selects = [...document.querySelectorAll(".seed-player-select")];
+    if (!selects.length) return;
 
-  const selectedIds = selects
-    .map(s => String(s.value || "").trim())
-    .filter(Boolean);
+    const players = [...((_adminContext && _adminContext.players) || [])];
+    const selectedIds = selects
+      .map(s => String(s.value || "").trim())
+      .filter(Boolean);
 
-  selects.forEach(select => {
-    const current = String(select.value || "").trim();
+    selects.forEach(select => {
+      const currentValue = String(select.value || "").trim();
 
-    Array.from(select.options).forEach(option => {
-      const value = String(option.value || "").trim();
+      const allowedPlayers = players.filter(p => {
+        const pid = String(p.id);
+        return pid === currentValue || !selectedIds.includes(pid);
+      });
 
-      // Always keep placeholder visible
-      if (!value) {
-        option.hidden = false;
-        option.disabled = false;
-        return;
-      }
+      select.innerHTML =
+        `<option value="">Select player</option>` +
+        allowedPlayers
+          .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+          .join("");
 
-      // Keep currently selected value visible in its own dropdown
-      if (value === current) {
-        option.hidden = false;
-        option.disabled = false;
-        return;
-      }
-
-      const isTaken = selectedIds.includes(value);
-      option.hidden = isTaken;
-      option.disabled = isTaken;
+      select.value = currentValue;
     });
-  });
-}
+  }
 
   async function runAdminRaceOp_(url, statusId, label) {
   const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
