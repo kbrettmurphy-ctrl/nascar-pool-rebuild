@@ -3637,22 +3637,22 @@ async function clearAssignments_() {
         : "";
 
       sub.innerHTML = `
-        <div class="bracketHeaderRow">
-          <div class="bracketHeaderText">
-            <div>${escapeHtml(`Tourney ${tour}${race ? ` · ${race}` : ""}${round !== "" ? ` · ${roundLabel(round)}` : ""}`)}</div>
-          </div>
-          ${selectorHtml}
-        </div>
+  <div class="bracketTopRow">
+    <div class="bracketTopLeft">
+      <div>${escapeHtml(`Tourney ${tour} · ${race} · ${roundLabel(round)}`)}</div>
+    </div>
+    ${selectorHtml}
+  </div>
 
-        <div class="legendRow" style="margin-top:8px; align-items:flex-end;">
-          <div></div>
-          <div class="bracketLegend" aria-label="Legend">
-            <span class="legendItem"><span class="raceDot"></span> Race W</span>
-            <span class="legendSep">·</span>
-            <span class="legendItem"><span class="winDot"></span> H2H W</span>
-          </div>
-        </div>
-      `;
+  <div class="legendRow" style="margin-top:6px; align-items:flex-end;">
+    <div></div>
+    <div class="bracketLegend" aria-label="Legend">
+      <span class="legendItem"><span class="raceDot"></span> Race W</span>
+      <span class="legendSep">·</span>
+      <span class="legendItem"><span class="winDot"></span> H2H W</span>
+    </div>
+  </div>
+`;
 
       const rounds = data.rounds || [];
       let html = `<div class="bracketGrid">`;
