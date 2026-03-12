@@ -47,7 +47,13 @@ export async function onRequestGet(context) {
         .trim();
     }
 
-    function buildRoundOneBracketMatchups_({ tournamentPlayers, raceId, scoreMap, raceWinnerDriverByRaceId, driverIdByName }) {
+    function buildRoundOneBracketMatchups_({
+      tournamentPlayers,
+      raceId,
+      scoreMap,
+      raceWinnerDriverByRaceId,
+      driverIdByName
+    }) {
       const bySeed = new Map();
 
       for (const row of tournamentPlayers || []) {
@@ -87,6 +93,8 @@ export async function onRequestGet(context) {
         out.push({
           s1: a.seed,
           s2: b.seed,
+          p1Record: "",
+          p2Record: "",
           p1: a.playerName,
           p2: b.playerName,
           a1: null,
@@ -200,6 +208,48 @@ export async function onRequestGet(context) {
       return Number(d1) === Number(winnerDriverId) || Number(d2) === Number(winnerDriverId);
     }
 
+    const recordBeforeRoundMap = new Map();
+
+    function getRecordBeforeRound_(roundNumber, playerId) {
+      return recordBeforeRoundMap.get(`${roundNumber}||${playerId}`) || { w: 0, l: 0 };
+    }
+
+    const sortedMatchupRows = [...(matchupRows || [])].sort((a, b) => {
+      const ra = Number(a.round_number) || 0;
+      const rb = Number(b.round_number) || 0;
+      if (ra !== rb) return ra - rb;
+      return (Number(a.match_number) || 0) - (Number(b.match_number) || 0);
+    });
+
+    const playerTotals = new Map();
+
+    for (const m of sortedMatchupRows) {
+      const roundNumber = Number(m.round_number);
+      const p1Id = Number(m.player1_id);
+      const p2Id = Number(m.player2_id);
+      const winnerId = Number(m.winner_id);
+
+      const p1Current = playerTotals.get(p1Id) || { w: 0, l: 0 };
+      const p2Current = playerTotals.get(p2Id) || { w: 0, l: 0 };
+
+      recordBeforeRoundMap.set(`${roundNumber}||${p1Id}`, { ...p1Current });
+      recordBeforeRoundMap.set(`${roundNumber}||${p2Id}`, { ...p2Current });
+
+      const p1Next = { ...p1Current };
+      const p2Next = { ...p2Current };
+
+      if (winnerId === p1Id) {
+        p1Next.w += 1;
+        p2Next.l += 1;
+      } else if (winnerId === p2Id) {
+        p2Next.w += 1;
+        p1Next.l += 1;
+      }
+
+      playerTotals.set(p1Id, p1Next);
+      playerTotals.set(p2Id, p2Next);
+    }
+
     const roundsOut = (rounds || []).map(rnd => {
       const roundNumber = Number(rnd.round_number);
       const raceId = Number(rnd.race_id);
@@ -220,9 +270,14 @@ export async function onRequestGet(context) {
           const p1Score = scoreMap.get(`${raceId}||${p1Id}`) || null;
           const p2Score = scoreMap.get(`${raceId}||${p2Id}`) || null;
 
+          const p1RecordObj = getRecordBeforeRound_(roundNumber, p1Id);
+          const p2RecordObj = getRecordBeforeRound_(roundNumber, p2Id);
+
           return {
             s1: seedMap.get(p1Id) ?? "—",
             s2: seedMap.get(p2Id) ?? "—",
+            p1Record: `${p1RecordObj.w}-${p1RecordObj.l}`,
+            p2Record: `${p2RecordObj.w}-${p2RecordObj.l}`,
             p1: m.player1_name || "",
             p2: m.player2_name || "",
             a1: m.player1_avg ?? null,
