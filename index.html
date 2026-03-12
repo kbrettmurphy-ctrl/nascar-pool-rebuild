@@ -1942,11 +1942,18 @@ refreshActiveView();
 
   if (!confirm("Clear ALL seeds for this tournament?")) return;
 
-  const res = await fetch(`/api/clear-seeds?tournamentId=${tournamentId}`);
-  const data = await res.json();
+  try {
+    const data = await adminFetch_("/api/clear-seeds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tournamentId })
+    });
 
-  alert(data.message || "Seeds cleared.");
-  renderAdminSeeds_();
+    alert(data.message || "Seeds cleared.");
+    renderAdminSeeds_();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
 }
 
 async function clearAssignments_() {
