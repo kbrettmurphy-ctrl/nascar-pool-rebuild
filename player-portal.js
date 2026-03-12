@@ -212,17 +212,30 @@
   }
 
   async function getAdminContext_() {
-    const cached = localStorage.getItem("adminContext");
-    const ts = localStorage.getItem("adminContext_ts");
-    if (cached && ts && Date.now() - Number(ts) < 600000) {
-      return JSON.parse(cached);
-    }
-    const res = await fetch("/api/admin-context");
-    const json = await res.json();
-    localStorage.setItem("adminContext", JSON.stringify(json));
-    localStorage.setItem("adminContext_ts", Date.now());
+    if (_adminContext) return _adminContext;
+    const cacheKey = "nascar_admin_context_cache";
+    const tsKey = "nascar_admin_context_cache_ts";
+    const ttlMs = 10 * 60 * 1000;
 
-    return json;
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      const ts = Number(sessionStorage.getItem(tsKey) || 0);
+
+      if (raw && ts && (Date.now() - ts) < ttlMs) {
+        _adminContext = JSON.parse(raw) || {};
+        return _adminContext;
+      }
+    } catch {}
+
+    const res = await adminFetch_("/api/admin-context", { cache: "no-store" });
+    _adminContext = res.data || {};
+
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(_adminContext));
+      sessionStorage.setItem(tsKey, String(Date.now()));
+    } catch {}
+
+    return _adminContext;
   }
 
   /* ==========================================================
