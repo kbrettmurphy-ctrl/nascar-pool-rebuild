@@ -1181,11 +1181,32 @@
   }
 
   @media (max-width: 640px){
-    .adminContextBar,
-    .adminSeedsGrid{
-      grid-template-columns:1fr;
-    }
+  .adminContextBar{
+    grid-template-columns:1fr;
   }
+
+  .adminSeedsGrid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+  }
+
+  .adminSeedRow{
+    grid-template-columns:40px 1fr;
+    gap:6px;
+    align-items:center;
+  }
+
+  .adminSeedNum{
+    padding:8px 6px;
+    font-size:12px;
+  }
+
+  .adminSeedSelect{
+    min-width:0;
+    width:100%;
+    font-size:12px;
+  }
+}
   </style>
 </head>
 
