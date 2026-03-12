@@ -38,14 +38,13 @@ export async function onRequestGet(context) {
       ];
     }
 
-    function buildRoundOneSeedMatchups_({ tournamentId, raceId, tournamentNumber, roundNumber, playerRows, scoreMap }) {
+    function buildRoundOneSeedMatchups_({ raceId, playerRows, scoreMap }) {
       const bySeed = new Map();
 
       for (const row of playerRows || []) {
         const seed = Number(row?.seed);
         const playerId = Number(row?.player_id);
-        const playerName =
-          String(row?.players?.name || row?.player_name || "").trim();
+        const playerName = String(row?.players?.name || row?.player_name || "").trim();
 
         if (!Number.isInteger(seed) || !playerId || !playerName) continue;
 
@@ -94,37 +93,30 @@ export async function onRequestGet(context) {
       return out;
     }
 
-    // All races in season order
     const races = await getJson(
       `/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`
     );
 
-    // Tournament round mapping
     const rounds = await getJson(
       `/rest/v1/tournament_rounds?select=id,tournament_id,round_number,race_id,tournaments(id,tournament_number),races(id,race_name,race_short,race_number)&order=tournament_id.asc,round_number.asc`
     );
 
-    // Swiss matchup results with averages
     const matchupRows = await getJson(
       `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
     );
 
-    // Score / assignment data
     const scoreRows = await getJson(
       `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_qualifying_position,driver_2_qualifying_position`
     );
 
-    // Manual seeds
     const tournamentPlayers = await getJson(
       `/rest/v1/tournament_players?select=tournament_id,player_id,seed,players(name)`
     );
 
-    // Any race that has results at all
     const raceResults = await getJson(
       `/rest/v1/race_results?select=race_id`
     );
 
-    // Race winners
     const winners = await getJson(
       `/rest/v1/race_results?finishing_position=eq.1&select=race_id,drivers(name)`
     );
@@ -162,28 +154,18 @@ export async function onRequestGet(context) {
       tournamentPlayersByTournament.get(tId).push(row);
     }
 
-    const roundMeta = [];
     const roundMetaByRaceId = new Map();
-
     for (const r of rounds || []) {
-      const meta = {
+      roundMetaByRaceId.set(Number(r.race_id), {
         tournamentId: Number(r.tournament_id),
         tournament: Number(r?.tournaments?.tournament_number ?? r.tournament_id),
         round: Number(r.round_number),
         raceId: Number(r.race_id),
         raceNumber: Number(r?.races?.race_number ?? 0),
-        race:
-          String(r?.races?.race_short || "").trim() ||
-          String(r?.races?.race_name || "").trim(),
-      };
-
-      roundMeta.push(meta);
-      roundMetaByRaceId.set(meta.raceId, meta);
+      });
     }
 
-    // Current race = first race without results, else latest known race
     let currentRace = null;
-
     for (const r of races || []) {
       if (!completedRaceIds.has(Number(r.id))) {
         currentRace = r;
@@ -195,24 +177,34 @@ export async function onRequestGet(context) {
       currentRace = races[races.length - 1];
     }
 
-    const currentMeta = currentRace
-      ? (roundMetaByRaceId.get(Number(currentRace.id)) || null)
-      : null;
+    const currentRaceId = Number(currentRace?.id || 0);
+    const currentMeta = currentRaceId ? (roundMetaByRaceId.get(currentRaceId) || null) : null;
 
-    // Visible race set
-    const visibleRaceIds = new Set(roundMeta.map(r => Number(r.raceId)));
-    if (currentRace) visibleRaceIds.add(Number(currentRace.id));
+    const visibleRaceIds = new Set([
+      ...Array.from(roundMetaByRaceId.keys()),
+      ...(currentRaceId ? [currentRaceId] : []),
+    ]);
 
     const visibleRaces = (races || []).filter(r => visibleRaceIds.has(Number(r.id)));
 
+    const displayRaceByRaceId = new Map();
+    for (const r of visibleRaces) {
+      const raceId = Number(r.id);
+      const displayRace =
+        String(r.race_short || "").trim() ||
+        String(r.race_name || "").trim();
+      displayRaceByRaceId.set(raceId, displayRace);
+    }
+
     const raceList = visibleRaces.map(r => {
-      const meta = roundMetaByRaceId.get(Number(r.id)) || null;
+      const raceId = Number(r.id);
+      const meta = roundMetaByRaceId.get(raceId) || null;
+      const displayRace = displayRaceByRaceId.get(raceId) || "";
+
       return {
         tournament: meta ? meta.tournament : "",
         round: meta ? meta.round : "",
-        race:
-          String(r.race_short || "").trim() ||
-          String(r.race_name || "").trim(),
+        race: displayRace,
       };
     });
 
@@ -221,10 +213,7 @@ export async function onRequestGet(context) {
     for (const r of visibleRaces) {
       const raceId = Number(r.id);
       const meta = roundMetaByRaceId.get(raceId) || null;
-
-      const displayRace =
-        String(r.race_short || "").trim() ||
-        String(r.race_name || "").trim();
+      const displayRace = displayRaceByRaceId.get(raceId) || "";
 
       const tournament = meta ? meta.tournament : "";
       const round = meta ? meta.round : "";
@@ -235,7 +224,8 @@ export async function onRequestGet(context) {
         rows = (matchupRows || []).filter(
           m =>
             Number(m.tournament_id) === meta.tournamentId &&
-            Number(m.round_number) === meta.round
+            Number(m.round_number) === meta.round &&
+            Number(m.race_id) === raceId
         );
       }
 
@@ -266,10 +256,7 @@ export async function onRequestGet(context) {
       } else if (meta && Number(meta.round) === 1) {
         const seededPlayers = tournamentPlayersByTournament.get(Number(meta.tournamentId)) || [];
         matchups = buildRoundOneSeedMatchups_({
-          tournamentId: meta.tournamentId,
           raceId,
-          tournamentNumber: meta.tournament,
-          roundNumber: meta.round,
           playerRows: seededPlayers,
           scoreMap,
         });
@@ -285,10 +272,7 @@ export async function onRequestGet(context) {
       };
     }
 
-    const currentRaceName =
-      String(currentRace?.race_short || "").trim() ||
-      String(currentRace?.race_name || "").trim() ||
-      "";
+    const currentDisplayRace = displayRaceByRaceId.get(currentRaceId) || "";
 
     return json({
       ok: true,
@@ -296,7 +280,7 @@ export async function onRequestGet(context) {
       matchups: {
         current: {
           tournament: currentMeta ? currentMeta.tournament : "",
-          race: currentMeta?.race || currentRaceName,
+          race: currentDisplayRace,
           round: currentMeta ? currentMeta.round : "",
         },
         races: racesBlob,
