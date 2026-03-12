@@ -1072,6 +1072,11 @@
     padding:16px;
   }
 
+  .adminPinModal .muted{
+    display:block;
+    margin:0 0 8px 0;
+  }
+
   .adminModalTitle{
     font-size:20px;
     font-weight:900;
@@ -1108,7 +1113,47 @@
   .adminField input,
   #adminPinInput{
     width:100%;
+    display:block;
+    font-size:16px !important;
+    line-height:1.2;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--line);
     background:rgba(0,122,194,.14);
+    color:var(--text);
+    margin:0 0 14px 0;
+    -webkit-text-size-adjust:100%;
+  }
+
+  .adminPinModal .adminRow{
+    display:flex;
+    gap:14px;
+    margin-top:0;
+  }
+
+  .adminPinModal .adminRow button{
+    flex:1 1 0;
+    width:100%;
+    min-width:0;
+    margin:0;
+    padding:12px 14px;
+    font-size:16px;
+    line-height:1.1;
+    border-radius:16px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  #adminPinCancel{
+    background:#41506b;
+    color:#fff;
+  }
+
+  #adminPinSubmit{
+    background:#020b12;
+    color:#fff;
+    border:1px solid rgba(255,255,255,.32);
   }
 
   .adminTabs{
