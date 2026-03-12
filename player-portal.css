@@ -604,7 +604,7 @@
   .legendRow{
     display:flex;
     justify-content:space-between;
-    align-items:flex-end;
+    align-items:center;
     gap:10px;
     line-height:1;
     margin-top:0;
