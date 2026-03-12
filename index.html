@@ -1027,6 +1027,12 @@
     background:rgba(2,11,18,.72);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:
+    14px
+    14px
+    calc(14px + env(safe-area-inset-bottom) + 90px);
   }
 
   .adminBackdrop{
@@ -1049,23 +1055,21 @@
   .adminPinModal,
   .adminSheet{
     width:min(100%, 760px);
+    margin:0 auto;
+    padding:14px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom) + 40px);
     border:1px solid var(--line);
     background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
     border-radius:20px;
     box-shadow:0 20px 60px rgba(0,0,0,.45);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
+    max-height: none;
+    overflow:visible;
   }
 
   .adminPinModal{
     padding:16px;
-  }
-
-  .adminSheet{
-    margin:14px auto;
-    padding:14px;
-    max-height:calc(100vh - 28px);
-    overflow:auto;
   }
 
   .adminModalTitle{
