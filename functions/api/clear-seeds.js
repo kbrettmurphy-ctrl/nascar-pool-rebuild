@@ -17,14 +17,12 @@ export async function onRequestPost(context) {
     const res = await fetch(
       `${env.SUPABASE_URL}/rest/v1/tournament_players?tournament_id=eq.${tournamentId}`,
       {
-        method: "PATCH",
+        method: "DELETE",
         headers: {
-          "Content-Type": "application/json",
           apikey: env.SUPABASE_SECRET_KEY,
           Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
           Prefer: "return=representation"
-        },
-        body: JSON.stringify({ seed: null })
+        }
       }
     );
 
