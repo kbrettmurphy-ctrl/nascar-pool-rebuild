@@ -28,13 +28,13 @@ export async function onRequestGet(context) {
     function seedPairings_() {
       return [
         [1, 16],
-        [8, 9],
-        [5, 12],
-        [4, 13],
-        [6, 11],
-        [3, 14],
-        [7, 10],
         [2, 15],
+        [3, 14],
+        [4, 13],
+        [5, 12],
+        [6, 11,
+        [7, 10],
+        [8, 9],
       ];
     }
 
