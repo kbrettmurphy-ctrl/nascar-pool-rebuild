@@ -3570,19 +3570,22 @@ refreshActiveView();
         : "";
 
       sub.innerHTML = `
-        <div class="legendRow">
-          <div>${escapeHtml(leftText)}</div>
+        <div>${escapeHtml(leftText)}</div>
+        ${selectorHtml}
+      `;
+
+      const rounds = data.rounds || [];
+      let html = `
+        <div class="legendRow" style="margin:8px 0 10px 0;">
+          <div></div>
           <div class="bracketLegend" aria-label="Legend">
             <span class="legendItem"><span class="raceDot"></span> Race W</span>
             <span class="legendSep">·</span>
             <span class="legendItem"><span class="winDot"></span> H2H W</span>
           </div>
         </div>
-        ${selectorHtml}
+        <div class="bracketGrid">
       `;
-
-      const rounds = data.rounds || [];
-      let html = `<div class="bracketGrid">`;
 
       const sticky = document.getElementById("bracketSticky");
       if (sticky) {
