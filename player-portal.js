@@ -2388,41 +2388,40 @@ async function clearAssignments_() {
   }
 }
 
-  function initAdminControls_() {
-  const portal = document.getElementById("playerPortalPill");
-  const pinBackdrop = document.getElementById("adminPinBackdrop");
-  const pinInput = document.getElementById("adminPinInput");
-  const pinSubmit = document.getElementById("adminPinSubmit");
-  const pinCancel = document.getElementById("adminPinCancel");
+function initAdminControls_() {
+    const portal = document.getElementById("playerPortalPill");
+    const pinBackdrop = document.getElementById("adminPinBackdrop");
+    const pinInput = document.getElementById("adminPinInput");
+    const pinSubmit = document.getElementById("adminPinSubmit");
+    const pinCancel = document.getElementById("adminPinCancel");
+    const closeBtn = document.getElementById("adminCloseBtn");
+    const lockBtn = document.getElementById("adminLockBtn");
 
-  const closeBtn = document.getElementById("adminCloseBtn");
-  const lockBtn = document.getElementById("adminLockBtn");
+    let pressTimer = null;
 
-  let pressTimer = null;
-
-  function startPress() {
-    clearTimeout(pressTimer);
-
-    pressTimer = setTimeout(async () => {
+    function startPress() {
       clearTimeout(pressTimer);
-      pressTimer = null;
 
-      // If already unlocked, open admin tools directly.
-      if (getAdminToken_()) {
-        try {
-          await initAdminOverlay_();
-          openAdminOverlay_();
-          return;
-        } catch (err) {
-          // Token is stale/invalid, clear it and fall back to PIN.
-          clearAdminToken_();
-          _adminContext = null;
-          setAdminStatus_("adminPinStatus", "Session expired. Enter PIN again.", true);
+      pressTimer = setTimeout(async () => {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+
+        // If already unlocked, open admin tools directly.
+        if (getAdminToken_()) {
+          try {
+            await initAdminOverlay_();
+            openAdminOverlay_();
+            return;
+          } catch (err) {
+            // Token is stale/invalid, clear it and fall back to PIN.
+            clearAdminToken_();
+            _adminContext = null;
+            setAdminStatus_("adminPinStatus", "Session expired. Enter PIN again.", true);
+          }
         }
-      }
 
-      openAdminPin_();
-    }, 900);
+        openAdminPin_();
+      }, 900);
   }
 
   function cancelPress() {
