@@ -295,6 +295,7 @@
     align-items:baseline;
     justify-content:space-between;
     gap:6px;
+    margin-bottom:6px;
   }
   #currentHeader{ font-size: var(--big); font-weight:900; letter-spacing:-0.2px; }
   #currentSub{ font-size:13px; color: var(--muted); }
@@ -594,11 +595,11 @@
   
   #bracketSub{
     margin-top:0;
-    line-height:1.05;
+    line-height:1;
   }
 
   #bracketSub > div:first-child{
-    margin-bottom:2px;
+    margin-bottom:0px;
   }
     
   .legendRow{
