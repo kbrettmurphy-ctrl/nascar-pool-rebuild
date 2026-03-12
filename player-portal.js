@@ -796,7 +796,7 @@ async function clearAssignments_() {
             results like you think time bends over for your broke-ass attention span.<br><br>
             Go choke on a chicken bone, slam another Natty Light, and sit your impatient hillbilly
             carcass down. The checkered flag don’t give a rat’s ass about your toddler tantrum.<br><br>
-            We’ll let ya know when the real men finish racin’. Until then… shut the entire fuck up.
+            We’ll let ya know when the real men start racin’. Until then… shut the entire fuck up.
           </div>
         </div>
       `;
