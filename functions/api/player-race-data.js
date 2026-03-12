@@ -93,33 +93,37 @@ export async function onRequestGet(context) {
       return out;
     }
 
-    const races = await getJson(
-      `/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`
-    );
-
-    const rounds = await getJson(
-      `/rest/v1/tournament_rounds?select=id,tournament_id,round_number,race_id,tournaments(id,tournament_number),races(id,race_name,race_short,race_number)&order=tournament_id.asc,round_number.asc`
-    );
-
-    const matchupRows = await getJson(
-      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
-    );
-
-    const scoreRows = await getJson(
-      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_qualifying_position,driver_2_qualifying_position`
-    );
-
-    const tournamentPlayers = await getJson(
-      `/rest/v1/tournament_players?select=tournament_id,player_id,seed,players(name)`
-    );
-
-    const raceResults = await getJson(
-      `/rest/v1/race_results?select=race_id`
-    );
-
-    const winners = await getJson(
-      `/rest/v1/race_results?finishing_position=eq.1&select=race_id,drivers(name)`
-    );
+    const [
+      races,
+      rounds,
+      matchupRows,
+      scoreRows,
+      tournamentPlayers,
+      raceResults,
+      winners
+    ] = await Promise.all([
+      getJson(
+        `/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`
+      ),
+      getJson(
+        `/rest/v1/tournament_rounds?select=id,tournament_id,round_number,race_id,tournaments(id,tournament_number),races(id,race_name,race_short,race_number)&order=tournament_id.asc,round_number.asc`
+      ),
+      getJson(
+        `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
+      ),
+      getJson(
+        `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_qualifying_position,driver_2_qualifying_position`
+      ),
+      getJson(
+        `/rest/v1/tournament_players?select=tournament_id,player_id,seed,players(name)`
+      ),
+      getJson(
+        `/rest/v1/race_results?select=race_id`
+      ),
+      getJson(
+        `/rest/v1/race_results?finishing_position=eq.1&select=race_id,drivers(name)`
+      )
+    ]);
 
     const completedRaceIds = new Set((raceResults || []).map(r => Number(r.race_id)));
 
@@ -294,6 +298,9 @@ export async function onRequestGet(context) {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=20, s-maxage=60, stale-while-revalidate=120"
+    }
   });
 }
