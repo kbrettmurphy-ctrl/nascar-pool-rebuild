@@ -32,7 +32,7 @@ export async function onRequestGet(context) {
         [3, 14],
         [4, 13],
         [5, 12],
-        [6, 11,
+        [6, 11],
         [7, 10],
         [8, 9],
       ];
