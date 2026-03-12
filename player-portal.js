@@ -1008,9 +1008,9 @@ async function clearAssignments_() {
       round === "" ? "" :
       (Number(round) === 4 ? "Final" : `Rnd ${round}`);
 
-    sub.textContent =
-      `Tourney ${tour}` +
-      (roundText ? ` · ${roundText}` : "");
+    sub.innerHTML = `<div>${escapeHtml(
+      `Tourney ${tour}` + (roundText ? ` · ${roundText}` : "")
+    )}</div>`;
 
     area.innerHTML = "";
 
