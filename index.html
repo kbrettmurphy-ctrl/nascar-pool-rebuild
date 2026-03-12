@@ -1712,6 +1712,28 @@
     }).join("");
   }
 
+  function updateSeedDropdowns_() {
+    const selects = [];
+    for (let i = 1; i <= 16; i++) {
+      const el = document.getElementById(`adminSeedPlayer${i}`);
+      if (el) selects.push(el);
+    }
+    const selectedIds = selects
+      .map(s => s.value)
+      .filter(v => v !== "");
+    selects.forEach(select => {
+      const current = select.value;
+      Array.from(select.options).forEach(option => {
+        if (!option.value) return;
+        if (option.value === current) {
+          option.hidden = false;
+        } else {
+          option.hidden = selectedIds.includes(option.value);
+        }
+      });
+    });
+  }
+
   async function runAdminRaceOp_(url, statusId, label) {
   const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
   if (!raceId) {
