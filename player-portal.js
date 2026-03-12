@@ -2272,9 +2272,8 @@ async function clearAssignments_() {
     }
 
     sub.innerHTML = `
-      <div>${escapeHtml(leftText)}</div>
       <div class="legendRow">
-        <div></div>
+        <div>${escapeHtml(leftText)}</div>
         <div class="bracketLegend" aria-label="Legend">
           <span class="legendItem"><span class="raceDot"></span> Race W</span>
           <span class="legendSep">·</span>
