@@ -2198,7 +2198,7 @@ async function clearAssignments_() {
     const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
     const selectorHtml = tournamentOptions.length
       ? `
-        <select id="bracketTournamentPick" style="width:150px; min-width:150px;">
+        <select id="bracketTournamentPick" style="width:130px; min-width:130px;">
           ${tournamentOptions.map(opt => `
             <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
               Tournament ${escapeHtml(opt.tournament)}
