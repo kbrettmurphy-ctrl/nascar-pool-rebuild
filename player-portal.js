@@ -146,9 +146,7 @@
 
   async function getPlayerBracket_(tournament){
     const qs = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
-    const res = await fetch(`/api/player-bracket${qs}`, {
-      cache: "no-store"
-    });
+    const res = await fetch(`/api/player-bracket${qs}`);
     const data = await res.json();
     if (!res.ok || !data || !data.ok) {
       throw new Error(data?.error || "player-bracket failed");
