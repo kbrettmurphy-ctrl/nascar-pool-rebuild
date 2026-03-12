@@ -1635,45 +1635,35 @@
 }
 
   async function initAdminOverlay_() {
-    const ctx = await getAdminContext_();
-    const tSel = document.getElementById("adminTournamentSelect");
-    const rSel = document.getElementById("adminRaceSelect");
-    const fundsSel = document.getElementById("adminFundsPlayer");
-    if (tSel && !tSel.dataset.bound) {
-      tSel.dataset.bound = "1";
-      tSel.addEventListener("change", () => {
-        refreshAdminRaceOptions_();
-        document.querySelectorAll(".seed-player-select").forEach(select => {
-          if (!select.dataset.bound) {
-            select.dataset.bound = "1";
-            select.addEventListener("change", updateSeedDropdowns_);
-          }
-        });
-        updateSeedDropdowns_();
-      });
-    }
-    tSel.innerHTML = (ctx.tournaments || [])
-      .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
-      .join("");
-    fundsSel.innerHTML =
-      `<option value="">Select player</option>` +
-      (ctx.players || [])
-        .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-        .join("");
-    tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
-    refreshAdminRaceOptions_();
-    if (ctx.currentRaceId) {
-      rSel.value = String(ctx.currentRaceId);
-    }
-    renderAdminSeeds_();
-    document.querySelectorAll(".seed-player-select").forEach(select => {
-      if (!select.dataset.bound) {
-        select.dataset.bound = "1";
-        select.addEventListener("change", updateSeedDropdowns_);
-      }
+  const ctx = await getAdminContext_();
+  const tSel = document.getElementById("adminTournamentSelect");
+  const rSel = document.getElementById("adminRaceSelect");
+  const fundsSel = document.getElementById("adminFundsPlayer");
+
+  if (tSel && !tSel.dataset.bound) {
+    tSel.dataset.bound = "1";
+    tSel.addEventListener("change", () => {
+      refreshAdminRaceOptions_();
     });
-    updateSeedDropdowns_();
   }
+
+  tSel.innerHTML = (ctx.tournaments || [])
+    .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
+    .join("");
+
+  fundsSel.innerHTML =
+    `<option value="">Select player</option>` +
+    (ctx.players || [])
+      .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+      .join("");
+
+  tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
+  refreshAdminRaceOptions_();
+
+  if (ctx.currentRaceId) {
+    rSel.value = String(ctx.currentRaceId);
+  }
+}
 
   function refreshAdminRaceOptions_() {
     const ctx = _adminContext || {};
@@ -1688,51 +1678,70 @@
   }
 
   function renderAdminSeeds_() {
-    const ctx = _adminContext || {};
-    const grid = document.getElementById("adminSeedsGrid");
-    if (!grid) return;
+  const ctx = _adminContext || {};
+  const grid = document.getElementById("adminSeedsGrid");
+  if (!grid) return;
 
-    const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
-    const players = [...(ctx.players || [])];
+  const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+  const players = [...(ctx.players || [])];
 
-    grid.innerHTML = Array.from({ length: 16 }, (_, i) => {
-      const seed = i + 1;
-      const options = [`<option value="">Select player</option>`]
-        .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
-        .join("");
+  grid.innerHTML = Array.from({ length: 16 }, (_, i) => {
+    const seed = i + 1;
+    const options = [`<option value="">Select player</option>`]
+      .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
+      .join("");
 
-      return `
-        <div class="adminSeedRow">
-          <div class="adminSeedNum">#${seed}</div>
-          <select class="adminSeedSelect seed-player-select" data-seed="${seed}" data-tournament="${tournamentId}">
-            ${options}
-          </select>
-        </div>
-      `;
-    }).join("");
-  }
+    return `
+      <div class="adminSeedRow">
+        <div class="adminSeedNum">#${seed}</div>
+        <select class="adminSeedSelect seed-player-select" data-seed="${seed}" data-tournament="${tournamentId}">
+          ${options}
+        </select>
+      </div>
+    `;
+  }).join("");
+
+  document.querySelectorAll(".seed-player-select").forEach(select => {
+    select.addEventListener("change", updateSeedDropdowns_);
+  });
+
+  updateSeedDropdowns_();
+}
 
   function updateSeedDropdowns_() {
-    const selects = [];
-    for (let i = 1; i <= 16; i++) {
-      const el = document.getElementById(`adminSeedPlayer${i}`);
-      if (el) selects.push(el);
-    }
-    const selectedIds = selects
-      .map(s => s.value)
-      .filter(v => v !== "");
-    selects.forEach(select => {
-      const current = select.value;
-      Array.from(select.options).forEach(option => {
-        if (!option.value) return;
-        if (option.value === current) {
-          option.hidden = false;
-        } else {
-          option.hidden = selectedIds.includes(option.value);
-        }
-      });
+  const selects = [...document.querySelectorAll(".seed-player-select")];
+  if (!selects.length) return;
+
+  const selectedIds = selects
+    .map(s => String(s.value || "").trim())
+    .filter(Boolean);
+
+  selects.forEach(select => {
+    const current = String(select.value || "").trim();
+
+    Array.from(select.options).forEach(option => {
+      const value = String(option.value || "").trim();
+
+      // Always keep placeholder visible
+      if (!value) {
+        option.hidden = false;
+        option.disabled = false;
+        return;
+      }
+
+      // Keep currently selected value visible in its own dropdown
+      if (value === current) {
+        option.hidden = false;
+        option.disabled = false;
+        return;
+      }
+
+      const isTaken = selectedIds.includes(value);
+      option.hidden = isTaken;
+      option.disabled = isTaken;
     });
-  }
+  });
+}
 
   async function runAdminRaceOp_(url, statusId, label) {
   const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
