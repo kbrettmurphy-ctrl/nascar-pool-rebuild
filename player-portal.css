@@ -591,15 +591,6 @@
     background: var(--blue);
     box-shadow: 0 0 0 2px rgba(0,122,194,0.18);
   }
-  
-  #bracketSub{
-    margin-top:0;
-    line-height:1;
-  }
-
-  #bracketSub > div:first-child{
-    margin-bottom:0px;
-  }
     
   .legendRow{
     display:flex;
@@ -607,7 +598,7 @@
     align-items:center;
     gap:10px;
     line-height:1;
-    margin-top:0;
+    margin-top:2;
   }
 
   .bracketLegend{
