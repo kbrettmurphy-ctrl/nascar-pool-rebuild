@@ -1749,35 +1749,43 @@
   }
 
   function renderAdminSeeds_() {
-  const ctx = _adminContext || {};
-  const grid = document.getElementById("adminSeedsGrid");
-  if (!grid) return;
+    const ctx = _adminContext || {};
+    const grid = document.getElementById("adminSeedsGrid");
+    if (!grid) return;
 
-  const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
-  const players = [...(ctx.players || [])];
+    const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+    const players = [...(ctx.players || [])];
 
-  grid.innerHTML = Array.from({ length: 16 }, (_, i) => {
-    const seed = i + 1;
-    const options = [`<option value="">Select player</option>`]
-      .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
-      .join("");
+    function renderSeedRow(seed) {
+      const options = [`<option value="">Select player</option>`]
+        .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
+        .join("");
 
-    return `
-      <div class="adminSeedRow">
-        <div class="adminSeedNum">#${seed}</div>
-        <select class="adminSeedSelect seed-player-select" data-seed="${seed}" data-tournament="${tournamentId}">
-          ${options}
-        </select>
-      </div>
-    `;
-  }).join("");
+      return `
+        <div class="adminSeedRow">
+          <div class="adminSeedNum">#${seed}</div>
+          <select class="adminSeedSelect seed-player-select" data-seed="${seed}" data-tournament="${tournamentId}">
+            ${options}
+          </select>
+        </div>
+      `;
+    }
 
-  document.querySelectorAll(".seed-player-select").forEach(select => {
-    select.addEventListener("change", updateSeedDropdowns_);
-  });
+    let html = "";
 
-  updateSeedDropdowns_();
-}
+    for (let i = 1; i <= 8; i++) {
+      html += renderSeedRow(i);
+      html += renderSeedRow(i + 8);
+    }
+
+    grid.innerHTML = html;
+
+    document.querySelectorAll(".seed-player-select").forEach(select => {
+      select.addEventListener("change", updateSeedDropdowns_);
+    });
+
+    updateSeedDropdowns_();
+  }
 
   function updateSeedDropdowns_() {
     const selects = [...document.querySelectorAll(".seed-player-select")];
