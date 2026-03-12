@@ -110,23 +110,71 @@ export async function onRequestGet(context) {
 
     const requestedTournamentNumber = Number(url.searchParams.get("tournament") || 0);
 
-    const raceDataRes = await fetch(`${url.origin}/api/player-race-data`, {
-      headers: { "Content-Type": "application/json" }
-    });
-    const raceData = await raceDataRes.json();
+    // Load races + completed race ids to determine current race directly
+    const [races, completedRaceRows, allTournaments] = await Promise.all([
+      getJson(`/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`),
+      getJson(`/rest/v1/race_results?select=race_id`),
+      getJson(`/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`)
+    ]);
 
-    if (!raceData?.ok) {
-      throw new Error(raceData?.error || "player-race-data failed");
+    const completedRaceIds = new Set((completedRaceRows || []).map(r => Number(r.race_id)));
+  
+    let currentRace = null;
+    for (const r of races || []) {
+      if (!completedRaceIds.has(Number(r.id))) {
+        currentRace = r;
+        break;
+      }
+    }
+    if (!currentRace && races?.length) {
+      currentRace = races[races.length - 1];
     }
 
-    const current = raceData?.matchups?.current || {};
+    const currentRaceId = Number(currentRace?.id || 0);
+
+    // Find current tournament/round by current race id
+    let current = {};
+    if (currentRaceId) {
+      const currentRoundRows = await getJson(
+        `/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id,tournaments(tournament_number),races(race_name,race_short,race_number)&race_id=eq.${currentRaceId}&limit=1`
+      );
+
+      const currentRound = Array.isArray(currentRoundRows) && currentRoundRows.length
+        ? currentRoundRows[0]
+        : null;
+
+      if (currentRound) {
+        const nestedTournament = Array.isArray(currentRound?.tournaments)
+          ? currentRound.tournaments[0]
+          : currentRound?.tournaments;
+
+        const nestedRace = Array.isArray(currentRound?.races)
+          ? currentRound.races[0]
+          : currentRound?.races;
+
+        current = {
+          tournament: Number(nestedTournament?.tournament_number || 0),
+          round: Number(currentRound?.round_number || 0),
+          race:
+            String(nestedRace?.race_short || "").trim() ||
+            String(nestedRace?.race_name || "").trim() ||
+            ""
+        };
+      } else {
+        current = {
+          tournament: "",
+          round: "",
+          race:
+            String(currentRace?.race_short || "").trim() ||
+            String(currentRace?.race_name || "").trim() ||
+            ""
+        };
+      }
+    }
+
     const defaultTournamentNumber = Number(current?.tournament || 0);
     const tournamentNumber = requestedTournamentNumber || defaultTournamentNumber;
-
-    const allTournaments = await getJson(
-      `/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`
-    );
-
+    
     const tournamentOptions = (allTournaments || []).map(t => ({
       tournament: Number(t.tournament_number),
       tournamentId: Number(t.id),
@@ -156,24 +204,24 @@ export async function onRequestGet(context) {
 
     const tournamentId = Number(tournament.id);
 
-    const tournamentPlayers = await getJson(
-      `/rest/v1/tournament_players?select=player_id,seed,players(name)&tournament_id=eq.${tournamentId}`
-    );
+    const [
+    tournamentPlayers,
+    rounds,
+    matchupRows,
+    raceResults,
+    scoreRows,
+    drivers
+  ] = await Promise.all([
+    getJson(`/rest/v1/tournament_players?select=player_id,seed,players(name)&tournament_id=eq.${tournamentId}`),
+    getJson(`/rest/v1/tournament_rounds?select=round_number,race_id,races(race_name,race_short,race_number)&tournament_id=eq.${tournamentId}&order=round_number.asc`),
+    getJson(`/rest/v1/swiss_matchup_results?select=tournament_id,round_number,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&tournament_id=eq.${tournamentId}&order=round_number.asc,match_number.asc`),
+    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position`),
+    getJson(`/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_car_number,driver_2_car_number,driver_1_finish,driver_2_finish`),
+    getJson(`/rest/v1/drivers?select=id,name`)
+  ]);
 
     const seedMap = new Map(
       (tournamentPlayers || []).map(r => [Number(r.player_id), Number(r.seed)])
-    );
-
-    const rounds = await getJson(
-      `/rest/v1/tournament_rounds?select=round_number,race_id,races(race_name,race_short,race_number)&tournament_id=eq.${tournamentId}&order=round_number.asc`
-    );
-
-    const matchupRows = await getJson(
-      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&tournament_id=eq.${tournamentId}&order=round_number.asc,match_number.asc`
-    );
-
-    const raceResults = await getJson(
-      `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
     );
 
     const raceWinnerRows = (raceResults || []).filter(r => Number(r.finishing_position) === 1);
@@ -182,17 +230,9 @@ export async function onRequestGet(context) {
       raceWinnerDriverByRaceId.set(Number(row.race_id), Number(row.driver_id));
     }
 
-    const scoreRows = await getJson(
-      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_car_number,driver_2_car_number,driver_1_finish,driver_2_finish`
-    );
-
     const scoreMap = new Map(
       (scoreRows || []).map(r => [`${r.race_id}||${r.player_id}`, r])
-    );
-
-    const drivers = await getJson(
-      `/rest/v1/drivers?select=id,name`
-    );
+    );;
 
     const driverIdByName = new Map(
       (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
@@ -330,6 +370,9 @@ export async function onRequestGet(context) {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=120"
+    },
   });
 }
