@@ -306,7 +306,7 @@
     border-radius: var(--radius2);
     background: var(--glassBlue14);
     padding: var(--micro);
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .matchupCard.youRow{
