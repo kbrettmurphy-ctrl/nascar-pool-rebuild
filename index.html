@@ -3661,11 +3661,19 @@ async function clearAssignments_() {
           const p1Win = winnerName && p1Name && norm(winnerName) === norm(p1Name);
           const p2Win = winnerName && p2Name && norm(winnerName) === norm(p2Name);
 
+          const p1Badge = Number(r.round) === 1
+            ? (m.s1 || "—")
+            : (m.p1Record || "—");
+
+          const p2Badge = Number(r.round) === 1
+            ? (m.s2 || "—")
+            : (m.p2Record || "—");
+
           html += `
             <div class="ticket">
               <div class="ticketRow">
                 <div class="sideLeft">
-                  <span class="seedBadge">${escapeHtml(m.s1 || "—")}</span>
+                  <span class="seedBadge">${escapeHtml(p1Badge)}</span>
                   <span class="nameText">${escapeHtml(m.p1 || "")}</span>
                 </div>
                 <div class="sideRight">
@@ -3677,7 +3685,7 @@ async function clearAssignments_() {
 
               <div class="ticketRow">
                 <div class="sideLeft">
-                  <span class="seedBadge">${escapeHtml(m.s2 || "—")}</span>
+                  <span class="seedBadge">${escapeHtml(p2Badge)}</span>
                   <span class="nameText">${escapeHtml(m.p2 || "")}</span>
                 </div>
                 <div class="sideRight">
