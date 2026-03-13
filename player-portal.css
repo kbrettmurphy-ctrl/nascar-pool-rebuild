@@ -299,7 +299,7 @@
     margin-top:0;
   }
   #currentHeader{ font-size: var(--big); font-weight:900; letter-spacing:-0.2px; margin-bottom:0;}
-  #currentSub{ font-size:13px; color: var(--muted); margin-top:0; }
+  #currentSub{ font-size:13px; color: var(--muted); margin-top:0; line-height:1}
   
   .matchupCard{
     border:1px solid var(--line);
