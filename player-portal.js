@@ -547,104 +547,104 @@ refreshActiveView();
   }
 
   async function markPaidOut_() {
-  const playerId = Number(document.getElementById("adminFundsPlayer")?.value || 0);
-  const amount = Number(document.getElementById("adminFundsAmount")?.value || 0);
+    const playerId = Number(document.getElementById("adminFundsPlayer")?.value || 0);
+    const amount = Number(document.getElementById("adminFundsAmount")?.value || 0);
 
-  if (!playerId) {
-    setAdminStatus_("adminFundsStatus", "Pick a player.", true);
-    return;
-  }
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    setAdminStatus_("adminFundsStatus", "Enter a valid amount.", true);
-    return;
-  }
-
-  async function showWhoIOwe_() {
-  setAdminStatus_("adminFundsStatus", "Building payout report...");
-
-  try {
-    const data = await adminFetch_("/api/payout-report", {
-      method: "GET"
-    });
-
-    const rows = Array.isArray(data.data) ? data.data : [];
-
-    if (!rows.length) {
-      setAdminStatus_("adminFundsStatus", "Nobody has a negative balance. Miracles do happen.");
-      alert("Nobody has a negative balance. You currently owe nobody.");
+    if (!playerId) {
+      setAdminStatus_("adminFundsStatus", "Pick a player.", true);
       return;
     }
 
-    const msg = rows.map((row, i) => {
-      const owed = Number(row.owedAmount || 0).toFixed(2);
-      const paidout = Number(row.paidout || 0).toFixed(2);
-      const remaining = Number(row.remainingToPayout || 0).toFixed(2);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAdminStatus_("adminFundsStatus", "Enter a valid amount.", true);
+      return;
+    }
 
-      return `${i + 1}. ${row.name} — Owed: $${owed} | Paid Out: $${paidout} | Remaining: $${remaining}`;
-    }).join("\n");
+    setAdminStatus_("adminFundsStatus", "Marking payout...");
+    try {
+      const data = await adminFetch_("/api/mark-paidout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, amount })
+      });
 
-    setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
-    alert(`Players you owe:\n\n${msg}`);
-  } catch (err) {
-    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+      setAdminStatus_("adminFundsStatus", data.message || "Payout marked.");
+      document.getElementById("adminFundsAmount").value = "";
+      _playerDues = null;
+      if (activeView === "dues") loadDues();
+    } catch (err) {
+        setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    }  
   }
-}
 
-  setAdminStatus_("adminFundsStatus", "Marking payout...");
-  try {
-    const data = await adminFetch_("/api/mark-paidout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, amount })
-    });
+  async function showWhoIOwe_() {
+    setAdminStatus_("adminFundsStatus", "Building payout report...");
 
-    setAdminStatus_("adminFundsStatus", data.message || "Payout marked.");
-    document.getElementById("adminFundsAmount").value = "";
-    _playerDues = null;
-    if (activeView === "dues") loadDues();
-  } catch (err) {
-    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    try {
+      const data = await adminFetch_("/api/payout-report", {
+        method: "GET"
+      });
+
+      const rows = Array.isArray(data.data) ? data.data : [];
+
+      if (!rows.length) {
+        setAdminStatus_("adminFundsStatus", "Nobody has a negative balance. Miracles do happen.");
+        alert("Nobody has a negative balance. You currently owe nobody.");
+        return;
+      }
+
+      const msg = rows.map((row, i) => {
+        const owed = Number(row.owedAmount || 0).toFixed(2);
+        const paidout = Number(row.paidout || 0).toFixed(2);
+        const remaining = Number(row.remainingToPayout || 0).toFixed(2);
+
+        return `${i + 1}. ${row.name} — Owed: $${owed} | Paid Out: $${paidout} | Remaining: $${remaining}`;
+      }).join("\n");
+
+      setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
+      alert(`Players you owe:\n\n${msg}`);
+    } catch (err) {
+      setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    }
   }
-}
   
   async function clearSeeds_() {
-  const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
-  if (!tournamentId) {
-    alert("Select a tournament first.");
-    return;
+    const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
+    if (!tournamentId) {
+      alert("Select a tournament first.");
+      return;
+    }
+
+    if (!confirm("Clear ALL seeds for this tournament?")) return;
+
+    try {
+      const data = await adminFetch_("/api/clear-seeds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournamentId })
+      });
+
+      alert(data.message || "Seeds cleared.");
+      renderAdminSeeds_();
+    } catch (err) {
+      alert(err.message || String(err));
+    }
   }
 
-  if (!confirm("Clear ALL seeds for this tournament?")) return;
+  async function clearAssignments_() {
+    const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
+    if (!raceId) {
+      alert("Select a race first.");
+      return;
+    }
 
-  try {
-    const data = await adminFetch_("/api/clear-seeds", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tournamentId })
-    });
+    if (!confirm("Clear all assignments for this race?")) return;
 
-    alert(data.message || "Seeds cleared.");
-    renderAdminSeeds_();
-  } catch (err) {
-    alert(err.message || String(err));
+    const res = await fetch(`/api/clear-assignments?raceId=${raceId}`);
+    const data = await res.json();
+
+    alert(data.message || "Assignments cleared.");
   }
-}
-
-async function clearAssignments_() {
-  const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
-  if (!raceId) {
-    alert("Select a race first.");
-    return;
-  }
-
-  if (!confirm("Clear all assignments for this race?")) return;
-
-  const res = await fetch(`/api/clear-assignments?raceId=${raceId}`);
-  const data = await res.json();
-
-  alert(data.message || "Assignments cleared.");
-}
 
   /* ==========================================================
    Shared storage + navigation helpers
