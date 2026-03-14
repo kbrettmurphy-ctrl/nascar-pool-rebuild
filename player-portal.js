@@ -2514,7 +2514,7 @@ function initBuschLongPress_() {
   }
 
   logo.addEventListener("mousedown", startPress);
-  logo.addEventListener("touchstart", startPress, { passive: true });
+  logo.addEventListener("touchstart", startPress, { passive: false });
 
   logo.addEventListener("mouseup", cancelPress);
   logo.addEventListener("mouseleave", cancelPress);
