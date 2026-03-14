@@ -46,7 +46,6 @@ export async function onRequestGet(context) {
       const paid = Number(row?.paid) || 0;
       const winnings = Number(row?.winnings) || 0;
       const paidout = Number(row?.paidout) || 0;
-      const balance = seasonTotal - winnings - paid;
       const owedAmount = Math.max(0, winnings + paid - seasonTotal);
       const remainingToPayout = Math.max(0, owedAmount - paidout);
 
@@ -61,7 +60,7 @@ export async function onRequestGet(context) {
           remainingToPayout
         });
       }
-
+    }
     owed.sort((a, b) => b.owedAmount - a.owedAmount || a.name.localeCompare(b.name));
 
     return json({
