@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
     }
 
     const rows = await getJson(
-      `/rest/v1/player_financials?select=player_id,paid,winnings,players(name)&order=player_id.asc`
+      `/rest/v1/player_financials?select=player_id,paid,winnings,paidout,players(name)&order=player_id.asc`
     );
 
     const completedRows = await getJson(
@@ -49,7 +49,7 @@ export async function onRequestGet(context) {
     const duesPerRace = 5;
     const seasonTotal = 180;
     const requiredSoFar = completedRaceCount * duesPerRace;
-
+    
     const out = {};
 
     for (const row of rows || []) {
@@ -60,7 +60,7 @@ export async function onRequestGet(context) {
 
       const paid = Number(row.paid) || 0;
       const winnings = Number(row.winnings) || 0;
-
+      const paidout = Number(row.paidout) || 0;
       const balance = seasonTotal - paid - winnings; // matches old sheet
       const currentBehind = Math.max(0, requiredSoFar - paid - winnings); // for nag logic
 
@@ -68,6 +68,7 @@ export async function onRequestGet(context) {
         name,
         paid,
         winnings,
+        paidout,
         balance,
         currentBehind
       };
