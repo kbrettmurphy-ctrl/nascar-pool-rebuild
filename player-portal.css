@@ -325,6 +325,9 @@
   max-height:78vh;
   object-fit:contain;
   border-radius:12px;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .buschPopupClose{
@@ -1046,6 +1049,9 @@
     height:80px;
     width:auto;
     opacity:0.5;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   
   .buschLogoTrigger{
