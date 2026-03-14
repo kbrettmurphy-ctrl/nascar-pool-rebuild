@@ -285,6 +285,65 @@
     justify-content:flex-end;
     padding-left:20px;
   }
+  
+  .buschPopup[hidden]{
+  display:none !important;
+}
+
+.buschPopup{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+}
+
+.buschPopupBackdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+
+.buschPopupCard{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  width:min(92vw, 520px);
+  max-height:88vh;
+  padding:12px;
+  border-radius:18px;
+  background:rgba(2,11,18,.95);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+}
+
+.buschPopupImg{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:78vh;
+  object-fit:contain;
+  border-radius:12px;
+}
+
+.buschPopupClose{
+  position:absolute;
+  top:8px;
+  right:8px;
+  width:32px;
+  height:32px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  font-size:20px;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
 
   /* ==========================================================
      Current race / matchup view
