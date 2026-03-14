@@ -764,11 +764,6 @@ refreshActiveView();
       loadStandings();
     }
 
-    if (which === "dues" && !_duesLoaded) {
-      _duesLoaded = true;
-      loadDues();
-    }
-
     if (which === "mymatchup" && !_myMatchupLoaded) {
       _myMatchupLoaded = true;
       loadMyMatchup();
@@ -798,9 +793,6 @@ refreshActiveView();
     } else if (activeView === "standings") {
       _standingsLoaded = true;
       loadStandings();
-    } else if (activeView === "dues") {
-      _duesLoaded = true;
-      loadDues();
     } else if (activeView === "mymatchup") {
       _myMatchupLoaded = true;
       loadMyMatchup();
@@ -980,7 +972,6 @@ refreshActiveView();
       autoSizePlayerSelect_(gp);
 
       if (activeView === "mymatchup") loadMyMatchup(); loadDues();
-      if (activeView === "dues") loadDues();
     };
   }
 
