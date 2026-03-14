@@ -2473,7 +2473,7 @@ refreshActiveView();
 }
 
 function initBuschLongPress_() {
-  const logo = document.getElementById("buschLogo");
+  const logo = document.getElementById("buschLogoTrigger");
   const popup = document.getElementById("buschPopup");
   const closeBtn = document.getElementById("buschPopupClose");
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
