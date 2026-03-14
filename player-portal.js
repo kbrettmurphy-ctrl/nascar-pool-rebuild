@@ -2472,6 +2472,60 @@ refreshActiveView();
   }
 }
 
+function initBuschLongPress_() {
+  const logo = document.getElementById("buschLogo");
+  const popup = document.getElementById("buschPopup");
+  const closeBtn = document.getElementById("buschPopupClose");
+  const backdrop = popup?.querySelector(".buschPopupBackdrop");
+
+  if (!logo || !popup) return;
+
+  let pressTimer = null;
+  let longPressTriggered = false;
+
+  function openPopup() {
+    popup.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closePopup() {
+    popup.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function startPress(e) {
+    longPressTriggered = false;
+    clearTimeout(pressTimer);
+
+    pressTimer = setTimeout(() => {
+      longPressTriggered = true;
+      openPopup();
+    }, 700);
+  }
+
+  function cancelPress() {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+
+  logo.addEventListener("mousedown", startPress);
+  logo.addEventListener("touchstart", startPress, { passive: true });
+
+  logo.addEventListener("mouseup", cancelPress);
+  logo.addEventListener("mouseleave", cancelPress);
+  logo.addEventListener("touchend", cancelPress);
+  logo.addEventListener("touchcancel", cancelPress);
+
+  closeBtn?.addEventListener("click", closePopup);
+  backdrop?.addEventListener("click", closePopup);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !popup.hidden) {
+      closePopup();
+    }
+  });
+}
+
 function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
     const pinBackdrop = document.getElementById("adminPinBackdrop");
@@ -2594,7 +2648,8 @@ function initAdminControls_() {
   });
 
   window.onload = () => {
-    initAdminControls_();
-    loadPlayersThenInit();
-    persistHScroll(".navInner", "nascar_nav_scroll");
-  };
+  initAdminControls_();
+  loadPlayersThenInit();
+  persistHScroll(".navInner", "nascar_nav_scroll");
+  initBuschLongPress_();
+};
