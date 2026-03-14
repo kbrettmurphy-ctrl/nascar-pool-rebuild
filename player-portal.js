@@ -616,7 +616,7 @@ refreshActiveView();
       });
 
       const amount = Number(data.venmoBalance || 0).toFixed(2);
-      const btn = document.getElementById("adminVenmoBalanceBtn");
+      const btn = document.getElementById("venmoBalanceBtn");
 
       if (btn) {
         btn.textContent = `Venmo: $${amount}`;
