@@ -348,6 +348,16 @@
   cursor:pointer;
 }
 
+.buschLogoTrigger,
+.buschPopup,
+.buschPopupCard,
+.buschPopupImg,
+.buschPopupClose{
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
   /* ==========================================================
      Current race / matchup view
      ========================================================== */
