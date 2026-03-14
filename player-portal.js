@@ -326,35 +326,37 @@
 }
 
   async function initAdminOverlay_() {
-  const ctx = await getAdminContext_();
-  const tSel = document.getElementById("adminTournamentSelect");
-  const rSel = document.getElementById("adminRaceSelect");
-  const fundsSel = document.getElementById("adminFundsPlayer");
+    const ctx = await getAdminContext_();
+    const tSel = document.getElementById("adminTournamentSelect");
+    const rSel = document.getElementById("adminRaceSelect");
+    const fundsSel = document.getElementById("adminFundsPlayer");
 
-  if (tSel && !tSel.dataset.bound) {
-    tSel.dataset.bound = "1";
-    tSel.addEventListener("change", () => {
-      refreshAdminRaceOptions_();
-    });
-  }
+    if (tSel && !tSel.dataset.bound) {
+      tSel.dataset.bound = "1";
+      tSel.addEventListener("change", () => {
+        refreshAdminRaceOptions_();
+      });
+    }
 
-  tSel.innerHTML = (ctx.tournaments || [])
-    .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
-    .join("");
-
-  fundsSel.innerHTML =
-    `<option value="">Select player</option>` +
-    (ctx.players || [])
-      .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    tSel.innerHTML = (ctx.tournaments || [])
+      .map(t => `<option value="${t.id}">${escapeHtml(t.label)}</option>`)
       .join("");
 
-  tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
-  refreshAdminRaceOptions_();
+    fundsSel.innerHTML =
+      `<option value="">Select player</option>` +
+      (ctx.players || [])
+        .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+        .join("");
 
-  if (ctx.currentRaceId) {
-    rSel.value = String(ctx.currentRaceId);
+    tSel.value = String(ctx.currentTournamentId || ctx.tournaments?.[0]?.id || "");
+    refreshAdminRaceOptions_();
+
+    if (ctx.currentRaceId) {
+      rSel.value = String(ctx.currentRaceId);
+    }
+
+    await loadVenmoBalance_();
   }
-}
 
   function refreshAdminRaceOptions_() {
     const ctx = _adminContext || {};
@@ -541,6 +543,7 @@ refreshActiveView();
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
       if (activeView === "dues") loadDues();
+      await loadVenmoBalance_();
     } catch (err) {
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
     }
@@ -572,6 +575,7 @@ refreshActiveView();
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
       if (activeView === "dues") loadDues();
+      await loadVenmoBalance_();
     } catch (err) {
         setAdminStatus_("adminFundsStatus", err.message || String(err), true);
     }  
@@ -602,6 +606,27 @@ refreshActiveView();
       alert(`Players you owe:\n\n${msg}`);
     } catch (err) {
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    }
+  }
+  
+  async function loadVenmoBalance_() {
+    try {
+      const data = await adminFetch_("/api/venmo-balance", {
+        method: "GET"
+      });
+
+      const amount = Number(data.venmoBalance || 0).toFixed(2);
+      const btn = document.getElementById("adminVenmoBalanceBtn");
+
+      if (btn) {
+        btn.textContent = `Venmo: $${amount}`;
+      }
+    } catch (err) {
+      const btn = document.getElementById("adminVenmoBalanceBtn");
+      if (btn) {
+        btn.textContent = "Venmo: ERROR";
+      }
+      console.error("Venmo balance load failed:", err);
     }
   }
   
