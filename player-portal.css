@@ -1047,6 +1047,18 @@
     width:auto;
     opacity:0.5;
   }
+  
+  .buschLogoTrigger{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--navH) + 10px);
+  width: 220px;
+  height: 110px;
+  z-index: 100;
+  background: transparent;
+  pointer-events: auto;
+}
 
   *::-webkit-scrollbar{ height:10px; width:10px; }
   *::-webkit-scrollbar-track{
