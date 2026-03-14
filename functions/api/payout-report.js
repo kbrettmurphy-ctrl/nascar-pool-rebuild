@@ -46,7 +46,6 @@ export async function onRequestGet(context) {
       const paid = Number(row?.paid) || 0;
       const winnings = Number(row?.winnings) || 0;
       const paidout = Number(row?.paidout) || 0;
-
       const balance = seasonTotal - winnings - paid;
 
       if (balance < 0) {
