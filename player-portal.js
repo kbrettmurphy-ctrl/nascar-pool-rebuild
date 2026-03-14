@@ -544,7 +544,69 @@ refreshActiveView();
     } catch (err) {
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
     }
-  }    
+  }
+
+  async function markPaidOut_() {
+  const playerId = Number(document.getElementById("adminFundsPlayer")?.value || 0);
+  const amount = Number(document.getElementById("adminFundsAmount")?.value || 0);
+
+  if (!playerId) {
+    setAdminStatus_("adminFundsStatus", "Pick a player.", true);
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setAdminStatus_("adminFundsStatus", "Enter a valid amount.", true);
+    return;
+  }
+
+  async function showWhoIOwe_() {
+  setAdminStatus_("adminFundsStatus", "Building payout report...");
+
+  try {
+    const data = await adminFetch_("/api/payout-report", {
+      method: "GET"
+    });
+
+    const rows = Array.isArray(data.data) ? data.data : [];
+
+    if (!rows.length) {
+      setAdminStatus_("adminFundsStatus", "Nobody has a negative balance. Miracles do happen.");
+      alert("Nobody has a negative balance. You currently owe nobody.");
+      return;
+    }
+
+    const msg = rows.map((row, i) => {
+      const owed = Number(row.owedAmount || 0).toFixed(2);
+      const paidout = Number(row.paidout || 0).toFixed(2);
+      const remaining = Number(row.remainingToPayout || 0).toFixed(2);
+
+      return `${i + 1}. ${row.name} — Owed: $${owed} | Paid Out: $${paidout} | Remaining: $${remaining}`;
+    }).join("\n");
+
+    setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
+    alert(`Players you owe:\n\n${msg}`);
+  } catch (err) {
+    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+  }
+}
+
+  setAdminStatus_("adminFundsStatus", "Marking payout...");
+  try {
+    const data = await adminFetch_("/api/mark-paidout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, amount })
+    });
+
+    setAdminStatus_("adminFundsStatus", data.message || "Payout marked.");
+    document.getElementById("adminFundsAmount").value = "";
+    _playerDues = null;
+    if (activeView === "dues") loadDues();
+  } catch (err) {
+    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+  }
+}
   
   async function clearSeeds_() {
   const tournamentId = Number(document.getElementById("adminTournamentSelect")?.value || 0);
@@ -2431,10 +2493,8 @@ function initAdminControls_() {
 
   if (portal && !portal.dataset.adminBound) {
     portal.dataset.adminBound = "1";
-
     portal.addEventListener("mousedown", startPress);
     portal.addEventListener("touchstart", startPress, { passive: true });
-
     portal.addEventListener("mouseup", cancelPress);
     portal.addEventListener("mouseleave", cancelPress);
     portal.addEventListener("touchend", cancelPress);
@@ -2496,6 +2556,8 @@ function initAdminControls_() {
 
   document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
+  document.getElementById("adminMarkPaidOutBtn")?.addEventListener("click", markPaidOut_);
+  document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
 }
