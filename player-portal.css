@@ -1029,7 +1029,7 @@
     flex-direction:column;
     align-items:center;
     z-index: 2;
-    /*pointer-events:none;*/
+    pointer-events:none;
   }
 
   .presented-by{
