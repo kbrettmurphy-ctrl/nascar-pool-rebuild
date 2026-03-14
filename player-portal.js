@@ -542,7 +542,7 @@ refreshActiveView();
       setAdminStatus_("adminFundsStatus", data.message || "Funds added.");
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
-      if (activeView === "dues") loadDues();
+      if (activeView === "mymatchup") loadDues();
       await loadVenmoBalance_();
     } catch (err) {
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
@@ -574,7 +574,7 @@ refreshActiveView();
       setAdminStatus_("adminFundsStatus", data.message || "Payout marked.");
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
-      if (activeView === "dues") loadDues();
+      if (activeView === "mymatchup") loadDues();
       await loadVenmoBalance_();
     } catch (err) {
         setAdminStatus_("adminFundsStatus", err.message || String(err), true);
@@ -772,6 +772,7 @@ refreshActiveView();
     if (which === "mymatchup" && !_myMatchupLoaded) {
       _myMatchupLoaded = true;
       loadMyMatchup();
+      loadDues();
     }
 
     if (which === "bracket" && !_bracketLoaded) {
@@ -803,6 +804,7 @@ refreshActiveView();
     } else if (activeView === "mymatchup") {
       _myMatchupLoaded = true;
       loadMyMatchup();
+      loadDues();
     } else if (activeView === "bracket") {
       _bracketLoaded = true;
       loadBracket();
@@ -977,7 +979,7 @@ refreshActiveView();
       applyYouRowsNow_();
       autoSizePlayerSelect_(gp);
 
-      if (activeView === "mymatchup") loadMyMatchup();
+      if (activeView === "mymatchup") loadMyMatchup(); loadDues();
       if (activeView === "dues") loadDues();
     };
   }
