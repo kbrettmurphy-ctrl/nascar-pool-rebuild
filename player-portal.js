@@ -598,7 +598,7 @@ refreshActiveView();
         const paidout = Number(row.paidout || 0).toFixed(2);
         const remaining = Number(row.remainingToPayout || 0).toFixed(2);
 
-        return `${i + 1}. ${row.name} — Owed: $${owed} | Paid Out: $${paidout} | Remaining: $${remaining}`;
+        return `${i + 1}. ${row.name} — Owed: $${owed} | Remaining: $${remaining}`;
       }).join("\n");
 
       setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
