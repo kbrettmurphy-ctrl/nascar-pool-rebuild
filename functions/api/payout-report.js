@@ -47,20 +47,20 @@ export async function onRequestGet(context) {
       const winnings = Number(row?.winnings) || 0;
       const paidout = Number(row?.paidout) || 0;
       const balance = seasonTotal - winnings - paid;
+      const owedAmount = Math.max(0, winnings + paid - seasonTotal);
+      const remainingToPayout = Math.max(0, owedAmount - paidout);
 
-      if (balance < 0) {
+      if (remainingToPayout > 0) {
         owed.push({
           playerId: Number(row.player_id),
           name,
           paid,
           winnings,
           paidout,
-          balance,
-          owedAmount: Math.abs(balance),
-          remainingToPayout: Math.max(0, Math.abs(balance) - paidout)
+          owedAmount,
+          remainingToPayout
         });
       }
-    }
 
     owed.sort((a, b) => b.owedAmount - a.owedAmount || a.name.localeCompare(b.name));
 
