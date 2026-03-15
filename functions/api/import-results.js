@@ -268,3 +268,37 @@ function normalizeName(s) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+function getRaceResultsRows(weekendJson) {
+  const runs = Array.isArray(weekendJson?.weekend_runs)
+    ? weekendJson.weekend_runs
+    : [];
+
+  if (!runs.length) return [];
+
+  const scoredRuns = runs.map((run) => {
+    const name = String(run?.run_name || run?.name || "").toLowerCase();
+    const results = Array.isArray(run?.results) ? run.results : [];
+    const keys = results[0] ? Object.keys(results[0]) : [];
+
+    const hasFinishPos =
+      keys.includes("finishing_position") ||
+      keys.includes("finish_position") ||
+      keys.includes("FinishPos") ||
+      keys.includes("FinPos");
+
+    let score = 0;
+    if (results.length >= 10) score += 5;
+    if (hasFinishPos) score += 50;
+    if (name.includes("race")) score += 20;
+    if (name.includes("feature")) score += 10;
+    if (name.includes("final")) score += 10;
+
+    return { run, score };
+  });
+
+  scoredRuns.sort((a, b) => b.score - a.score);
+
+  const chosenRun = scoredRuns[0]?.run;
+  return Array.isArray(chosenRun?.results) ? chosenRun.results : [];
+}
