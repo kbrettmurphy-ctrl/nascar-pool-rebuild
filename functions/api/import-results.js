@@ -230,24 +230,26 @@ export async function onRequestPost(context) {
       })
     });
 
-    // 11) Generate Swiss rounds ONLY for rounds 2-4
-    if (roundNumber > 1) {
-      await fetch(
-        `${env.SUPABASE_URL}/rest/v1/rpc/generate_swiss_round_pairings`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: env.SUPABASE_SECRET_KEY,
-            Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-          },
-          body: JSON.stringify({
-            p_tournament_id: tournamentId,
-            p_round_number: roundNumber
-          })
-        }
-      );
+   // 11) Generate NEXT Swiss round after current round completes
+const nextRoundNumber = roundNumber + 1;
+
+if (nextRoundNumber <= 4) {
+  await fetch(
+    `${env.SUPABASE_URL}/rest/v1/rpc/generate_swiss_round_pairings`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: env.SUPABASE_SECRET_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+      },
+      body: JSON.stringify({
+        p_tournament_id: tournamentId,
+        p_round_number: nextRoundNumber
+      })
     }
+  );
+}
 
     return json({
       ok: true,
