@@ -269,36 +269,52 @@ function normalizeName(s) {
     .trim();
 }
 
-function getRaceResultsRows(weekendJson) {
-  const runs = Array.isArray(weekendJson?.weekend_runs)
-    ? weekendJson.weekend_runs
-    : [];
+function getRaceResultsRows(feed) {
+  const wrRes = Array.isArray(feed?.weekend_race?.[0]?.results) ? feed.weekend_race[0].results : [];
+  if (wrRes.length && wrRes.some(r => Number.isFinite(Number(r?.finishing_position)))) {
+    return wrRes;
+  }
 
-  if (!runs.length) return [];
+  const runs = Array.isArray(feed?.weekend_runs) ? feed.weekend_runs : [];
+  if (runs.length) {
+    const scored = runs.map(run => {
+      const name = String(run?.run_name || "").toLowerCase();
+      const rows = Array.isArray(run?.results) ? run.results : [];
 
-  const scoredRuns = runs.map((run) => {
-    const name = String(run?.run_name || run?.name || "").toLowerCase();
-    const results = Array.isArray(run?.results) ? run.results : [];
-    const keys = results[0] ? Object.keys(results[0]) : [];
+      const finishCount = rows.reduce((c, r) => {
+        const p = Number(r?.finishing_position ?? r?.finish_position ?? r?.FinishPos ?? r?.FinPos);
+        return c + (Number.isFinite(p) ? 1 : 0);
+      }, 0);
 
-    const hasFinishPos =
-      keys.includes("finishing_position") ||
-      keys.includes("finish_position") ||
-      keys.includes("FinishPos") ||
-      keys.includes("FinPos");
+      const maxLaps = rows.reduce((m, r) => {
+        const n = Number(r?.laps_completed ?? r?.LapsCompleted ?? r?.laps ?? 0);
+        return Number.isFinite(n) ? Math.max(m, n) : m;
+      }, 0);
 
-    let score = 0;
-    if (results.length >= 10) score += 5;
-    if (hasFinishPos) score += 50;
-    if (name.includes("race")) score += 20;
-    if (name.includes("feature")) score += 10;
-    if (name.includes("final")) score += 10;
+      let score = 0;
+      score += finishCount * 10;
 
-    return { run, score };
-  });
+      if (name.includes("race")) score += 200;
+      if (name.includes("results")) score += 120;
+      if (name.includes("starting")) score -= 500;
+      if (name.includes("lineup")) score -= 500;
+      if (name.includes("qual")) score -= 800;
+      if (name.includes("practice")) score -= 800;
+      if (name.includes("stage")) score -= 200;
+      if (maxLaps >= 10) score += 80;
+      if (maxLaps >= 50) score += 200;
+      if (maxLaps >= 150) score += 300;
 
-  scoredRuns.sort((a, b) => b.score - a.score);
+      score += Math.min(rows.length, 60);
 
-  const chosenRun = scoredRuns[0]?.run;
-  return Array.isArray(chosenRun?.results) ? chosenRun.results : [];
+      return { score, rows };
+    }).sort((a, b) => b.score - a.score);
+
+    const best = scored[0]?.rows || [];
+    if (best.length && best.some(r => Number.isFinite(Number(r?.finishing_position ?? r?.FinishPos ?? r?.FinPos)))) {
+      return best;
+    }
+  }
+
+  return [];
 }
