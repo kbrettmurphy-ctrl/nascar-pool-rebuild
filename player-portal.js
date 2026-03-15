@@ -2471,6 +2471,26 @@ function initBuschLongPress_() {
   const closeBtn = document.getElementById("buschPopupClose");
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
   const popupImg = document.querySelector(".buschPopupImg");
+  const buschGirls = [
+    "img/buschgirls/6785.jpeg",
+    "img/buschgirls/6786.jpeg",
+    "img/buschgirls/6787.jpeg",
+    "img/buschgirls/6788.jpeg",
+    "img/buschgirls/6789.jpeg",
+    "img/buschgirls/6790.jpeg",
+    "img/buschgirls/6791.jpeg",
+    "img/buschgirls/6792.jpeg",
+    "img/buschgirls/6793.jpeg",
+    "img/buschgirls/6794.jpeg",
+    "img/buschgirls/6795.jpeg",
+    "img/buschgirls/6796.jpeg",
+    "img/buschgirls/6797.jpeg"
+  ];
+
+  function getRandomBuschGirl(){
+    const i = Math.floor(Math.random() * buschGirls.length);
+    return buschGirls[i];
+  }
 
   popupImg?.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -2482,6 +2502,9 @@ function initBuschLongPress_() {
   let longPressTriggered = false;
 
   function openPopup() {
+    if (popupImg) {
+      popupImg.src = getRandomBuschGirl();
+    }
     popup.hidden = false;
     document.body.style.overflow = "hidden";
   }
@@ -2494,6 +2517,10 @@ function initBuschLongPress_() {
   function startPress(e) {
     longPressTriggered = false;
     clearTimeout(pressTimer);
+
+    if (e.type === "touchstart") {
+      e.preventDefault();
+    }
 
     pressTimer = setTimeout(() => {
       longPressTriggered = true;
@@ -2508,7 +2535,6 @@ function initBuschLongPress_() {
 
   logo.addEventListener("mousedown", startPress);
   logo.addEventListener("touchstart", startPress, { passive: false });
-
   logo.addEventListener("mouseup", cancelPress);
   logo.addEventListener("mouseleave", cancelPress);
   logo.addEventListener("touchend", cancelPress);
