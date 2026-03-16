@@ -82,34 +82,46 @@ export async function onRequestGet(context) {
       }
 
       for (const row of rows || []) {
-        const p1Id = Number(row.player1_id);
-        const p2Id = Number(row.player2_id);
-        const raceId = Number(row.race_id);
+  const p1Id = Number(row.player1_id);
+  const p2Id = Number(row.player2_id);
+  const raceId = Number(row.race_id);
 
-        const p1 = getPlayerRow(p1Id, row.player1_name);
-        const p2 = getPlayerRow(p2Id, row.player2_name);
+  const p1 = getPlayerRow(p1Id, row.player1_name);
+  const p2 = getPlayerRow(p2Id, row.player2_name);
 
-        const a1 = Number(row.player1_avg);
-        const a2 = Number(row.player2_avg);
-        const winnerId = Number(row.winner_id);
+  const a1 = Number(row.player1_avg);
+  const a2 = Number(row.player2_avg);
+  const winnerId = Number(row.winner_id);
 
-        p1.match_count += 1;
-        p2.match_count += 1;
+  const hasCompletedData =
+    Number.isFinite(a1) &&
+    Number.isFinite(a2) &&
+    a1 > 0 &&
+    a2 > 0 &&
+    Number.isFinite(winnerId) &&
+    winnerId > 0;
 
-        if (Number.isFinite(a1) && a1 !== 0) p1.avg_sum += a1;
-        if (Number.isFinite(a2) && a2 !== 0) p2.avg_sum += a2;
+  if (!hasCompletedData) {
+    continue;
+  }
 
-        if (winnerId && winnerId === p1Id) {
-          p1.W += 1;
-          p2.L += 1;
-        } else if (winnerId && winnerId === p2Id) {
-          p2.W += 1;
-          p1.L += 1;
-        }
+  p1.match_count += 1;
+  p2.match_count += 1;
 
-        updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
-        updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
-      }
+  p1.avg_sum += a1;
+  p2.avg_sum += a2;
+
+  if (winnerId === p1Id) {
+    p1.W += 1;
+    p2.L += 1;
+  } else if (winnerId === p2Id) {
+    p2.W += 1;
+    p1.L += 1;
+  }
+
+  updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
+  updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
+}
 
       const out = Array.from(statsMap.values()).map(r => {
         const rawAvg = r.match_count > 0 ? (r.avg_sum / r.match_count) : 0;
