@@ -204,9 +204,9 @@ return json({
     flag: liveJson?.flag_state ?? null
   },
 
-  vehicleCount: vehicles.length,
+  driverCount: Object.keys(driverPositions).length,
 
-  vehicleSample
+  drivers: driverPositions
 
 });
   } catch (err) {
