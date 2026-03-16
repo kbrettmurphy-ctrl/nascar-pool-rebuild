@@ -52,6 +52,21 @@ export async function onRequestGet(context) {
       }
     }
 
+    function isCompletedMatch(row) {
+      const a1 = Number(row.player1_avg);
+      const a2 = Number(row.player2_avg);
+      const winnerId = Number(row.winner_id);
+
+      return (
+        Number.isFinite(a1) &&
+        Number.isFinite(a2) &&
+        a1 > 0 &&
+        a2 > 0 &&
+        Number.isFinite(winnerId) &&
+        winnerId > 0
+      );
+    }
+
     function buildStatsMap(rows) {
       const statsMap = new Map();
 
@@ -77,51 +92,47 @@ export async function onRequestGet(context) {
         const f1 = Number(scoreRow.driver_1_finish);
         const f2 = Number(scoreRow.driver_2_finish);
 
-        if (Number.isFinite(f1) && f1 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f1);
-        if (Number.isFinite(f2) && f2 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f2);
+        if (Number.isFinite(f1) && f1 > 0) {
+          playerRow.min_finish = Math.min(playerRow.min_finish, f1);
+        }
+        if (Number.isFinite(f2) && f2 > 0) {
+          playerRow.min_finish = Math.min(playerRow.min_finish, f2);
+        }
       }
 
       for (const row of rows || []) {
-  const p1Id = Number(row.player1_id);
-  const p2Id = Number(row.player2_id);
-  const raceId = Number(row.race_id);
+        const p1Id = Number(row.player1_id);
+        const p2Id = Number(row.player2_id);
+        const raceId = Number(row.race_id);
 
-  const p1 = getPlayerRow(p1Id, row.player1_name);
-  const p2 = getPlayerRow(p2Id, row.player2_name);
+        const p1 = getPlayerRow(p1Id, row.player1_name);
+        const p2 = getPlayerRow(p2Id, row.player2_name);
 
-  const a1 = Number(row.player1_avg);
-  const a2 = Number(row.player2_avg);
-  const winnerId = Number(row.winner_id);
+        const a1 = Number(row.player1_avg);
+        const a2 = Number(row.player2_avg);
+        const winnerId = Number(row.winner_id);
 
-  const hasCompletedData =
-    Number.isFinite(a1) &&
-    Number.isFinite(a2) &&
-    a1 > 0 &&
-    a2 > 0 &&
-    Number.isFinite(winnerId) &&
-    winnerId > 0;
+        if (!isCompletedMatch(row)) {
+          continue;
+        }
 
-  if (!hasCompletedData) {
-    continue;
-  }
+        p1.match_count += 1;
+        p2.match_count += 1;
 
-  p1.match_count += 1;
-  p2.match_count += 1;
+        p1.avg_sum += a1;
+        p2.avg_sum += a2;
 
-  p1.avg_sum += a1;
-  p2.avg_sum += a2;
+        if (winnerId === p1Id) {
+          p1.W += 1;
+          p2.L += 1;
+        } else if (winnerId === p2Id) {
+          p2.W += 1;
+          p1.L += 1;
+        }
 
-  if (winnerId === p1Id) {
-    p1.W += 1;
-    p2.L += 1;
-  } else if (winnerId === p2Id) {
-    p2.W += 1;
-    p1.L += 1;
-  }
-
-  updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
-  updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
-}
+        updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
+        updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
+      }
 
       const out = Array.from(statsMap.values()).map(r => {
         const rawAvg = r.match_count > 0 ? (r.avg_sum / r.match_count) : 0;
@@ -213,6 +224,8 @@ export async function onRequestGet(context) {
     }
 
     for (const row of matchupRows || []) {
+      if (!isCompletedMatch(row)) continue;
+
       const winnerId = Number(row.winner_id);
       if (!winnerId) continue;
 
@@ -329,6 +342,8 @@ export async function onRequestGet(context) {
     }
 
     for (const row of matchupRows || []) {
+      if (!isCompletedMatch(row)) continue;
+
       const p1Id = Number(row.player1_id);
       const p2Id = Number(row.player2_id);
       const p1Name = String(row.player1_name || "").trim();
