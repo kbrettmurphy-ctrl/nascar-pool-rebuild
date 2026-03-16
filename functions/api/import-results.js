@@ -226,6 +226,7 @@ const swissUpdateRes = await fetch(
       "Content-Type": "application/json",
       apikey: env.SUPABASE_SECRET_KEY,
       Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+      Accept: "application/json",
     },
     body: JSON.stringify({
       p_tournament_id: tournamentId
@@ -233,13 +234,22 @@ const swissUpdateRes = await fetch(
   }
 );
 
-const swissUpdateText = await swissUpdateRes.text();
+const swissUpdateRaw = await swissUpdateRes.text();
+
+let swissUpdateParsed = null;
+try {
+  swissUpdateParsed = swissUpdateRaw ? JSON.parse(swissUpdateRaw) : null;
+} catch {
+  swissUpdateParsed = swissUpdateRaw;
+}
 
 if (!swissUpdateRes.ok) {
   return json({
     ok: false,
     error: "update_swiss_matchup_results failed",
-    details: swissUpdateText
+    status: swissUpdateRes.status,
+    statusText: swissUpdateRes.statusText,
+    details: swissUpdateParsed
   }, 500);
 }
 
