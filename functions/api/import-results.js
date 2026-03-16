@@ -322,6 +322,9 @@ export async function onRequestPost(context) {
       }
     }
 
+    // 12) Recalculate and sync player_financials.winnings
+    const winningsSync = await syncPlayerFinancialWinnings(env);
+
     return json({
       ok: true,
       raceId,
@@ -331,11 +334,307 @@ export async function onRequestPost(context) {
       insertedResults: inserts.length,
       swissUpdate: swissUpdateParsed,
       pairings: pairingsResult,
+      winningsSync,
     });
 
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
+}
+
+async function syncPlayerFinancialWinnings(env) {
+  const headers = {
+    apikey: env.SUPABASE_SECRET_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+  };
+
+  const writeHeaders = {
+    "Content-Type": "application/json",
+    apikey: env.SUPABASE_SECRET_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+    Prefer: "return=representation",
+  };
+
+  async function getJson(path) {
+    const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
+    const text = await res.text();
+
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+
+    if (!res.ok) {
+      throw new Error(typeof data === "string" ? data : JSON.stringify(data));
+    }
+
+    return data;
+  }
+
+  function isCompletedMatch(row) {
+    const a1 = Number(row.player1_avg);
+    const a2 = Number(row.player2_avg);
+    const winnerId = Number(row.winner_id);
+
+    return (
+      Number.isFinite(a1) &&
+      Number.isFinite(a2) &&
+      a1 > 0 &&
+      a2 > 0 &&
+      Number.isFinite(winnerId) &&
+      winnerId > 0
+    );
+  }
+
+  function buildTournamentStats(rows, scoreMap) {
+    const statsMap = new Map();
+
+    function getPlayerRow(playerId, playerName) {
+      const key = String(playerId);
+      if (!statsMap.has(key)) {
+        statsMap.set(key, {
+          player_id: Number(playerId),
+          player: String(playerName || "").trim(),
+          W: 0,
+          L: 0,
+          avg_sum: 0,
+          match_count: 0,
+          min_finish: 99999,
+        });
+      }
+      return statsMap.get(key);
+    }
+
+    function updateMinFinish(playerRow, scoreRow) {
+      if (!scoreRow) return;
+
+      const f1 = Number(scoreRow.driver_1_finish);
+      const f2 = Number(scoreRow.driver_2_finish);
+
+      if (Number.isFinite(f1) && f1 > 0) {
+        playerRow.min_finish = Math.min(playerRow.min_finish, f1);
+      }
+      if (Number.isFinite(f2) && f2 > 0) {
+        playerRow.min_finish = Math.min(playerRow.min_finish, f2);
+      }
+    }
+
+    for (const row of rows || []) {
+      if (!isCompletedMatch(row)) continue;
+
+      const p1Id = Number(row.player1_id);
+      const p2Id = Number(row.player2_id);
+      const raceId = Number(row.race_id);
+
+      const p1 = getPlayerRow(p1Id, row.player1_name);
+      const p2 = getPlayerRow(p2Id, row.player2_name);
+
+      const a1 = Number(row.player1_avg);
+      const a2 = Number(row.player2_avg);
+      const winnerId = Number(row.winner_id);
+
+      p1.match_count += 1;
+      p2.match_count += 1;
+
+      p1.avg_sum += a1;
+      p2.avg_sum += a2;
+
+      if (winnerId === p1Id) {
+        p1.W += 1;
+        p2.L += 1;
+      } else if (winnerId === p2Id) {
+        p2.W += 1;
+        p1.L += 1;
+      }
+
+      updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
+      updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
+    }
+
+    const out = Array.from(statsMap.values()).map((r) => {
+      const rawAvg = r.match_count > 0 ? (r.avg_sum / r.match_count) : 0;
+      const rawWinPct = r.match_count > 0 ? (r.W / r.match_count) : 0;
+
+      return {
+        rank: 0,
+        player_id: r.player_id,
+        player: r.player,
+        W: r.W,
+        L: r.L,
+        __rawWinPct: rawWinPct,
+        __rawAvg: rawAvg,
+        __minFinish: r.min_finish,
+      };
+    });
+
+    out.sort((a, b) => {
+      if (b.__rawWinPct !== a.__rawWinPct) return b.__rawWinPct - a.__rawWinPct;
+      if (a.__rawAvg !== b.__rawAvg) return a.__rawAvg - b.__rawAvg;
+      if (a.__minFinish !== b.__minFinish) return a.__minFinish - b.__minFinish;
+      return String(a.player).localeCompare(String(b.player));
+    });
+
+    out.forEach((row, idx) => {
+      row.rank = idx + 1;
+    });
+
+    return out;
+  }
+
+  const [
+    players,
+    financialRows,
+    drivers,
+    raceResults,
+    scoreRows,
+    tournaments,
+    matchupRows,
+  ] = await Promise.all([
+    getJson(`/rest/v1/players?select=id,name&order=id.asc`),
+    getJson(`/rest/v1/player_financials?select=player_id,paid,winnings,paidout`),
+    getJson(`/rest/v1/drivers?select=id,name`),
+    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position`),
+    getJson(`/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_finish,driver_2_finish`),
+    getJson(`/rest/v1/tournaments?select=id,tournament_number&order=tournament_number.asc`),
+    getJson(`/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&order=tournament_id.asc,round_number.asc`),
+  ]);
+
+  const winningsByPlayerId = new Map();
+  for (const p of players || []) {
+    winningsByPlayerId.set(Number(p.id), 0);
+  }
+
+  // $25 if player has the winning driver of the race
+  const driverIdByName = new Map(
+    (drivers || []).map((d) => [normalizeName(d.name), Number(d.id)])
+  );
+
+  const raceWinnerDriverByRaceId = new Map();
+  for (const row of raceResults || []) {
+    if (Number(row.finishing_position) === 1) {
+      raceWinnerDriverByRaceId.set(Number(row.race_id), Number(row.driver_id));
+    }
+  }
+
+  for (const row of scoreRows || []) {
+    const playerId = Number(row.player_id);
+    const raceId = Number(row.race_id);
+    const winningDriverId = raceWinnerDriverByRaceId.get(raceId);
+
+    if (!playerId || !winningDriverId) continue;
+
+    const d1 = driverIdByName.get(normalizeName(row.driver_1_name || ""));
+    const d2 = driverIdByName.get(normalizeName(row.driver_2_name || ""));
+
+    if (Number(d1) === winningDriverId || Number(d2) === winningDriverId) {
+      winningsByPlayerId.set(
+        playerId,
+        (winningsByPlayerId.get(playerId) || 0) + 25
+      );
+    }
+  }
+
+  // Tournament payouts only after tournament is complete
+  const scoreMap = new Map(
+    (scoreRows || []).map((r) => [`${r.race_id}||${r.player_id}`, r])
+  );
+
+  const payoutByRank = {
+    1: 100,
+    2: 60,
+    3: 40,
+    4: 20,
+  };
+
+  for (const t of tournaments || []) {
+    const tournamentId = Number(t.id);
+
+    const rows = (matchupRows || []).filter(
+      (r) => Number(r.tournament_id) === tournamentId
+    );
+
+    const built = buildTournamentStats(rows, scoreMap);
+    const tournamentComplete =
+      built.length === 16 &&
+      built.every((x) => (Number(x.W) + Number(x.L)) >= 4);
+
+    if (!tournamentComplete) continue;
+
+    for (const row of built) {
+      const payout = payoutByRank[Number(row.rank)] || 0;
+      if (!payout) continue;
+
+      winningsByPlayerId.set(
+        Number(row.player_id),
+        (winningsByPlayerId.get(Number(row.player_id)) || 0) + payout
+      );
+    }
+  }
+
+  const existingByPlayerId = new Map(
+    (financialRows || []).map((r) => [Number(r.player_id), r])
+  );
+
+  let updatedCount = 0;
+  let createdCount = 0;
+
+  for (const p of players || []) {
+    const playerId = Number(p.id);
+    const winnings = Number(winningsByPlayerId.get(playerId) || 0);
+    const existing = existingByPlayerId.get(playerId);
+
+    if (existing) {
+      const currentWinnings = Number(existing.winnings || 0);
+      if (currentWinnings === winnings) continue;
+
+      const patchRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/player_financials?player_id=eq.${playerId}`,
+        {
+          method: "PATCH",
+          headers: writeHeaders,
+          body: JSON.stringify({ winnings }),
+        }
+      );
+
+      const patchText = await patchRes.text();
+      if (!patchRes.ok) {
+        throw new Error(`Failed to update winnings for player ${playerId}: ${patchText}`);
+      }
+
+      updatedCount += 1;
+    } else if (winnings > 0) {
+      const postRes = await fetch(`${env.SUPABASE_URL}/rest/v1/player_financials`, {
+        method: "POST",
+        headers: writeHeaders,
+        body: JSON.stringify([{
+          player_id: playerId,
+          paid: 0,
+          winnings,
+          paidout: 0,
+        }]),
+      });
+
+      const postText = await postRes.text();
+      if (!postRes.ok) {
+        throw new Error(`Failed to create winnings row for player ${playerId}: ${postText}`);
+      }
+
+      createdCount += 1;
+    }
+  }
+
+  const totalWinnings = Array.from(winningsByPlayerId.values()).reduce(
+    (sum, n) => sum + Number(n || 0),
+    0
+  );
+
+  return {
+    updatedCount,
+    createdCount,
+    totalWinnings,
+  };
 }
 
 function normalizeName(s) {
