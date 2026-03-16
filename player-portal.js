@@ -2647,11 +2647,13 @@ function initBuschLongPress_() {
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("noSelect");
   }
 
   function closePopup() {
     popup.hidden = true;
     document.body.style.overflow = "";
+    document.body.classList.remove("noSelect");
   }
 
   function cancelPress() {
