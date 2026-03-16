@@ -5,6 +5,9 @@ on:
     paths:
       - "img/buschgirls/*"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -26,18 +31,21 @@ jobs:
 
           const files = fs.readdirSync(path)
             .filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
+            .filter(f => f !== "manifest.json")
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
             .map(f => `img/buschgirls/${f}`);
 
           fs.writeFileSync(
             `${path}/manifest.json`,
-            JSON.stringify(files, null, 2)
+            JSON.stringify(files, null, 2) + "\n"
           );
           EOF
 
       - name: Commit manifest
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add img/buschgirls/manifest.json
-          git commit -m "auto update buschgirls manifest" || echo "No changes"
+          git diff --cached --quiet && exit 0
+          git commit -m "auto update buschgirls manifest"
           git push
