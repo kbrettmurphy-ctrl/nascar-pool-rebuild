@@ -350,14 +350,6 @@
   cursor:pointer;
 }
 
-.buschLogoTrigger{
-  display:inline-block;
-  position:relative;
-  width:fit-content;
-  height:fit-content;
-  touch-action:manipulation;
-}
-
 .buschLogoTrigger,
 .buschPopup,
 .buschPopupCard,
