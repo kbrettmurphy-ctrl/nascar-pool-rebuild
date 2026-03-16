@@ -1542,7 +1542,7 @@ refreshActiveView();
     const sel = document.getElementById("globalPlayer");
     const name = sel ? String(sel.value || "").trim() : "";
     if (!name) {
-      out.textContent = "";
+      out.textContent = "I can't show you dues without knowing who you are, you silly goose!";
       return;
     }
 
