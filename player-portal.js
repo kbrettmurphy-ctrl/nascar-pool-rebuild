@@ -2726,6 +2726,7 @@ function initAdminControls_() {
       pressTimer = setTimeout(async () => {
         clearTimeout(pressTimer);
         pressTimer = null;
+        document.body.classList.add("noSelect");
 
         // If already unlocked, open admin tools directly.
         if (getAdminToken_()) {
@@ -2748,6 +2749,7 @@ function initAdminControls_() {
   function cancelPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
+    document.body.classList.remove("noSelect");
   }
 
   if (portal && !portal.dataset.adminBound) {
