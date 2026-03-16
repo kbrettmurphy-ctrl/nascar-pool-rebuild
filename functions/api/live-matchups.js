@@ -249,12 +249,13 @@ export async function onRequestGet(context) {
       let leader = null;
 
       if (p1Avg !== null && p2Avg !== null) {
-
-        leader =
-          p1Avg < p2Avg
-            ? m.p1
-            : m.p2;
-
+        if (p1Avg < p2Avg) {
+          leader = m.p1;
+        } else if (p2Avg < p1Avg) {
+          leader = m.p2;
+        } else {
+          leader = "Tie";
+        }
       }
 
       liveMatchups.push({
