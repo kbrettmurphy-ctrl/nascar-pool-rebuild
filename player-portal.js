@@ -597,12 +597,10 @@ refreshActiveView();
         return;
       }
 
-      const msg = rows.map((row, i) => {
-  const owed = Number(row.remainingToPayout || 0).toFixed(2);
-  const paidOut = Number(row.paidout || 0).toFixed(2);
-  const total = Number(row.owedAmount || 0).toFixed(2);
-  return `${row.name} — Still Owed: $${owed} (Total: $${total}, Paid Out: $${paidOut})`;
-}).join("\n");
+      const msg = rows.map((row) => {
+        const owed = Number(row.remainingToPayout || 0).toFixed(2);
+        return `${row.name} — $${owed}`;
+      }).join("\n");
 
       setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
       alert(`Players you owe:\n\n${msg}`);
