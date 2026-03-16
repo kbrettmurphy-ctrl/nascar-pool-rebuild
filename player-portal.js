@@ -225,7 +225,10 @@ async function loadLiveMatchups(){
           : "";
 
       return `
-        <div class="microBox" style="margin-bottom:10px;">
+        <div class="microBox liveMatchupCard"
+             data-p1="${escapeAttr(String(m.p1 || "").trim().toLowerCase())}"
+             data-p2="${escapeAttr(String(m.p2 || "").trim().toLowerCase())}"
+             style="margin-bottom:10px;">
 
           <div style="font-weight:700;margin-bottom:6px;">
             ${escapeHtml(m.p1)} vs ${escapeHtml(m.p2)}
@@ -251,6 +254,8 @@ async function loadLiveMatchups(){
       `;
 
     }).join("");
+
+    applyYouRowsNow_();
 
   }
   catch(err){
@@ -1095,6 +1100,14 @@ refreshActiveView();
     const you = loadPlayerName().trim().toLowerCase();
 
     document.querySelectorAll("#matchupsArea .matchupCard").forEach(card => {
+      const isYou = !!you && (
+        (card.dataset.p1 || "") === you ||
+        (card.dataset.p2 || "") === you
+      );
+      card.classList.toggle("youRow", isYou);
+    });
+
+    document.querySelectorAll("#liveMatchups .liveMatchupCard").forEach(card => {
       const isYou = !!you && (
         (card.dataset.p1 || "") === you ||
         (card.dataset.p2 || "") === you
