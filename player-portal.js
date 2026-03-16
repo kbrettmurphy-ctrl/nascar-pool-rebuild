@@ -2696,7 +2696,7 @@ function initAdminControls_() {
     }, 150);
   });
 
-  window.onload = () => {
+  window.onload = async () => {
   initAdminControls_();
   loadPlayersThenInit();
   persistHScroll(".navInner", "nascar_nav_scroll");
