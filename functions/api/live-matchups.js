@@ -170,22 +170,16 @@ const driverPositions = {};
 
 for (const v of vehicles) {
 
-  const name =
-    v?.driver_name ||
-    v?.driver_fullname ||
-    v?.name ||
-    "";
+  const name = v?.driver?.full_name || "";
 
-  const position =
-    Number(v?.running_position) ||
-    Number(v?.position) ||
-    Number(v?.pos);
+  const position = Number(v?.running_position);
 
   if (!name || !Number.isFinite(position)) continue;
 
   driverPositions[normalizeName(name)] = {
     name: name.trim(),
-    position
+    position,
+    car: v?.vehicle_number ?? null
   };
 
 }
