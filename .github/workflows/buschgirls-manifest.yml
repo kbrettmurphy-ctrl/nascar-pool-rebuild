@@ -10,30 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Generate manifest
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build manifest
         run: |
-          node <<EOF
+          node <<'EOF'
           const fs = require("fs");
-          const path = require("path");
+          const path = "img/buschgirls";
 
-          const dir = "img/buschgirls";
-          const files = fs.readdirSync(dir)
+          const files = fs.readdirSync(path)
             .filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
-            .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
             .map(f => `img/buschgirls/${f}`);
 
           fs.writeFileSync(
-            `${dir}/manifest.json`,
-            JSON.stringify(files,null,2)
+            `${path}/manifest.json`,
+            JSON.stringify(files, null, 2)
           );
           EOF
 
       - name: Commit manifest
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
           git add img/buschgirls/manifest.json
-          git commit -m "auto update buschgirls manifest" || exit 0
+          git commit -m "auto update buschgirls manifest" || echo "No changes"
           git push
