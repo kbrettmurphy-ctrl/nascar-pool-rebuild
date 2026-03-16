@@ -204,14 +204,28 @@ async function loadLiveMatchups(){
     info.innerHTML =
       `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`;
 
-    const matchups = Array.isArray(data.matchups) ? data.matchups : [];
+    const savedPlayer = loadPlayerName().trim().toLowerCase();
+
+    const matchups = Array.isArray(data.matchups) ? [...data.matchups] : [];
+
+    if (savedPlayer) {
+      const idx = matchups.findIndex(m =>
+        String(m.p1 || "").trim().toLowerCase() === savedPlayer ||
+        String(m.p2 || "").trim().toLowerCase() === savedPlayer
+      );
+
+      if (idx > 0) {
+        const mine = matchups.splice(idx, 1)[0];
+        matchups.unshift(mine);
+      }
+    }
 
     box.innerHTML = matchups.map(m => {
 
       function driverLine(d){
         if(!d) return "";
-        if(d.position == null) return `${d.name}`;
-        return `${d.name} <span class="microMeta">P${d.position}</span>`;
+        if(d.position == null) return `${escapeHtml(d.name || "")}`;
+        return `${escapeHtml(d.name || "")} <span class="microMeta">P${d.position}</span>`;
       }
 
       const p1Drivers = (m.p1Drivers || []).length
@@ -222,12 +236,10 @@ async function loadLiveMatchups(){
         ? (m.p2Drivers || []).map(driverLine).join("<br>")
         : `<span class="microMeta">No drivers assigned yet</span>`;
 
-     const leader =
-       m.leader
-        ? `<div class="microMeta" style="margin-top:6px;font-weight:700;">
-             ${m.leader === "Tie" ? "Leader: Tie" : `Leader: ${escapeHtml(m.leader)}`}
-           </div>`
-        : `<div class="microMeta" style="margin-top:6px;font-weight:700;">Leader: -</div>`;
+      const leaderLine =
+        m.leader
+          ? `${m.leader === "Tie" ? "Leader: Tie" : `Leader: ${escapeHtml(m.leader)}`}`
+          : `Leader: -`;
 
       return `
         <div class="microBox liveMatchupCard"
@@ -260,7 +272,7 @@ async function loadLiveMatchups(){
           </div>
 
           <div class="microMeta" style="margin-top:8px;font-weight:700;">
-            Leader: ${m.leader ? escapeHtml(m.leader) : "-"}
+            ${leaderLine}
           </div>
         </div>
       `;
