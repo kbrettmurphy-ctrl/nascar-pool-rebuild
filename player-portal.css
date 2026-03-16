@@ -1092,6 +1092,20 @@
   touch-action:manipulation;
 }
 
+.buschLogoWrap{
+  position: relative;
+  display: inline-block;
+  pointer-events: none;
+}
+
+.buschLogoTrigger{
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: transparent;
+  pointer-events: auto;
+}
+
   *::-webkit-scrollbar{ height:10px; width:10px; }
   *::-webkit-scrollbar-track{
     background: var(--white06);
