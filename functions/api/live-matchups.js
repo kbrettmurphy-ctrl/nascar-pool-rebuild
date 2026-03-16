@@ -206,31 +206,29 @@ export async function onRequestGet(context) {
     */
 
     const liveMatchups = [];
-
+    
     for (const m of matchups) {
-
-      const p1Drivers = (m.p1Drivers || []).map(d => {
-
-        const key = normalizeName(d);
-        const pos = driverPositions[key]?.position ?? null;
-
-        return {
-          name: d,
-          position: pos
-        };
-
+      
+      const p1Drivers = (m.p1Drivers || [])
+        .filter(d => d && d.trim() !== "")
+        .map(d => {
+          const key = normalizeName(d);
+          const pos = driverPositions[key]?.position ?? null;
+          return {
+            name: d,
+            position: pos
+          };
       });
 
-      const p2Drivers = (m.p2Drivers || []).map(d => {
-
-        const key = normalizeName(d);
-        const pos = driverPositions[key]?.position ?? null;
-
-        return {
-          name: d,
-          position: pos
-        };
-
+      const p2Drivers = (m.p2Drivers || [])
+        .filter(d => d && d.trim() !== "")
+        .map(d => {
+          const key = normalizeName(d);
+          const pos = driverPositions[key]?.position ?? null;
+          return {
+            name: d,
+            position: pos
+          };
       });
 
       function avg(list) {
