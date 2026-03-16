@@ -2505,7 +2505,31 @@ function initBuschLongPress_() {
     "img/buschgirls/6794.jpeg",
     "img/buschgirls/6795.jpeg",
     "img/buschgirls/6796.jpeg",
-    "img/buschgirls/6797.jpeg"
+    "img/buschgirls/6797.jpeg",
+    "img/buschgirls/IMG_6820.jpeg",
+    "img/buschgirls/IMG_6821.jpeg",
+    "img/buschgirls/IMG_6822.jpeg",
+    "img/buschgirls/IMG_6823.jpeg",
+    "img/buschgirls/IMG_6824.jpeg",
+    "img/buschgirls/IMG_6825.jpeg",
+    "img/buschgirls/IMG_6826.jpeg",
+    "img/buschgirls/IMG_6827.jpeg",
+    "img/buschgirls/IMG_6828.jpeg",
+    "img/buschgirls/IMG_6829.jpeg",
+    "img/buschgirls/IMG_6830.jpeg",
+    "img/buschgirls/IMG_6831.jpeg",
+    "img/buschgirls/IMG_6832.jpeg",
+    "img/buschgirls/IMG_6833.jpeg",
+    "img/buschgirls/IMG_6834.jpeg",
+    "img/buschgirls/IMG_6835.jpeg",
+    "img/buschgirls/IMG_6843.jpeg",
+    "img/buschgirls/IMG_6844.jpeg",
+    "img/buschgirls/IMG_6845.jpeg",
+    "img/buschgirls/IMG_6847.jpeg",
+    "img/buschgirls/IMG_6848.jpeg",
+    "img/buschgirls/IMG_6849.jpeg",
+    "img/buschgirls/IMG_6850.jpeg",
+    "img/buschgirls/IMG_6851.jpeg"
   ];
 
   function getRandomBuschGirl(){
