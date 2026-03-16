@@ -1556,7 +1556,7 @@ refreshActiveView();
 
       const paid = Number(data.paid ?? 0);
       const winnings = Number(data.winnings ?? 0);
-      const balance = Math.max(0, dues.balance);
+      const balance = Math.max(0, Number(data.balance ?? 0));
 
       const paidLine =
         paid === 180
