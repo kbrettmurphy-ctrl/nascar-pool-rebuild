@@ -1993,30 +1993,47 @@ refreshActiveView();
     resetStatPillScrollSoon(box);
   }
 
-  function renderTourney_(box){
-    const data = _cache_standings || {};
-    const headers = Array.isArray(data.tournamentHeaders) ? data.tournamentHeaders : [];
-    if (!headers.length){
-      box.innerHTML = `<div class="muted">(No tournament rank data yet)</div>`;
-      resetStatPillScrollSoon(box);
-      return;
-    }
+  async function renderTourney_(box){
+  const data = _cache_standings || {};
+  const headers = Array.isArray(data.tournamentHeaders) ? data.tournamentHeaders : [];
 
-    const opts = headers.map(h => `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
-    box.innerHTML = `
-      <div class="big">Tournament Ranks</div>
-      <div class="muted">Pick a damn tournament (if you care)</div>
-      <div class="statsControls">
-        <select id="tourneyPick">${opts}</select>
-      </div>
-      <div id="tourneyRanksBox" style="margin-top:10px;"></div>
-    `;
-
-    const sel = document.getElementById("tourneyPick");
-    const render = () => showTournamentRanks(sel.value);
-    sel.onchange = render;
-    render();
+  if (!headers.length){
+    box.innerHTML = `<div class="muted">(No tournament rank data yet)</div>`;
+    resetStatPillScrollSoon(box);
+    return;
   }
+
+  const opts = headers.map(h => `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
+  box.innerHTML = `
+    <div class="big">Tournament Ranks</div>
+    <div class="muted">Pick a damn tournament (if you care)</div>
+    <div class="statsControls">
+      <select id="tourneyPick">${opts}</select>
+    </div>
+    <div id="tourneyRanksBox" style="margin-top:10px;"></div>
+  `;
+
+  const sel = document.getElementById("tourneyPick");
+
+  let defaultLabel = headers[0] || "";
+
+  try {
+    const raceDataBlob = await getPlayerRaceData_();
+    const currentTournamentNumber = Number(raceDataBlob?.matchups?.current?.tournament || 0);
+    const currentLabel = currentTournamentNumber ? `Tournament ${currentTournamentNumber}` : "";
+    if (currentLabel && headers.includes(currentLabel)) {
+      defaultLabel = currentLabel;
+    }
+  } catch (e) {
+    console.log("Could not determine current tournament for stats dropdown:", e);
+  }
+
+  sel.value = defaultLabel;
+
+  const render = () => showTournamentRanks(sel.value);
+  sel.onchange = render;
+  render();
+}
 
   function showTournamentRanks(label) {
     const box = document.getElementById("tourneyRanksBox");
