@@ -1,5 +1,5 @@
-
 export async function onRequestGet(context) {
+
   try {
 
     const { env } = context;
@@ -10,6 +10,7 @@ export async function onRequestGet(context) {
     };
 
     async function getJson(path) {
+
       const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
 
       const text = await res.text();
@@ -26,11 +27,12 @@ export async function onRequestGet(context) {
       }
 
       return data;
+
     }
 
     /*
     STEP 1
-    Find the first race with no results yet
+    Find current race (first race without results)
     */
 
     const races = await getJson(
@@ -57,7 +59,7 @@ export async function onRequestGet(context) {
 
     /*
     STEP 2
-    Pull NASCAR season race list
+    Pull NASCAR race list
     */
 
     const raceListUrl =
@@ -80,20 +82,23 @@ export async function onRequestGet(context) {
 
     /*
     STEP 3
-    Sort races chronologically
+    Sort chronologically
     */
 
     const sorted = cupRaces
       .slice()
       .sort((a, b) => {
+
         const da = Date.parse(a?.race_date || "") || 0;
         const db = Date.parse(b?.race_date || "") || 0;
+
         return da - db;
+
       });
 
     /*
     STEP 4
-    Remove non-points races
+    Remove exhibition races
     */
 
     const pointsRaces = sorted.filter(r => {
@@ -127,7 +132,7 @@ export async function onRequestGet(context) {
 
     /*
     STEP 6
-    Probe NASCAR live feed
+    Pull live NASCAR feed
     */
 
     const liveUrl =
@@ -141,75 +146,159 @@ export async function onRequestGet(context) {
       }
     });
 
-    const liveText = await liveResp.text();
+    const liveJson = await liveResp.json();
 
-    let liveJson;
+    /*
+    STEP 7
+    Extract running order
+    */
 
-    try {
-      liveJson = JSON.parse(liveText);
-    } catch {
-      liveJson = liveText;
+    const vehicles =
+      Array.isArray(liveJson?.vehicles)
+        ? liveJson.vehicles
+        : [];
+
+    const driverPositions = {};
+
+    for (const v of vehicles) {
+
+      const name = v?.driver?.full_name || "";
+      const position = Number(v?.running_position);
+
+      if (!name || !Number.isFinite(position)) continue;
+
+      driverPositions[normalizeName(name)] = {
+        name: name.trim(),
+        position,
+        car: v?.vehicle_number ?? null
+      };
+
     }
 
     /*
-    DEBUG RESPONSE
+    STEP 8
+    Pull matchup data from your existing API
     */
 
+    const origin = new URL(context.request.url).origin;
+
+    const raceDataResp =
+      await fetch(`${origin}/api/player-race-data`);
+
+    const raceData = await raceDataResp.json();
+
+    const current = raceData?.matchups?.current;
+
+    const raceKey =
+      `${current.tournament}||${current.race}`;
+
+    const raceBlob =
+      raceData?.matchups?.races?.[raceKey];
+
+    const matchups =
+      Array.isArray(raceBlob?.matchups)
+        ? raceBlob.matchups
+        : [];
+
     /*
-STEP 7
-Extract running order
-*/
+    STEP 9
+    Calculate live matchup averages
+    */
 
-const vehicles =
-  Array.isArray(liveJson?.vehicles)
-    ? liveJson.vehicles
-    : [];
-const vehicleSample = vehicles.length ? vehicles[0] : null;
+    const liveMatchups = [];
 
-const driverPositions = {};
+    for (const m of matchups) {
 
-for (const v of vehicles) {
+      const p1Drivers = (m.p1Drivers || []).map(d => {
 
-  const name = v?.driver?.full_name || "";
+        const key = normalizeName(d);
+        const pos = driverPositions[key]?.position ?? null;
 
-  const position = Number(v?.running_position);
+        return {
+          name: d,
+          position: pos
+        };
 
-  if (!name || !Number.isFinite(position)) continue;
+      });
 
-  driverPositions[normalizeName(name)] = {
-    name: name.trim(),
-    position,
-    car: v?.vehicle_number ?? null
-  };
+      const p2Drivers = (m.p2Drivers || []).map(d => {
 
-}
+        const key = normalizeName(d);
+        const pos = driverPositions[key]?.position ?? null;
 
-/*
-RETURN CLEAN PAYLOAD
-*/
+        return {
+          name: d,
+          position: pos
+        };
 
-return json({
+      });
 
-  ok: true,
+      function avg(list) {
 
-  race: {
-    dbRaceNumber: currentRace.race_number,
-    dbRaceName: currentRace.race_name,
-    nascarRaceId
-  },
+        const nums =
+          list.map(x => x.position)
+          .filter(x => Number.isFinite(x));
 
-  liveRace: {
-    lap: liveJson?.lap_number ?? null,
-    lapsToGo: liveJson?.laps_to_go ?? null,
-    flag: liveJson?.flag_state ?? null
-  },
+        if (nums.length !== list.length) return null;
 
-  driverCount: Object.keys(driverPositions).length,
+        return nums.reduce((a,b)=>a+b,0) / nums.length;
 
-  drivers: driverPositions
+      }
 
-});
-  } catch (err) {
+      const p1Avg = avg(p1Drivers);
+      const p2Avg = avg(p2Drivers);
+
+      let leader = null;
+
+      if (p1Avg !== null && p2Avg !== null) {
+
+        leader =
+          p1Avg < p2Avg
+            ? m.p1
+            : m.p2;
+
+      }
+
+      liveMatchups.push({
+
+        p1: m.p1,
+        p1Drivers,
+        p1Avg,
+
+        p2: m.p2,
+        p2Drivers,
+        p2Avg,
+
+        leader
+
+      });
+
+    }
+
+    /*
+    FINAL RESPONSE
+    */
+
+    return json({
+
+      ok: true,
+
+      race: {
+        name: currentRace.race_name,
+        lap: liveJson?.lap_number ?? null,
+        lapsToGo: liveJson?.laps_to_go ?? null,
+        flag: liveJson?.flag_state ?? null
+      },
+
+      updated: new Date().toISOString(),
+
+      matchups: liveMatchups
+
+    });
+
+  }
+
+  catch (err) {
 
     return json({
       ok: false,
@@ -217,6 +306,7 @@ return json({
     }, 500);
 
   }
+
 }
 
 function json(data, status = 200) {
