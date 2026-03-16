@@ -2614,10 +2614,18 @@ async function loadBuschGirls() {
   }
 }
 
+let lastBuschGirl = null;
+
 function getRandomBuschGirl() {
-  if (!buschGirls.length) return "";
-  const i = Math.floor(Math.random() * buschGirls.length);
-  return buschGirls[i];
+  if (!buschGirls.length) return null;
+
+  let img;
+  do {
+    img = buschGirls[Math.floor(Math.random() * buschGirls.length)];
+  } while (buschGirls.length > 1 && img === lastBuschGirl);
+
+  lastBuschGirl = img;
+  return img;
 }
 
 function initBuschLongPress_() {
