@@ -179,6 +179,88 @@
   }
 
   /* ==========================================================
+   Live matchups
+   ========================================================== */
+
+async function loadLiveMatchups(){
+
+  const info = document.getElementById("liveRaceInfo");
+  const box  = document.getElementById("liveMatchups");
+
+  if(!info || !box) return;
+
+  try{
+
+    const res = await fetch("/api/live-matchups", { cache: "no-store" });
+    const data = await res.json();
+
+    if(!res.ok || !data?.ok){
+      box.textContent = "Live data unavailable.";
+      return;
+    }
+
+    const race = data.race || {};
+
+    info.innerHTML =
+      `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`;
+
+    const matchups = Array.isArray(data.matchups) ? data.matchups : [];
+
+    box.innerHTML = matchups.map(m => {
+
+      function driverLine(d){
+        if(!d) return "";
+        if(d.position == null) return `${d.name}`;
+        return `${d.name} <span class="microMeta">P${d.position}</span>`;
+      }
+
+      const p1Drivers = (m.p1Drivers || []).map(driverLine).join("<br>");
+      const p2Drivers = (m.p2Drivers || []).map(driverLine).join("<br>");
+
+      const leader =
+        m.leader
+          ? `<div class="microMeta" style="margin-top:6px;font-weight:700;">
+               Leader: ${escapeHtml(m.leader)}
+             </div>`
+          : "";
+
+      return `
+        <div class="microBox" style="margin-bottom:10px;">
+
+          <div style="font-weight:700;margin-bottom:6px;">
+            ${escapeHtml(m.p1)} vs ${escapeHtml(m.p2)}
+          </div>
+
+          <div style="display:flex;gap:20px;">
+
+            <div style="flex:1;">
+              <div>${p1Drivers}</div>
+              <div class="microMeta">Avg: ${m.p1Avg ?? "-"}</div>
+            </div>
+
+            <div style="flex:1;">
+              <div>${p2Drivers}</div>
+              <div class="microMeta">Avg: ${m.p2Avg ?? "-"}</div>
+            </div>
+
+          </div>
+
+          ${leader}
+
+        </div>
+      `;
+
+    }).join("");
+
+  }
+  catch(err){
+    box.textContent = "Live scoring unavailable.";
+    console.log("Live matchups failed:", err);
+  }
+
+}
+
+  /* ==========================================================
    Admin auth + transport helpers
    ========================================================== */
 
@@ -2697,9 +2779,13 @@ function initAdminControls_() {
   });
 
   window.onload = async () => {
-  initAdminControls_();
-  loadPlayersThenInit();
-  persistHScroll(".navInner", "nascar_nav_scroll");
-  await loadBuschGirls();
-  initBuschLongPress_();
-};
+    initAdminControls_();
+    loadPlayersThenInit();
+    persistHScroll(".navInner", "nascar_nav_scroll");
+    await loadBuschGirls();
+    initBuschLongPress_();
+
+    // start live matchup polling
+    loadLiveMatchups();
+    setInterval(loadLiveMatchups, 45000);
+  };
