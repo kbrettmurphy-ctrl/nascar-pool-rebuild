@@ -233,31 +233,37 @@ async function loadLiveMatchups(){
         <div class="microBox liveMatchupCard"
              data-p1="${escapeAttr(String(m.p1 || "").trim().toLowerCase())}"
              data-p2="${escapeAttr(String(m.p2 || "").trim().toLowerCase())}"
-             style="margin-bottom:6px;">
+             style="margin-bottom:10px;">
 
-          <div style="font-weight:700;margin-bottom:6px;">
-            ${escapeHtml(m.p1)} vs ${escapeHtml(m.p2)}
-          </div>
-
-          <div style="display:flex;gap:20px;">
-
-            <div style="flex:1;">
-              <div>${p1Drivers}</div>
-              <div class="microMeta">Avg: ${m.p1Avg ?? "-"}</div>
+          <div class="matchupRow liveMatchupRow">
+            <div class="side left">
+              <div class="pName">
+                <span class="nameWrap">
+                  <span class="nameText">${escapeHtml(m.p1 || "")}</span>
+                </span>
+              </div>
+              <div class="pMeta">${p1Drivers}</div>
+              <div class="pMeta"><strong>Avg:</strong> ${m.p1Avg ?? "-"}</div>
             </div>
 
-            <div style="flex:1;">
-              <div>${p2Drivers}</div>
-              <div class="microMeta">Avg: ${m.p2Avg ?? "-"}</div>
-            </div>
+            <div class="vsBadge">VS</div>
 
+            <div class="side right">
+              <div class="pName">
+                <span class="nameWrap">
+                  <span class="nameText">${escapeHtml(m.p2 || "")}</span>
+                </span>
+              </div>
+              <div class="pMeta">${p2Drivers}</div>
+              <div class="pMeta"><strong>Avg:</strong> ${m.p2Avg ?? "-"}</div>
+            </div>
           </div>
 
-          ${leader}
-
+          <div class="microMeta" style="margin-top:8px;font-weight:700;">
+            Leader: ${m.leader ? escapeHtml(m.leader) : "-"}
+          </div>
         </div>
       `;
-
     }).join("");
 
     applyYouRowsNow_();
