@@ -376,6 +376,12 @@
   -webkit-touch-callout: none;
 }
 
+.noSelect,
+.noSelect *{
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  -webkit-touch-callout:none !important;
+}
   /* ==========================================================
      Current race / matchup view
      ========================================================== */
