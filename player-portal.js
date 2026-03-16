@@ -214,15 +214,20 @@ async function loadLiveMatchups(){
         return `${d.name} <span class="microMeta">P${d.position}</span>`;
       }
 
-      const p1Drivers = (m.p1Drivers || []).map(driverLine).join("<br>");
-      const p2Drivers = (m.p2Drivers || []).map(driverLine).join("<br>");
+      const p1Drivers = (m.p1Drivers || []).length
+        ? (m.p1Drivers || []).map(driverLine).join("<br>")
+        : `<span class="microMeta">No drivers assigned yet</span>`;
 
-      const leader =
-        m.leader
-          ? `<div class="microMeta" style="margin-top:6px;font-weight:700;">
-               Leader: ${escapeHtml(m.leader)}
-             </div>`
-          : "";
+      const p2Drivers = (m.p2Drivers || []).length
+        ? (m.p2Drivers || []).map(driverLine).join("<br>")
+        : `<span class="microMeta">No drivers assigned yet</span>`;
+
+     const leader =
+       m.leader
+        ? `<div class="microMeta" style="margin-top:6px;font-weight:700;">
+             ${m.leader === "Tie" ? "Leader: Tie" : `Leader: ${escapeHtml(m.leader)}`}
+           </div>`
+        : `<div class="microMeta" style="margin-top:6px;font-weight:700;">Leader: -</div>`;
 
       return `
         <div class="microBox liveMatchupCard"
