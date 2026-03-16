@@ -15,7 +15,7 @@
   };
 
   const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
-  const views = ["current","mymatchup","standings","dues","bracket"];
+  const views = ["current","live","mymatchup","standings","dues","bracket"];
 
   let activeView = "current";
   let ALL_MATCHUPS = null;
@@ -786,6 +786,7 @@ refreshActiveView();
   function setActiveNav(which){
     const map = {
       current: "nav-race",
+      live: "nav-live",
       mymatchup: "nav-me",
       standings: "nav-stats",
       dues: "nav-dues",
@@ -856,6 +857,10 @@ refreshActiveView();
       _bracketLoaded = true;
       loadBracket();
     }
+
+    if (which === "live") {
+      loadLiveMatchups();
+    }
   }
 
   function refreshActiveView() {
@@ -882,6 +887,8 @@ refreshActiveView();
     } else if (activeView === "bracket") {
       _bracketLoaded = true;
       loadBracket();
+    } else if (activeView === "live") {
+      loadLiveMatchups();
     }
   }
 
