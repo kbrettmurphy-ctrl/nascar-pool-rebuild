@@ -42,32 +42,39 @@
     </div>
   </div>
 
-  <div id="view-current" class="card" style="display:none;">
-    <div class="raceHeaderRow">
-      <div id="currentHeader">Current Race</div>
-      <select id="raceSelect" style="width:auto;"></select>
-    </div>
-    <div class="muted" id="currentSub"></div>
-    <div id="matchupsArea" style="margin-top:10px;"></div>
+ <div id="view-current" class="card" style="display:none;">
+  <div class="raceHeaderRow">
+    <div id="currentHeader">Current Race</div>
+    <select id="raceSelect" style="width:auto;"></select>
   </div>
+  <div class="muted" id="currentSub"></div>
+  <div id="matchupsArea" style="margin-top:10px;"></div>
+</div>
 
-  <div id="view-mymatchup" class="card" style="display:none;">
-    <div class="big">My Matchup</div>
-    <div class="muted">Who you can talk shit to this week.</div>
-    <div id="mmStatus" class="mmWrap"></div>
-    <br><br>
-    <div class="big">Dues</div>
-    <div class="muted">Here's how much you owe me.</div>
-    <div id="duesStatus" class="mmWrap"></div>
-  </div>
+<div id="view-mymatchup" class="card" style="display:none;">
+  <div class="big">My Matchup</div>
+  <div class="muted">Who you can talk shit to this week.</div>
+  <div id="mmStatus" class="mmWrap"></div>
+  <br><br>
+  <div class="big">Dues</div>
+  <div class="muted">Here's how much you owe me.</div>
+  <div id="duesStatus" class="mmWrap"></div>
+</div>
 
-  <div id="view-standings" class="card" style="display:none;">
-    <div class="big">Stats</div>
-    <div class="muted">Who sucks and who doesn't</div>
-    <div id="standingsArea" class="status">I'm slow...</div>
-  </div>
+<div id="view-live" class="card" style="display:none;">
+  <div class="big">Live</div>
+  <div class="muted">Running positions and live matchup averages.</div>
+  <div id="liveRaceInfo" class="muted" style="margin-top:8px;margin-bottom:10px;"></div>
+  <div id="liveMatchups"></div>
+</div>
 
-  <div id="view-bracket" class="card" style="display:none;">
+<div id="view-standings" class="card" style="display:none;">
+  <div class="big">Stats</div>
+  <div class="muted">Who sucks and who doesn't</div>
+  <div id="standingsArea" class="status">I'm slow...</div>
+</div>
+
+<div id="view-bracket" class="card" style="display:none;">
   <div class="raceHeaderRow">
     <div class="big">Bracket</div>
     <div id="bracketHeaderSelect"></div>
@@ -80,12 +87,6 @@
     <div class="bracketFade right"></div>
     <div id="bracketArea">I'm slow...</div>
   </div>
-
-  <div class="card">
-    <h2>Live</h2>
-    <div id="liveRaceInfo" class="microMeta" style="margin-bottom:10px;"></div>
-    <div id="liveMatchups"></div>
-  </div>
 </div>
 
   <div class="sponsor-container">
@@ -96,21 +97,24 @@
   <div id="buschLogoTrigger" class="buschLogoTrigger" aria-hidden="true"></div>
 
   <div class="bottomNav">
-    <div class="navInner">
-      <button class="navBtn" id="nav-race" onclick="showView('current')">
-        <div class="ico">🏁</div><div>Race</div>
-      </button>
-      <button class="navBtn" id="nav-bracket" onclick="showView('bracket')">
-        <div class="ico">🏆</div><div>Bracket</div>
-      </button>
-      <button class="navBtn" id="nav-me" onclick="showView('mymatchup')">
-        <div class="ico">🧍</div><div>Me</div>
-      </button>
-      <button class="navBtn" id="nav-stats" onclick="showView('standings')">
-        <div class="ico">📊</div><div>Stats</div>
-      </button>
-    </div>
+  <div class="navInner">
+    <button class="navBtn" id="nav-race" onclick="showView('current')">
+      <div class="ico">🏁</div><div>Race</div>
+    </button>
+    <button class="navBtn" id="nav-live" onclick="showView('live')">
+      <div class="ico">📡</div><div>Live</div>
+    </button>
+    <button class="navBtn" id="nav-bracket" onclick="showView('bracket')">
+      <div class="ico">🏆</div><div>Bracket</div>
+    </button>
+    <button class="navBtn" id="nav-me" onclick="showView('mymatchup')">
+      <div class="ico">🧍</div><div>Me</div>
+    </button>
+    <button class="navBtn" id="nav-stats" onclick="showView('standings')">
+      <div class="ico">📊</div><div>Stats</div>
+    </button>
   </div>
+</div>
 
   <div id="adminPinBackdrop" class="adminBackdrop" hidden>
     <div class="adminPinModal">
