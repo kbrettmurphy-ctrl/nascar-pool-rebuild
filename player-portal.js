@@ -2079,8 +2079,12 @@ refreshActiveView();
     const you = loadPlayerName().trim().toLowerCase();
 
     const tournamentComplete =
-      items.length === 16 &&
-      items.every(x => Number.isFinite(x.rank));
+  items.length === 16 &&
+  items.every((x) => {
+    const W = Number(x["W"] ?? x["w"] ?? 0);
+    const L = Number(x["L"] ?? x["l"] ?? 0);
+    return (W + L) >= 4;
+  });
 
     html += `<div class="rankList">`;
 
