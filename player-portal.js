@@ -2486,56 +2486,33 @@ refreshActiveView();
   }
 }
 
+let buschGirls = [];
+
+async function loadBuschGirls() {
+  try {
+    const res = await fetch("/img/buschgirls/manifest.json", { cache: "no-store" });
+    const data = await res.json();
+
+    if (Array.isArray(data)) {
+      buschGirls = data;
+    }
+  } catch (err) {
+    console.error("Failed to load Busch girls manifest", err);
+  }
+}
+
+function getRandomBuschGirl() {
+  if (!buschGirls.length) return "";
+  const i = Math.floor(Math.random() * buschGirls.length);
+  return buschGirls[i];
+}
+
 function initBuschLongPress_() {
   const logo = document.getElementById("buschLogoTrigger");
   const popup = document.getElementById("buschPopup");
   const closeBtn = document.getElementById("buschPopupClose");
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
   const popupImg = document.querySelector(".buschPopupImg");
-  const buschGirls = [
-    "img/buschgirls/6785.jpeg",
-    "img/buschgirls/6786.jpeg",
-    "img/buschgirls/6787.jpeg",
-    "img/buschgirls/6788.jpeg",
-    "img/buschgirls/6789.jpeg",
-    "img/buschgirls/6790.jpeg",
-    "img/buschgirls/6791.jpeg",
-    "img/buschgirls/6792.jpeg",
-    "img/buschgirls/6793.jpeg",
-    "img/buschgirls/6794.jpeg",
-    "img/buschgirls/6795.jpeg",
-    "img/buschgirls/6796.jpeg",
-    "img/buschgirls/6797.jpeg",
-    "img/buschgirls/IMG_6820.jpeg",
-    "img/buschgirls/IMG_6821.jpeg",
-    "img/buschgirls/IMG_6822.jpeg",
-    "img/buschgirls/IMG_6823.jpeg",
-    "img/buschgirls/IMG_6824.jpeg",
-    "img/buschgirls/IMG_6825.jpeg",
-    "img/buschgirls/IMG_6826.jpeg",
-    "img/buschgirls/IMG_6827.jpeg",
-    "img/buschgirls/IMG_6828.jpeg",
-    "img/buschgirls/IMG_6829.jpeg",
-    "img/buschgirls/IMG_6830.jpeg",
-    "img/buschgirls/IMG_6831.jpeg",
-    "img/buschgirls/IMG_6832.jpeg",
-    "img/buschgirls/IMG_6833.jpeg",
-    "img/buschgirls/IMG_6834.jpeg",
-    "img/buschgirls/IMG_6835.jpeg",
-    "img/buschgirls/IMG_6843.jpeg",
-    "img/buschgirls/IMG_6844.jpeg",
-    "img/buschgirls/IMG_6845.jpeg",
-    "img/buschgirls/IMG_6847.jpeg",
-    "img/buschgirls/IMG_6848.jpeg",
-    "img/buschgirls/IMG_6849.jpeg",
-    "img/buschgirls/IMG_6850.jpeg",
-    "img/buschgirls/IMG_6851.jpeg"
-  ];
-
-  function getRandomBuschGirl(){
-    const i = Math.floor(Math.random() * buschGirls.length);
-    return buschGirls[i];
-  }
 
   popupImg?.addEventListener("contextmenu", (e) => {
     e.preventDefault();
@@ -2547,9 +2524,12 @@ function initBuschLongPress_() {
   let longPressTriggered = false;
 
   function openPopup() {
-    if (popupImg) {
-      popupImg.src = getRandomBuschGirl();
+    const nextImg = getRandomBuschGirl();
+
+    if (popupImg && nextImg) {
+      popupImg.src = nextImg;
     }
+
     popup.hidden = false;
     document.body.style.overflow = "hidden";
   }
@@ -2720,5 +2700,6 @@ function initAdminControls_() {
   initAdminControls_();
   loadPlayersThenInit();
   persistHScroll(".navInner", "nascar_nav_scroll");
+  await loadBuschGirls();
   initBuschLongPress_();
 };
