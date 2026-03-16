@@ -233,7 +233,7 @@ async function loadLiveMatchups(){
         <div class="microBox liveMatchupCard"
              data-p1="${escapeAttr(String(m.p1 || "").trim().toLowerCase())}"
              data-p2="${escapeAttr(String(m.p2 || "").trim().toLowerCase())}"
-             style="margin-bottom:10px;">
+             style="margin-bottom:6px;">
 
           <div style="font-weight:700;margin-bottom:6px;">
             ${escapeHtml(m.p1)} vs ${escapeHtml(m.p2)}
