@@ -121,7 +121,7 @@ export async function onRequestPost(context) {
     });
 
     if (!weekendResp.ok) {
-      return json({ ok: false, error: `Weekend feed fetch failed` }, 502);
+      return json({ ok: false, error: "Weekend feed fetch failed" }, 502);
     }
 
     const weekendJson = await weekendResp.json();
@@ -176,6 +176,9 @@ export async function onRequestPost(context) {
     );
 
     const drivers = await driversRes.json();
+    if (!driversRes.ok || !Array.isArray(drivers)) {
+      return json({ ok: false, error: "Failed to load drivers" }, 500);
+    }
 
     const driverMap = new Map(
       drivers.map((d) => [normalizeName(d.name), { id: d.id, name: d.name }])
@@ -194,8 +197,15 @@ export async function onRequestPost(context) {
       });
     }
 
+    if (!inserts.length) {
+      return json({
+        ok: false,
+        error: "No race results matched known drivers",
+      }, 500);
+    }
+
     // 8) Clear old race results
-    await fetch(
+    const deleteRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/race_results?race_id=eq.${raceId}`,
       {
         method: "DELETE",
@@ -206,8 +216,17 @@ export async function onRequestPost(context) {
       }
     );
 
+    if (!deleteRes.ok) {
+      const deleteText = await deleteRes.text();
+      return json({
+        ok: false,
+        error: "Failed to clear old race results",
+        details: deleteText,
+      }, 500);
+    }
+
     // 9) Insert new rows
-    await fetch(`${env.SUPABASE_URL}/rest/v1/race_results`, {
+    const insertRes = await fetch(`${env.SUPABASE_URL}/rest/v1/race_results`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -217,74 +236,107 @@ export async function onRequestPost(context) {
       body: JSON.stringify(inserts),
     });
 
-    // 10) Update Swiss results
-const swissUpdateRes = await fetch(
-  `${env.SUPABASE_URL}/rest/v1/rpc/update_swiss_matchup_results`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      p_tournament_id: tournamentId
-    })
-  }
-);
-
-const swissUpdateRaw = await swissUpdateRes.text();
-
-let swissUpdateParsed = null;
-try {
-  swissUpdateParsed = swissUpdateRaw ? JSON.parse(swissUpdateRaw) : null;
-} catch {
-  swissUpdateParsed = swissUpdateRaw;
-}
-
-if (!swissUpdateRes.ok) {
-  return json({
-    ok: false,
-    error: "update_swiss_matchup_results failed",
-    status: swissUpdateRes.status,
-    statusText: swissUpdateRes.statusText,
-    details: swissUpdateParsed
-  }, 500);
-}
-
-   // 11) Generate NEXT Swiss round after current round completes
-const nextRoundNumber = roundNumber + 1;
-
-if (nextRoundNumber <= 4) {
-  await fetch(
-    `${env.SUPABASE_URL}/rest/v1/rpc/generate_swiss_round_pairings`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: env.SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      },
-      body: JSON.stringify({
-        p_tournament_id: tournamentId,
-        p_round_number: nextRoundNumber
-      })
+    if (!insertRes.ok) {
+      const insertText = await insertRes.text();
+      return json({
+        ok: false,
+        error: "Failed to insert race results",
+        details: insertText,
+      }, 500);
     }
-  );
-}
+
+    // 10) Update Swiss results
+    const swissUpdateRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/rpc/update_swiss_matchup_results`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          p_tournament_id: tournamentId,
+        }),
+      }
+    );
+
+    const swissUpdateRaw = await swissUpdateRes.text();
+
+    let swissUpdateParsed = null;
+    try {
+      swissUpdateParsed = swissUpdateRaw ? JSON.parse(swissUpdateRaw) : null;
+    } catch {
+      swissUpdateParsed = swissUpdateRaw;
+    }
+
+    if (!swissUpdateRes.ok) {
+      return json({
+        ok: false,
+        error: "update_swiss_matchup_results failed",
+        status: swissUpdateRes.status,
+        statusText: swissUpdateRes.statusText,
+        details: swissUpdateParsed,
+      }, 500);
+    }
+
+    // 11) Generate NEXT Swiss round after current round completes
+    const nextRoundNumber = roundNumber + 1;
+    let pairingsResult = null;
+
+    if (nextRoundNumber <= 4) {
+      const pairingsRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/rpc/generate_swiss_round_pairings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: env.SUPABASE_SECRET_KEY,
+            Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            p_tournament_id: tournamentId,
+            p_round_number: nextRoundNumber,
+          }),
+        }
+      );
+
+      const pairingsRaw = await pairingsRes.text();
+
+      try {
+        pairingsResult = pairingsRaw ? JSON.parse(pairingsRaw) : null;
+      } catch {
+        pairingsResult = pairingsRaw;
+      }
+
+      if (!pairingsRes.ok) {
+        return json({
+          ok: false,
+          error: "generate_swiss_round_pairings failed",
+          status: pairingsRes.status,
+          statusText: pairingsRes.statusText,
+          details: pairingsResult,
+        }, 500);
+      }
+    }
 
     return json({
       ok: true,
       raceId,
-      round: roundNumber
+      tournamentId,
+      round: roundNumber,
+      generatedRound: nextRoundNumber <= 4 ? nextRoundNumber : null,
+      insertedResults: inserts.length,
+      swissUpdate: swissUpdateParsed,
+      pairings: pairingsResult,
     });
 
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
 }
-
 
 function normalizeName(s) {
   return String(s || "")
@@ -295,48 +347,88 @@ function normalizeName(s) {
 }
 
 function getRaceResultsRows(feed) {
-  const wrRes = Array.isArray(feed?.weekend_race?.[0]?.results) ? feed.weekend_race[0].results : [];
-  if (wrRes.length && wrRes.some(r => Number.isFinite(Number(r?.finishing_position)))) {
+  const wrRes = Array.isArray(feed?.weekend_race?.[0]?.results)
+    ? feed.weekend_race[0].results
+    : [];
+
+  if (
+    wrRes.length &&
+    wrRes.some((r) =>
+      Number.isFinite(
+        Number(
+          r?.finishing_position ??
+          r?.finish_position ??
+          r?.FinishPos ??
+          r?.FinPos
+        )
+      )
+    )
+  ) {
     return wrRes;
   }
 
   const runs = Array.isArray(feed?.weekend_runs) ? feed.weekend_runs : [];
   if (runs.length) {
-    const scored = runs.map(run => {
-      const name = String(run?.run_name || "").toLowerCase();
-      const rows = Array.isArray(run?.results) ? run.results : [];
+    const scored = runs
+      .map((run) => {
+        const name = String(run?.run_name || run?.name || "").toLowerCase();
+        const rows = Array.isArray(run?.results) ? run.results : [];
 
-      const finishCount = rows.reduce((c, r) => {
-        const p = Number(r?.finishing_position ?? r?.finish_position ?? r?.FinishPos ?? r?.FinPos);
-        return c + (Number.isFinite(p) ? 1 : 0);
-      }, 0);
+        const finishCount = rows.reduce((c, r) => {
+          const p = Number(
+            r?.finishing_position ??
+            r?.finish_position ??
+            r?.FinishPos ??
+            r?.FinPos
+          );
+          return c + (Number.isFinite(p) ? 1 : 0);
+        }, 0);
 
-      const maxLaps = rows.reduce((m, r) => {
-        const n = Number(r?.laps_completed ?? r?.LapsCompleted ?? r?.laps ?? 0);
-        return Number.isFinite(n) ? Math.max(m, n) : m;
-      }, 0);
+        const maxLaps = rows.reduce((m, r) => {
+          const n = Number(
+            r?.laps_completed ??
+            r?.LapsCompleted ??
+            r?.laps ??
+            0
+          );
+          return Number.isFinite(n) ? Math.max(m, n) : m;
+        }, 0);
 
-      let score = 0;
-      score += finishCount * 10;
+        let score = 0;
+        score += finishCount * 10;
 
-      if (name.includes("race")) score += 200;
-      if (name.includes("results")) score += 120;
-      if (name.includes("starting")) score -= 500;
-      if (name.includes("lineup")) score -= 500;
-      if (name.includes("qual")) score -= 800;
-      if (name.includes("practice")) score -= 800;
-      if (name.includes("stage")) score -= 200;
-      if (maxLaps >= 10) score += 80;
-      if (maxLaps >= 50) score += 200;
-      if (maxLaps >= 150) score += 300;
+        if (name.includes("race")) score += 200;
+        if (name.includes("results")) score += 120;
+        if (name.includes("starting")) score -= 500;
+        if (name.includes("lineup")) score -= 500;
+        if (name.includes("qual")) score -= 800;
+        if (name.includes("practice")) score -= 800;
+        if (name.includes("stage")) score -= 200;
 
-      score += Math.min(rows.length, 60);
+        if (maxLaps >= 10) score += 80;
+        if (maxLaps >= 50) score += 200;
+        if (maxLaps >= 150) score += 300;
 
-      return { score, rows };
-    }).sort((a, b) => b.score - a.score);
+        score += Math.min(rows.length, 60);
+
+        return { score, rows };
+      })
+      .sort((a, b) => b.score - a.score);
 
     const best = scored[0]?.rows || [];
-    if (best.length && best.some(r => Number.isFinite(Number(r?.finishing_position ?? r?.FinishPos ?? r?.FinPos)))) {
+    if (
+      best.length &&
+      best.some((r) =>
+        Number.isFinite(
+          Number(
+            r?.finishing_position ??
+            r?.finish_position ??
+            r?.FinishPos ??
+            r?.FinPos
+          )
+        )
+      )
+    ) {
       return best;
     }
   }
