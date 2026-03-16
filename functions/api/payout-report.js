@@ -50,18 +50,19 @@ export async function onRequestGet(context) {
       const remainingToPayout = Math.max(0, owedAmount - paidout);
 
       if (remainingToPayout > 0) {
-        owed.push({
-          playerId: Number(row.player_id),
-          name,
-          paid,
-          winnings,
-          paidout,
-          owedAmount,
-          remainingToPayout
-        });
-      }
+  owed.push({
+    playerId: Number(row.player_id),
+    name,
+    paid,
+    winnings,
+    paidout,
+    owedAmount,
+    remainingToPayout,
+    displayOwed: remainingToPayout
+  });
+}
     }
-    owed.sort((a, b) => b.owedAmount - a.owedAmount || a.name.localeCompare(b.name));
+    owed.sort((a, b) => b.remainingToPayout - a.remainingToPayout || a.name.localeCompare(b.name));
 
     return json({
       ok: true,
