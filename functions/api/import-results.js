@@ -218,17 +218,30 @@ export async function onRequestPost(context) {
     });
 
     // 10) Update Swiss results
-    await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/update_swiss_matchup_results`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: env.SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      },
-      body: JSON.stringify({
-        p_tournament_id: tournamentId
-      })
-    });
+const swissUpdateRes = await fetch(
+  `${env.SUPABASE_URL}/rest/v1/rpc/update_swiss_matchup_results`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: env.SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+    },
+    body: JSON.stringify({
+      p_tournament_id: tournamentId
+    })
+  }
+);
+
+const swissUpdateText = await swissUpdateRes.text();
+
+if (!swissUpdateRes.ok) {
+  return json({
+    ok: false,
+    error: "update_swiss_matchup_results failed",
+    details: swissUpdateText
+  }, 500);
+}
 
    // 11) Generate NEXT Swiss round after current round completes
 const nextRoundNumber = roundNumber + 1;
