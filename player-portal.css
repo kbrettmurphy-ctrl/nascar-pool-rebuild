@@ -350,30 +350,23 @@
   cursor:pointer;
 }
 
-.buschLogoTrigger{
-  display:inline-block;
-  position:relative;
-  width:fit-content;
-  height:fit-content;
-  z-index:100;
-  touch-action:manipulation;
-}
-
 .buschLogoWrap{
   position: relative;
   display: inline-block;
-  pointer-events: none;
+  line-height: 0;
+  pointer-events: auto;
+  z-index: 3;
 }
 
 .buschLogoTrigger{
   position: absolute;
   inset: 0;
-  z-index: 100;
   background: transparent;
   pointer-events: auto;
+  touch-action: manipulation;
+  z-index: 4;
 }
 
-.buschLogoTrigger,
 .buschPopup,
 .buschPopupCard,
 .buschPopupImg,
@@ -381,7 +374,7 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
+
 
   /* ==========================================================
      Current race / matchup view
@@ -1090,6 +1083,7 @@
   }
 
   .sponsor-logo{
+    dislay:block;
     height:80px;
     width:auto;
     opacity:0.5;
