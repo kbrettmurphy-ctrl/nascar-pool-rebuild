@@ -155,29 +155,63 @@ export async function onRequestGet(context) {
     DEBUG RESPONSE
     */
 
-    return json({
-      ok: true,
+    /*
+STEP 7
+Extract running order
+*/
 
-      dbRace: {
-        id: currentRace.id,
-        raceNumber: currentRace.race_number,
-        raceName: currentRace.race_name
-      },
+const vehicles =
+  Array.isArray(liveJson?.vehicles)
+    ? liveJson.vehicles
+    : [];
 
-      nascarRace: {
-        raceId: nascarRaceId,
-        raceName: nascarRace.race_name
-      },
+const driverPositions = {};
 
-      liveFeedStatus: liveResp.status,
+for (const v of vehicles) {
 
-      liveSample:
-        typeof liveJson === "object"
-          ? Object.keys(liveJson).slice(0, 10)
-          : "not-json"
+  const name =
+    v?.driver_name ||
+    v?.driver_fullname ||
+    v?.name ||
+    "";
 
-    });
+  const position =
+    Number(v?.running_position) ||
+    Number(v?.position) ||
+    Number(v?.pos);
 
+  if (!name || !Number.isFinite(position)) continue;
+
+  driverPositions[normalizeName(name)] = {
+    name: name.trim(),
+    position
+  };
+
+}
+
+/*
+RETURN CLEAN PAYLOAD
+*/
+
+return json({
+
+  ok: true,
+
+  race: {
+    dbRaceNumber: currentRace.race_number,
+    dbRaceName: currentRace.race_name,
+    nascarRaceId
+  },
+
+  liveRace: {
+    lap: liveJson?.lap_number ?? null,
+    lapsToGo: liveJson?.laps_to_go ?? null,
+    flag: liveJson?.flag_state ?? null
+  },
+
+  drivers: driverPositions
+
+});
   } catch (err) {
 
     return json({
@@ -196,5 +230,15 @@ function json(data, status = 200) {
       "Content-Type": "application/json"
     }
   });
+
+}
+
+function normalizeName(s) {
+
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 }
