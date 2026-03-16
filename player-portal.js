@@ -2634,7 +2634,9 @@ function initBuschLongPress_() {
   if (!logo || !popup) return;
 
   let pressTimer = null;
-  let longPressTriggered = false;
+  let startX = 0;
+  let startY = 0;
+  const MOVE_THRESHOLD = 12;
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
@@ -2652,29 +2654,46 @@ function initBuschLongPress_() {
     document.body.style.overflow = "";
   }
 
-  function startPress(e) {
-    longPressTriggered = false;
-    clearTimeout(pressTimer);
-
-    if (e.type === "touchstart") {
-      e.preventDefault();
-    }
-
-    pressTimer = setTimeout(() => {
-      longPressTriggered = true;
-      openPopup();
-    }, 700);
-  }
-
   function cancelPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
   }
 
+  function startPress(e) {
+    cancelPress();
+
+    if (e.type === "touchstart") {
+      const t = e.touches?.[0];
+      startX = t ? t.clientX : 0;
+      startY = t ? t.clientY : 0;
+    }
+
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      openPopup();
+    }, 700);
+  }
+
+  function handleTouchMove(e) {
+    if (!pressTimer) return;
+
+    const t = e.touches?.[0];
+    if (!t) return;
+
+    const dx = Math.abs(t.clientX - startX);
+    const dy = Math.abs(t.clientY - startY);
+
+    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+      cancelPress();
+    }
+  }
+
   logo.addEventListener("mousedown", startPress);
-  logo.addEventListener("touchstart", startPress, { passive: false });
   logo.addEventListener("mouseup", cancelPress);
   logo.addEventListener("mouseleave", cancelPress);
+
+  logo.addEventListener("touchstart", startPress, { passive: true });
+  logo.addEventListener("touchmove", handleTouchMove, { passive: true });
   logo.addEventListener("touchend", cancelPress);
   logo.addEventListener("touchcancel", cancelPress);
 
