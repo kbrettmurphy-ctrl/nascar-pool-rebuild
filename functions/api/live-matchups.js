@@ -164,6 +164,7 @@ const vehicles =
   Array.isArray(liveJson?.vehicles)
     ? liveJson.vehicles
     : [];
+const vehicleSample = vehicles.length ? vehicles[0] : null;
 
 const driverPositions = {};
 
@@ -209,7 +210,9 @@ return json({
     flag: liveJson?.flag_state ?? null
   },
 
-  drivers: driverPositions
+  vehicleCount: vehicles.length,
+
+  vehicleSample
 
 });
   } catch (err) {
