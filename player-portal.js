@@ -1076,26 +1076,30 @@ refreshActiveView();
 
     autoSizePlayerSelect_(gp);
 
-    gp.onchange = () => {
-
+    gp.onchange = async () => {
       const name = String(gp.value || "").trim();
       if (!name) return;
 
       if (ph) ph.hidden = true;
+
       savePlayerName(name);
       setWelcome();
       checkDuesNag_();
-      applyYouRowsNow_();
       autoSizePlayerSelect_(gp);
 
+      // update row highlighting everywhere immediately
+      applyYouRowsNow_();
+
+      // refresh views that depend on selected player
       if (activeView === "mymatchup") {
-        loadMyMatchup();
-        loadDues();
+        await loadMyMatchup();
+        await loadDues();
       }
-      if (activeView === "live") {
-        loadLiveMatchups();
-      }
+
+      // always rebuild live ordering immediately
+      await loadLiveMatchups();
     };
+  }
 
   function formatDriversOrNumbers(driversArr, numsArr){
     const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
