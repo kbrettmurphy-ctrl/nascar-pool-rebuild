@@ -2692,6 +2692,7 @@ function initBuschLongPress_() {
 
   function startPress(e) {
     cancelPress();
+    document.body.classList.add("noSelect");
 
     if (e.type === "touchstart") {
       const t = e.touches?.[0];
@@ -2755,7 +2756,6 @@ function initAdminControls_() {
       pressTimer = setTimeout(async () => {
         clearTimeout(pressTimer);
         pressTimer = null;
-        document.body.classList.add("noSelect");
 
         // If already unlocked, open admin tools directly.
         if (getAdminToken_()) {
