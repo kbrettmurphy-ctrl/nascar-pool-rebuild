@@ -2658,12 +2658,12 @@ function initBuschLongPress_() {
 
   if (!trigger || !popup) return;
 
-  // Haptic helper
+  // Best manual haptic hack we have
   let hapticDiv = null;
   function triggerHaptic() {
     if (!hapticDiv) {
       hapticDiv = document.createElement("div");
-      hapticDiv.style.cssText = "position:absolute;left:-9999px;opacity:0;pointer-events:none;z-index:-1;";
+      hapticDiv.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
       hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
       document.body.appendChild(hapticDiv);
     }
@@ -2678,20 +2678,19 @@ function initBuschLongPress_() {
     }
   }
 
-  trigger.addEventListener("click", e => e.preventDefault());
-  trigger.addEventListener("contextmenu", e => e.preventDefault());
+  popupImg?.addEventListener("contextmenu", e => e.preventDefault());
 
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
-  const MOVE_THRESHOLD = 25;
-  const HOLD_TIME = 520;   // Slightly longer to give Safari better chance to recognize long press
+  const MOVE_THRESHOLD = 20;
+  const HOLD_TIME = 480;   // Fast enough to win the gesture
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    triggerHaptic();
+    triggerHaptic();                    // Try haptic on popup open
     if (navigator.vibrate) navigator.vibrate([8, 12]);
 
     popup.hidden = false;
@@ -2734,7 +2733,7 @@ function initBuschLongPress_() {
     }
   }
 
-  // Listeners
+  // Attach listeners
   trigger.addEventListener("mousedown", startPress);
   trigger.addEventListener("mouseup", cancelPress);
   trigger.addEventListener("mouseleave", cancelPress);
