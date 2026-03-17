@@ -1079,7 +1079,6 @@ refreshActiveView();
     gp.onchange = async () => {
       const name = String(gp.value || "").trim();
       if (!name) return;
-
       if (ph) ph.hidden = true;
 
       savePlayerName(name);
@@ -1090,14 +1089,19 @@ refreshActiveView();
       // update row highlighting everywhere immediately
       applyYouRowsNow_();
 
-      // refresh views that depend on selected player
-      if (activeView === "mymatchup") {
+      // refresh the active view so selected-player ordering updates immediately
+      if (activeView === "current") {
+        await loadSelectedRace_();
+      } else if (activeView === "mymatchup") {
         await loadMyMatchup();
         await loadDues();
+      } else if (activeView === "live") {
+        await loadLiveMatchups();
+      } else if (activeView === "standings") {
+        await loadStandings();
+      } else if (activeView === "bracket") {
+        await loadBracket();
       }
-
-      // always rebuild live ordering immediately
-      await loadLiveMatchups();
     };
   }
 
