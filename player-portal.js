@@ -2764,12 +2764,16 @@ function initBuschLongPress_() {
   trigger.addEventListener("touchcancel", cancelPress);
 
   closeBtn?.addEventListener("click", closePopup);
-  popup.addEventListener("click", (e) => {
-  // if you clicked OUTSIDE the card, close
+
+function closeIfOutsideCard(e) {
   if (!e.target.closest(".buschPopupCard")) {
+    e.preventDefault();
+    e.stopPropagation();
     closePopup();
   }
-});
+}
+
+popup.addEventListener("pointerdown", closeIfOutsideCard);
 
   document.addEventListener("keydown", e => {
     if (e.key === "Escape" && !popup.hidden) closePopup();
