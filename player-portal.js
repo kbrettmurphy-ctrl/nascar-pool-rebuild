@@ -2665,7 +2665,7 @@ function initBuschLongPress_() {
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
-  const MOVE_THRESHOLD = 12;
+  const MOVE_THRESHOLD = 18;
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
@@ -2693,9 +2693,7 @@ function initBuschLongPress_() {
 
   function startPress(e) {
     cancelPress();
-
     document.body.classList.add("noSelect");
-    if (navigator.vibrate) navigator.vibrate(10);
 
     if (e.type === "touchstart") {
       const t = e.touches?.[0];
@@ -2705,6 +2703,8 @@ function initBuschLongPress_() {
 
     pressTimer = setTimeout(() => {
       pressTimer = null;
+
+      if (navigator.vibrate) navigator.vibrate(10);
 
       openPopup();
     }, 700);
