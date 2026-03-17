@@ -2695,7 +2695,7 @@ function initBuschLongPress_() {
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
-  const MOVE_THRESHOLD = 20;
+  const MOVE_THRESHOLD = 10;
   const HOLD_TIME = 2000;   // Fast enough to win the gesture
 
   function openPopup() {
