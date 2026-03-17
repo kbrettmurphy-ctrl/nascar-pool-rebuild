@@ -2633,6 +2633,7 @@ refreshActiveView();
 }
 
 let buschGirls = [];
+let buschQueue = [];
 
 async function loadBuschGirls() {
   try {
@@ -2641,24 +2642,31 @@ async function loadBuschGirls() {
 
     if (Array.isArray(data)) {
       buschGirls = data;
+      refillQueue();
     }
   } catch (err) {
     console.error("Failed to load Busch girls manifest", err);
   }
 }
 
-let lastBuschGirl = null;
+function refillQueue() {
+  // create a shuffled copy
+  buschQueue = [...buschGirls];
+
+  for (let i = buschQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [buschQueue[i], buschQueue[j]] = [buschQueue[j], buschQueue[i]];
+  }
+}
 
 function getRandomBuschGirl() {
   if (!buschGirls.length) return null;
 
-  let img;
-  do {
-    img = buschGirls[Math.floor(Math.random() * buschGirls.length)];
-  } while (buschGirls.length > 1 && img === lastBuschGirl);
+  if (!buschQueue.length) {
+    refillQueue(); // reshuffle when exhausted
+  }
 
-  lastBuschGirl = img;
-  return img;
+  return buschQueue.shift();
 }
 
 function initBuschLongPress_() {
