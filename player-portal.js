@@ -2656,23 +2656,43 @@ function initBuschLongPress_() {
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
   const popupImg = document.querySelector(".buschPopupImg");
 
-  popupImg?.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-  });
-
   if (!logo || !popup) return;
+
+  // iOS haptic helper (works on iOS 18+)
+  let hapticInput = null;
+  function triggerIOSHaptic() {
+    if (!hapticInput) {
+      hapticInput = document.createElement("div");
+      hapticInput.style.cssText = "position:absolute;opacity:0;pointer-events:none;";
+      hapticInput.innerHTML = `<input type="checkbox" id="buschHaptic" switch><label for="buschHaptic"></label>`;
+      document.body.appendChild(hapticInput);
+    }
+    const label = hapticInput.querySelector("label");
+    if (label) {
+      label.click();           // This triggers the native iOS switch haptic
+      // Reset so it can be triggered again
+      setTimeout(() => {
+        const input = hapticInput.querySelector("input");
+        if (input) input.checked = false;
+      }, 50);
+    }
+  }
+
+  popupImg?.addEventListener("contextmenu", (e) => e.preventDefault());
 
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
   const MOVE_THRESHOLD = 18;
+  const LONG_PRESS_DELAY = 540;   // <--- lowered for better feel
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
+    if (popupImg && nextImg) popupImg.src = nextImg;
 
-    if (popupImg && nextImg) {
-      popupImg.src = nextImg;
-    }
+    // Trigger haptic RIGHT when popup opens
+    if (navigator.vibrate) navigator.vibrate(10);           // Android
+    triggerIOSHaptic();                                     // iOS 18+
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
@@ -2686,7 +2706,7 @@ function initBuschLongPress_() {
   }
 
   function cancelPress() {
-    clearTimeout(pressTimer);
+    if (pressTimer) clearTimeout(pressTimer);
     pressTimer = null;
     document.body.classList.remove("noSelect");
   }
@@ -2703,27 +2723,20 @@ function initBuschLongPress_() {
 
     pressTimer = setTimeout(() => {
       pressTimer = null;
-
-      if (navigator.vibrate) navigator.vibrate(10);
-
       openPopup();
-    }, 700);
+    }, LONG_PRESS_DELAY);
   }
 
   function handleTouchMove(e) {
     if (!pressTimer) return;
-
     const t = e.touches?.[0];
     if (!t) return;
-
-    const dx = Math.abs(t.clientX - startX);
-    const dy = Math.abs(t.clientY - startY);
-
-    if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+    if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD || Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
       cancelPress();
     }
   }
 
+  // Clean listeners (good practice)
   logo.addEventListener("mousedown", startPress);
   logo.addEventListener("mouseup", cancelPress);
   logo.addEventListener("mouseleave", cancelPress);
@@ -2737,9 +2750,7 @@ function initBuschLongPress_() {
   backdrop?.addEventListener("click", closePopup);
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !popup.hidden) {
-      closePopup();
-    }
+    if (e.key === "Escape" && !popup.hidden) closePopup();
   });
 }
 
