@@ -2694,8 +2694,8 @@ function initBuschLongPress_() {
   function startPress(e) {
     cancelPress();
 
-    // stop highlight immediately
     document.body.classList.add("noSelect");
+    if (navigator.vibrate) navigator.vibrate(10);
 
     if (e.type === "touchstart") {
       const t = e.touches?.[0];
@@ -2705,9 +2705,6 @@ function initBuschLongPress_() {
 
     pressTimer = setTimeout(() => {
       pressTimer = null;
-
-      // haptic feedback
-      if (navigator.vibrate) navigator.vibrate(10);
 
       openPopup();
     }, 700);
