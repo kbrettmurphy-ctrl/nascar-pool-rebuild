@@ -362,9 +362,21 @@
   position: absolute;
   inset: 0;
   background: transparent;
-  pointer-events: auto;
   touch-action: manipulation;
+  -webkit-touch-callout: none;     /* Prevents link preview */
+  -webkit-user-select: none;
+  user-select: none;
+  text-decoration: none;
+  color: transparent;
+  pointer-events: auto;  
   z-index: 4;
+}
+
+/* Extra aggressive suppression of Safari link preview */
+.buschLogoTrigger:active {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .buschPopup,
