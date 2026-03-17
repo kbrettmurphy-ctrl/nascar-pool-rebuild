@@ -361,8 +361,9 @@
 .buschLogoTrigger {
   position: absolute;
   inset: 0;
+  display: block;
   background: transparent;
-  touch-action: none;                    /* Very important */
+  touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -370,14 +371,14 @@
   color: transparent;
   outline: none;
   pointer-events: auto;
+  z-index: 5;
 }
 
-/* Force Safari to ignore link preview behavior */
+/* Force Safari to treat the entire area consistently */
 .buschLogoTrigger:active,
 .buschLogoTrigger:focus {
   background: transparent !important;
   box-shadow: none !important;
-  outline: none !important;
   -webkit-tap-highlight-color: transparent;
 }
 
