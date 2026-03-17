@@ -1260,7 +1260,7 @@ refreshActiveView();
     // reorder only for CURRENT race, same idea as live tab
     const matchups = Array.isArray(data.matchups) ? [...data.matchups] : [];
 
-    if (isCurrentRace && you) {
+    if (you) {
       const idx = matchups.findIndex(m =>
         norm(m.p1) === you || norm(m.p2) === you
       );
