@@ -1227,7 +1227,6 @@ refreshActiveView();
 
     const you = loadPlayerName().trim().toLowerCase();
     const spoilersOn = spoilersOn_();
-
     const norm = (s) => String(s ?? "").trim().toLowerCase();
     const isCurrentRace =
       ALL_MATCHUPS?.current &&
@@ -1252,14 +1251,27 @@ refreshActiveView();
     }
 
     const showPastAvgs = spoilersOn && !isCurrentRace;
-
     const fmtAvg = (n) => {
       const x = Number(n);
       if (!Number.isFinite(x)) return "";
       return x.toFixed(1).replace(/\.0$/, "");
     };
 
-    for (const m of (data.matchups || [])) {
+    // reorder only for CURRENT race, same idea as live tab
+    const matchups = Array.isArray(data.matchups) ? [...data.matchups] : [];
+
+    if (isCurrentRace && you) {
+      const idx = matchups.findIndex(m =>
+        norm(m.p1) === you || norm(m.p2) === you
+      );
+
+      if (idx > 0) {
+        const mine = matchups.splice(idx, 1)[0];
+        matchups.unshift(mine);
+      }
+    }
+
+    for (const m of matchups) {
       const card = document.createElement("div");
       const isYou =
         you &&
@@ -1275,7 +1287,6 @@ refreshActiveView();
       function metaHtml_(driversArr, numsArr){
         const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
         const d2 = (driversArr && driversArr[1] != null) ? String(driversArr[1]).trim() : "";
-
         const n1 = (numsArr && numsArr[0] != null) ? String(numsArr[0]).trim() : "";
         const n2 = (numsArr && numsArr[1] != null) ? String(numsArr[1]).trim() : "";
 
@@ -1313,14 +1324,11 @@ refreshActiveView();
 
       const leftMeta  = metaHtml_(m.p1Drivers, m.p1Nums);
       const rightMeta = metaHtml_(m.p2Drivers, m.p2Nums);
-
       const w = spoilersOn ? norm(m.winner) : "";
       const p1Win = spoilersOn && w && w === norm(m.p1);
       const p2Win = spoilersOn && w && w === norm(m.p2);
-
       const p1AvgTxt = showPastAvgs ? fmtAvg(m.a1) : "";
       const p2AvgTxt = showPastAvgs ? fmtAvg(m.a2) : "";
-
       const p1Label = `${String(m.p1 || "").trim()}${p1AvgTxt ? ` (${p1AvgTxt})` : ""}`;
       const p2Label = `${String(m.p2 || "").trim()}${p2AvgTxt ? ` (${p2AvgTxt})` : ""}`;
 
@@ -1335,7 +1343,7 @@ refreshActiveView();
             <div class="pName"><span class="nameWrap"><span class="nameText">${escapeHtml(p2Label)}</span>${p2Win ? `<span class="winPill">WIN</span>` : ``}</span></div>
             ${rightMeta ? `<div class="pMeta">${rightMeta}</div>` : ``}
           </div>
-        </div>
+       </div>
       `;
       area.appendChild(card);
     }
