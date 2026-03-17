@@ -2658,46 +2658,42 @@ function initBuschLongPress_() {
 
   if (!trigger || !popup) return;
 
-  // ==================== HAPTIC HELPER (most reliable version) ====================
+  // Persistent haptic helper
   let hapticDiv = null;
-
   function triggerHaptic() {
     if (!hapticDiv) {
       hapticDiv = document.createElement("div");
-      hapticDiv.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
-      hapticDiv.innerHTML = `<input type="checkbox" id="buschHaptic" switch><label for="buschHaptic"></label>`;
+      hapticDiv.style.cssText = "position:absolute;left:-9999px;opacity:0;pointer-events:none;z-index:-1;";
+      hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
       document.body.appendChild(hapticDiv);
     }
-
     const label = hapticDiv.querySelector("label");
     const input = hapticDiv.querySelector("input");
-    if (!label || !input) return;
-
-    // Aggressive double-toggle — this is currently the best manual hack
-    label.click();
-    setTimeout(() => {
-      input.checked = false;
+    if (label && input) {
       label.click();
-    }, 16);
+      setTimeout(() => {
+        input.checked = false;
+        label.click();
+      }, 16);
+    }
   }
 
-  // Prevent the fake link from navigating
-  trigger.addEventListener("click", (e) => e.preventDefault());
+  // Prevent link navigation and preview
+  trigger.addEventListener("click", e => e.preventDefault());
 
-  popupImg?.addEventListener("contextmenu", (e) => e.preventDefault());
+  popupImg?.addEventListener("contextmenu", e => e.preventDefault());
 
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
   const MOVE_THRESHOLD = 22;
-  const HOLD_TIME = 500;        // Sweet spot for "Fast" Haptic Touch setting
+  const HOLD_TIME = 480;   // Slightly faster to beat Safari's preview
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    // Try both native + programmatic haptic
-    triggerHaptic();
+    triggerHaptic();                    // Best manual haptic hack
     if (navigator.vibrate) navigator.vibrate(10);
 
     popup.hidden = false;
@@ -2740,7 +2736,7 @@ function initBuschLongPress_() {
     }
   }
 
-  // ====================== Attach listeners ======================
+  // Listeners
   trigger.addEventListener("mousedown", startPress);
   trigger.addEventListener("mouseup", cancelPress);
   trigger.addEventListener("mouseleave", cancelPress);
@@ -2753,7 +2749,7 @@ function initBuschLongPress_() {
   closeBtn?.addEventListener("click", closePopup);
   backdrop?.addEventListener("click", closePopup);
 
-  document.addEventListener("keydown", (e) => {
+  document.addEventListener("keydown", e => {
     if (e.key === "Escape" && !popup.hidden) closePopup();
   });
 }
