@@ -2650,53 +2650,55 @@ function getRandomBuschGirl() {
 }
 
 function initBuschLongPress_() {
-  const logo = document.getElementById("buschLogoTrigger");
+  const trigger = document.getElementById("buschLogoTrigger");
   const popup = document.getElementById("buschPopup");
   const closeBtn = document.getElementById("buschPopupClose");
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
   const popupImg = document.querySelector(".buschPopupImg");
 
-  if (!logo || !popup) return;
+  if (!trigger || !popup) return;
 
-  // Persistent haptic helper (created once, reused)
+  // ==================== HAPTIC HELPER (most reliable version) ====================
   let hapticDiv = null;
 
   function triggerHaptic() {
     if (!hapticDiv) {
       hapticDiv = document.createElement("div");
-      hapticDiv.style.cssText = "position:absolute;left:-9999px;opacity:0;pointer-events:none;";
-      hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
+      hapticDiv.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
+      hapticDiv.innerHTML = `<input type="checkbox" id="buschHaptic" switch><label for="buschHaptic"></label>`;
       document.body.appendChild(hapticDiv);
     }
 
     const label = hapticDiv.querySelector("label");
     const input = hapticDiv.querySelector("input");
-    if (label && input) {
-      label.click();           // primary trigger
-      setTimeout(() => {
-        input.checked = false;
-        label.click();         // double-tap helps on some iOS versions
-      }, 16);
-    }
+    if (!label || !input) return;
+
+    // Aggressive double-toggle — this is currently the best manual hack
+    label.click();
+    setTimeout(() => {
+      input.checked = false;
+      label.click();
+    }, 16);
   }
 
-  popupImg?.addEventListener("contextmenu", e => e.preventDefault());
+  // Prevent the fake link from navigating
+  trigger.addEventListener("click", (e) => e.preventDefault());
+
+  popupImg?.addEventListener("contextmenu", (e) => e.preventDefault());
 
   let pressTimer = null;
-  let startX = 0, startY = 0;
+  let startX = 0;
+  let startY = 0;
   const MOVE_THRESHOLD = 22;
-  const HOLD_TIME = 520;                 // feels good with "Fast" Haptic Touch
+  const HOLD_TIME = 500;        // Sweet spot for "Fast" Haptic Touch setting
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    // New haptic call
-    if (window.IOSHaptics) {
-      window.IOSHaptics.impact('light');   // or 'medium', 'heavy', 'rigid', 'soft'
-    } else if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+    // Try both native + programmatic haptic
+    triggerHaptic();
+    if (navigator.vibrate) navigator.vibrate(10);
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
@@ -2717,7 +2719,6 @@ function initBuschLongPress_() {
 
   function startPress(e) {
     cancelPress();
-    document.body.classList.add("noSelect");
 
     if (e.type === "touchstart") {
       const t = e.touches[0];
@@ -2739,20 +2740,20 @@ function initBuschLongPress_() {
     }
   }
 
-  // Listeners
-  logo.addEventListener("mousedown", startPress);
-  logo.addEventListener("mouseup", cancelPress);
-  logo.addEventListener("mouseleave", cancelPress);
+  // ====================== Attach listeners ======================
+  trigger.addEventListener("mousedown", startPress);
+  trigger.addEventListener("mouseup", cancelPress);
+  trigger.addEventListener("mouseleave", cancelPress);
 
-  logo.addEventListener("touchstart", startPress, { passive: true });
-  logo.addEventListener("touchmove", handleTouchMove, { passive: true });
-  logo.addEventListener("touchend", cancelPress);
-  logo.addEventListener("touchcancel", cancelPress);
+  trigger.addEventListener("touchstart", startPress, { passive: true });
+  trigger.addEventListener("touchmove", handleTouchMove, { passive: true });
+  trigger.addEventListener("touchend", cancelPress);
+  trigger.addEventListener("touchcancel", cancelPress);
 
   closeBtn?.addEventListener("click", closePopup);
   backdrop?.addEventListener("click", closePopup);
 
-  document.addEventListener("keydown", e => {
+  document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !popup.hidden) closePopup();
   });
 }
