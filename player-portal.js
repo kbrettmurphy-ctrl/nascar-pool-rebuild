@@ -2696,7 +2696,7 @@ function initBuschLongPress_() {
   let startX = 0;
   let startY = 0;
   const MOVE_THRESHOLD = 20;
-  const HOLD_TIME = 480;   // Fast enough to win the gesture
+  const HOLD_TIME = 2000;   // Fast enough to win the gesture
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
