@@ -2658,7 +2658,7 @@ function initBuschLongPress_() {
 
   if (!trigger || !popup) return;
 
-  // Aggressive haptic helper
+  // Haptic helper
   let hapticDiv = null;
   function triggerHaptic() {
     if (!hapticDiv) {
@@ -2671,14 +2671,13 @@ function initBuschLongPress_() {
     const input = hapticDiv.querySelector("input");
     if (label && input) {
       label.click();
-      setTimeout(() => { 
-        input.checked = false; 
-        label.click(); 
+      setTimeout(() => {
+        input.checked = false;
+        label.click();
       }, 16);
     }
   }
 
-  // Block native link behaviors as hard as possible
   trigger.addEventListener("click", e => e.preventDefault());
   trigger.addEventListener("contextmenu", e => e.preventDefault());
 
@@ -2686,7 +2685,7 @@ function initBuschLongPress_() {
   let startX = 0;
   let startY = 0;
   const MOVE_THRESHOLD = 25;
-  const HOLD_TIME = 460;   // Faster so your timer wins over Safari's preview
+  const HOLD_TIME = 520;   // Slightly longer to give Safari better chance to recognize long press
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
