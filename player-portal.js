@@ -2688,10 +2688,13 @@ function initBuschLongPress_() {
   function cancelPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
+    document.body.classList.remove("noSelect");
   }
 
   function startPress(e) {
     cancelPress();
+
+    // stop highlight immediately
     document.body.classList.add("noSelect");
 
     if (e.type === "touchstart") {
@@ -2702,6 +2705,10 @@ function initBuschLongPress_() {
 
     pressTimer = setTimeout(() => {
       pressTimer = null;
+
+      // haptic feedback
+      if (navigator.vibrate) navigator.vibrate(10);
+
       openPopup();
     }, 700);
   }
@@ -2778,7 +2785,6 @@ function initAdminControls_() {
   function cancelPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
-    document.body.classList.remove("noSelect");
   }
 
   if (portal && !portal.dataset.adminBound) {
