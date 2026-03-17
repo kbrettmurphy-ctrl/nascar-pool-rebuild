@@ -1077,20 +1077,25 @@ refreshActiveView();
     autoSizePlayerSelect_(gp);
 
     gp.onchange = () => {
+
       const name = String(gp.value || "").trim();
       if (!name) return;
 
       if (ph) ph.hidden = true;
-
       savePlayerName(name);
       setWelcome();
       checkDuesNag_();
       applyYouRowsNow_();
       autoSizePlayerSelect_(gp);
 
-      if (activeView === "mymatchup") loadMyMatchup(); loadDues();
+      if (activeView === "mymatchup") {
+        loadMyMatchup();
+        loadDues();
+      }
+      if (activeView === "live") {
+        loadLiveMatchups();
+      }
     };
-  }
 
   function formatDriversOrNumbers(driversArr, numsArr){
     const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
