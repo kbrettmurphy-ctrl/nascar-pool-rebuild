@@ -24,8 +24,8 @@
     --blue:#007AC2;
     --red:#E4002B;    --yellow:#FFD659;    --green:#4DD21D;
     --greenfade:#4DD21DBF;
-    --greentrans:#4DD21D33 /*20%*/
-    --redtrans: #E4002B33 /*20%*/
+    --greentrans:#4DD21D33; /*20%*/
+    --redtrans: #E4002B33; /*20%*/
 
     --pad:12px;
     --radius:16px;
