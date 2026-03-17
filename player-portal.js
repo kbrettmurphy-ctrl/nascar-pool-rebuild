@@ -2691,8 +2691,12 @@ function initBuschLongPress_() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    triggerHaptic();                       // ← iOS haptic
-    if (navigator.vibrate) navigator.vibrate(10);   // Android
+    // New haptic call
+    if (window.IOSHaptics) {
+      window.IOSHaptics.impact('light');   // or 'medium', 'heavy', 'rigid', 'soft'
+    } else if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
