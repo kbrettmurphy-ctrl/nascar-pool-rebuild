@@ -2658,48 +2658,41 @@ function initBuschLongPress_() {
 
   if (!logo || !popup) return;
 
-  // Create the haptic helper ONCE at init (more reliable)
-  let hapticHelper = null;
-  function createHapticHelper() {
-    if (hapticHelper) return;
-    hapticHelper = document.createElement("div");
-    hapticHelper.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
-    hapticHelper.innerHTML = `
-      <input type="checkbox" id="buschHapticSwitch" switch>
-      <label for="buschHapticSwitch"></label>
-    `;
-    document.body.appendChild(hapticHelper);
-  }
+  // Persistent haptic helper (created once, reused)
+  let hapticDiv = null;
 
   function triggerHaptic() {
-    createHapticHelper();
-    const label = hapticHelper.querySelector("label");
-    const input = hapticHelper.querySelector("input");
-    if (!label || !input) return;
+    if (!hapticDiv) {
+      hapticDiv = document.createElement("div");
+      hapticDiv.style.cssText = "position:absolute;left:-9999px;opacity:0;pointer-events:none;";
+      hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
+      document.body.appendChild(hapticDiv);
+    }
 
-    // Force toggle twice for stronger/more reliable trigger on some iOS versions
-    label.click();
-    setTimeout(() => {
-      input.checked = false;
-      label.click();   // second click often helps
-    }, 20);
+    const label = hapticDiv.querySelector("label");
+    const input = hapticDiv.querySelector("input");
+    if (label && input) {
+      label.click();           // primary trigger
+      setTimeout(() => {
+        input.checked = false;
+        label.click();         // double-tap helps on some iOS versions
+      }, 16);
+    }
   }
 
   popupImg?.addEventListener("contextmenu", e => e.preventDefault());
 
   let pressTimer = null;
-  let startX = 0;
-  let startY = 0;
-  const MOVE_THRESHOLD = 20;
-  const LONG_PRESS_DELAY = 520;   // closer to Apple's default, feels snappier
+  let startX = 0, startY = 0;
+  const MOVE_THRESHOLD = 22;
+  const HOLD_TIME = 520;                 // feels good with "Fast" Haptic Touch
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    // Haptic right when popup opens
-    triggerHaptic();                     // iOS 18+ hack
-    if (navigator.vibrate) navigator.vibrate([8, 12]);  // Android fallback
+    triggerHaptic();                       // ← iOS haptic
+    if (navigator.vibrate) navigator.vibrate(10);   // Android
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
@@ -2723,27 +2716,26 @@ function initBuschLongPress_() {
     document.body.classList.add("noSelect");
 
     if (e.type === "touchstart") {
-      const t = e.touches?.[0];
-      startX = t ? t.clientX : 0;
-      startY = t ? t.clientY : 0;
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
     }
 
     pressTimer = setTimeout(() => {
       pressTimer = null;
       openPopup();
-    }, LONG_PRESS_DELAY);
+    }, HOLD_TIME);
   }
 
   function handleTouchMove(e) {
     if (!pressTimer) return;
-    const t = e.touches?.[0];
-    if (!t) return;
+    const t = e.touches[0];
     if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD || Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
       cancelPress();
     }
   }
 
-  // Attach listeners
+  // Listeners
   logo.addEventListener("mousedown", startPress);
   logo.addEventListener("mouseup", cancelPress);
   logo.addEventListener("mouseleave", cancelPress);
