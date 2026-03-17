@@ -2658,7 +2658,7 @@ function initBuschLongPress_() {
 
   if (!trigger || !popup) return;
 
-  // Persistent haptic helper
+  // Aggressive haptic helper
   let hapticDiv = null;
   function triggerHaptic() {
     if (!hapticDiv) {
@@ -2671,30 +2671,29 @@ function initBuschLongPress_() {
     const input = hapticDiv.querySelector("input");
     if (label && input) {
       label.click();
-      setTimeout(() => {
-        input.checked = false;
-        label.click();
+      setTimeout(() => { 
+        input.checked = false; 
+        label.click(); 
       }, 16);
     }
   }
 
-  // Prevent link navigation and preview
+  // Block native link behaviors as hard as possible
   trigger.addEventListener("click", e => e.preventDefault());
-
-  popupImg?.addEventListener("contextmenu", e => e.preventDefault());
+  trigger.addEventListener("contextmenu", e => e.preventDefault());
 
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
-  const MOVE_THRESHOLD = 22;
-  const HOLD_TIME = 480;   // Slightly faster to beat Safari's preview
+  const MOVE_THRESHOLD = 25;
+  const HOLD_TIME = 460;   // Faster so your timer wins over Safari's preview
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
     if (popupImg && nextImg) popupImg.src = nextImg;
 
-    triggerHaptic();                    // Best manual haptic hack
-    if (navigator.vibrate) navigator.vibrate(10);
+    triggerHaptic();
+    if (navigator.vibrate) navigator.vibrate([8, 12]);
 
     popup.hidden = false;
     document.body.style.overflow = "hidden";
