@@ -361,25 +361,13 @@
 .buschLogoTrigger {
   position: absolute;
   inset: 0;
-  display: block;
   background: transparent;
-  touch-action: none;
+  touch-action: none;               /* Critical */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-  text-decoration: none;
-  color: transparent;
-  outline: none;
+  z-index: 10;
   pointer-events: auto;
-  z-index: 5;
-}
-
-/* Force Safari to treat the entire area consistently */
-.buschLogoTrigger:active,
-.buschLogoTrigger:focus {
-  background: transparent !important;
-  box-shadow: none !important;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .buschPopup,
