@@ -2636,9 +2636,17 @@ let buschGirls = [];
 let buschQueue = [];
 
 const BUSCH_SOFT_FOLDER = "/soft/";
-const BUSCH_WARMUP_COUNT = 2;   // change to 2 if you want less runway
-const BUSCH_SOFT_WEIGHT = 1;
-const BUSCH_SPICY_WEIGHT = 6;
+const BUSCH_OLD_FOLDER = "/old/";
+const BUSCH_WARMUP_COUNT = 2;
+
+// Default weights for everybody else
+const BUSCH_DEFAULT_SOFT_WEIGHT = 1;
+const BUSCH_DEFAULT_OTHER_WEIGHT = 6;
+
+// Tyler exception
+const BUSCH_TYLER_OLD_WEIGHT = 10;
+const BUSCH_TYLER_SOFT_WEIGHT = 1;
+const BUSCH_TYLER_OTHER_WEIGHT = 2;
 
 async function loadBuschGirls() {
   try {
@@ -2667,26 +2675,39 @@ function takeRandom_(arr, count) {
   return shuffle_(arr).slice(0, count);
 }
 
+function activePlayerIsTyler_() {
+  return String(loadPlayerName() || "").trim().toLowerCase() === "tyler";
+}
+
 function refillQueue() {
   const soft = buschGirls.filter(img => img.includes(BUSCH_SOFT_FOLDER));
-  const spicy = buschGirls.filter(img => !img.includes(BUSCH_SOFT_FOLDER));
-
-  // Phase 1: guaranteed soft warmup
   const warmup = takeRandom_(soft, Math.min(BUSCH_WARMUP_COUNT, soft.length));
-
-  // Remove warmup picks from the remaining soft list
   const warmupSet = new Set(warmup);
-  const remainingSoft = soft.filter(img => !warmupSet.has(img));
 
-  // Phase 2: weighted pool for the rest
-  const weightedPool = [
-    ...remainingSoft.flatMap(img => Array(BUSCH_SOFT_WEIGHT).fill(img)),
-    ...spicy.flatMap(img => Array(BUSCH_SPICY_WEIGHT).fill(img))
-  ];
+  const remaining = buschGirls.filter(img => !warmupSet.has(img));
+
+  const isTyler = activePlayerIsTyler_();
+  const weightedPool = [];
+
+  for (const img of remaining) {
+    let weight = BUSCH_DEFAULT_OTHER_WEIGHT;
+
+    if (img.includes(BUSCH_SOFT_FOLDER)) {
+      weight = isTyler ? BUSCH_TYLER_SOFT_WEIGHT : BUSCH_DEFAULT_SOFT_WEIGHT;
+    } else if (isTyler && img.includes(BUSCH_OLD_FOLDER)) {
+      weight = BUSCH_TYLER_OLD_WEIGHT;
+    } else if (isTyler) {
+      weight = BUSCH_TYLER_OTHER_WEIGHT;
+    }
+
+    for (let i = 0; i < weight; i++) {
+      weightedPool.push(img);
+    }
+  }
 
   const shuffledMain = shuffle_(weightedPool);
 
-  // Optional: de-dupe repeated weighted entries while keeping front-loaded bias
+  // de-dupe while preserving the weighted front-loading effect
   const seen = new Set();
   const main = [];
   for (const img of shuffledMain) {
