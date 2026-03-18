@@ -3,7 +3,7 @@ name: Build Buschgirls Manifest
 on:
   push:
     paths:
-      - "img/buschgirls/*"
+      - "img/buschgirls/**"
 
 permissions:
   contents: write
@@ -27,16 +27,38 @@ jobs:
         run: |
           node <<'EOF'
           const fs = require("fs");
-          const path = "img/buschgirls";
+          const path = require("path");
 
-          const files = fs.readdirSync(path)
-            .filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
-            .filter(f => f !== "manifest.json")
-            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-            .map(f => `img/buschgirls/${f}`);
+          const root = "img/buschgirls";
+          const allowed = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
+          function walk(dir) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            let out = [];
+
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+
+              if (entry.isDirectory()) {
+                out = out.concat(walk(fullPath));
+                continue;
+              }
+
+              const ext = path.extname(entry.name).toLowerCase();
+              if (!allowed.has(ext)) continue;
+              if (entry.name.toLowerCase() === "manifest.json") continue;
+
+              out.push(fullPath.replace(/\\/g, "/"));
+            }
+
+            return out;
+          }
+
+          const files = walk(root)
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
           fs.writeFileSync(
-            `${path}/manifest.json`,
+            `${root}/manifest.json`,
             JSON.stringify(files, null, 2) + "\n"
           );
           EOF
