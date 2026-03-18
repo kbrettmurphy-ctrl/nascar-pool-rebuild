@@ -2636,9 +2636,9 @@ let buschGirls = [];
 let buschQueue = [];
 
 const BUSCH_SOFT_FOLDER = "/soft/";
-const BUSCH_WARMUP_COUNT = 3;   // change to 2 if you want less runway
+const BUSCH_WARMUP_COUNT = 2;   // change to 2 if you want less runway
 const BUSCH_SOFT_WEIGHT = 1;
-const BUSCH_SPICY_WEIGHT = 4;
+const BUSCH_SPICY_WEIGHT = 6;
 
 async function loadBuschGirls() {
   try {
