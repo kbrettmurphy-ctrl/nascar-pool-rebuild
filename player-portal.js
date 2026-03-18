@@ -1082,6 +1082,7 @@ refreshActiveView();
       if (ph) ph.hidden = true;
 
       savePlayerName(name);
+      refillQueue();
       setWelcome();
       checkDuesNag_();
       autoSizePlayerSelect_(gp);
