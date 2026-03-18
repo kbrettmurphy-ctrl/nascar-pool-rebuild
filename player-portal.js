@@ -2635,6 +2635,11 @@ refreshActiveView();
 let buschGirls = [];
 let buschQueue = [];
 
+const BUSCH_SOFT_FOLDER = "/soft/";
+const BUSCH_WARMUP_COUNT = 3;   // change to 2 if you want less runway
+const BUSCH_SOFT_WEIGHT = 1;
+const BUSCH_SPICY_WEIGHT = 4;
+
 async function loadBuschGirls() {
   try {
     const res = await fetch("/img/buschgirls/manifest.json", { cache: "no-store" });
@@ -2649,21 +2654,55 @@ async function loadBuschGirls() {
   }
 }
 
-function refillQueue() {
-  // create a shuffled copy
-  buschQueue = [...buschGirls];
-
-  for (let i = buschQueue.length - 1; i > 0; i--) {
+function shuffle_(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [buschQueue[i], buschQueue[j]] = [buschQueue[j], buschQueue[i]];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
   }
+  return copy;
+}
+
+function takeRandom_(arr, count) {
+  return shuffle_(arr).slice(0, count);
+}
+
+function refillQueue() {
+  const soft = buschGirls.filter(img => img.includes(BUSCH_SOFT_FOLDER));
+  const spicy = buschGirls.filter(img => !img.includes(BUSCH_SOFT_FOLDER));
+
+  // Phase 1: guaranteed soft warmup
+  const warmup = takeRandom_(soft, Math.min(BUSCH_WARMUP_COUNT, soft.length));
+
+  // Remove warmup picks from the remaining soft list
+  const warmupSet = new Set(warmup);
+  const remainingSoft = soft.filter(img => !warmupSet.has(img));
+
+  // Phase 2: weighted pool for the rest
+  const weightedPool = [
+    ...remainingSoft.flatMap(img => Array(BUSCH_SOFT_WEIGHT).fill(img)),
+    ...spicy.flatMap(img => Array(BUSCH_SPICY_WEIGHT).fill(img))
+  ];
+
+  const shuffledMain = shuffle_(weightedPool);
+
+  // Optional: de-dupe repeated weighted entries while keeping front-loaded bias
+  const seen = new Set();
+  const main = [];
+  for (const img of shuffledMain) {
+    if (seen.has(img)) continue;
+    seen.add(img);
+    main.push(img);
+  }
+
+  buschQueue = [...warmup, ...main];
 }
 
 function getRandomBuschGirl() {
   if (!buschGirls.length) return null;
 
   if (!buschQueue.length) {
-    refillQueue(); // reshuffle when exhausted
+    refillQueue();
   }
 
   return buschQueue.shift();
