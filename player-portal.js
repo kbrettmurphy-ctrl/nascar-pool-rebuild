@@ -2860,8 +2860,6 @@ function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
     const pinBackdrop = document.getElementById("adminPinBackdrop");
     const pinInput = document.getElementById("adminPinInput");
-    const pinBackdrop = document.getElementById("adminPinBackdrop");
-    const pinInput = document.getElementById("adminPinInput");
     const closeBtn = document.getElementById("adminCloseBtn");
     const lockBtn = document.getElementById("adminLockBtn");
 
