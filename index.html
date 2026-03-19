@@ -121,11 +121,14 @@
     <div class="adminPinModal">
       <div class="adminModalTitle">Admin Access</div>
       <div class="muted">Enter PIN</div>
-      <input id="adminPinInput" type="password" inputmode="numeric" placeholder="PIN" maxlength="10" />
-      <div class="adminRow">
-        <button id="adminPinCancel" class="secondary" style="background:var(--redtrans);" type="button">Cancel</button>
-        <button id="adminPinSubmit" class="primary" style="background:var(--greentrans);" type="button">Unlock</button>
-      </div>
+      <input
+        id="adminPinInput"
+        type="password"
+        inputmode="numeric"
+        placeholder="PIN"
+        maxlength="10"
+        autocomplete="off"
+      />
       <div id="adminPinStatus" class="adminStatus"></div>
     </div>
   </div>
