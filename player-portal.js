@@ -2647,7 +2647,7 @@ const BUSCH_DEFAULT_OTHER_WEIGHT = 6;
 // Tyler exception
 const BUSCH_TYLER_OLD_WEIGHT = 10;
 const BUSCH_TYLER_SOFT_WEIGHT = 1;
-const BUSCH_TYLER_OTHER_WEIGHT = 2;
+const BUSCH_TYLER_OTHER_WEIGHT = 1;
 
 async function loadBuschGirls() {
   try {
