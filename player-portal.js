@@ -16,7 +16,8 @@
 
   const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
   const views = ["current","live","mymatchup","standings","dues","bracket"];
-
+  const ADMIN_PIN_LENGTH = 6;
+  let _adminUnlockInFlight = false;
   let activeView = "current";
   let ALL_MATCHUPS = null;
   let RACE_LIST = [];
@@ -354,12 +355,32 @@ async function loadLiveMatchups(){
 
   function openAdminPin_() {
     const backdrop = document.getElementById("adminPinBackdrop");
+    const modal = backdrop?.querySelector(".adminPinModal");
     const input = document.getElementById("adminPinInput");
     const status = document.getElementById("adminPinStatus");
-    if (!backdrop) return;
+
+    if (!backdrop || !input || !status) return;
+
     status.textContent = "";
     input.value = "";
     backdrop.hidden = false;
+
+    if (!backdrop.dataset.bound) {
+      backdrop.dataset.bound = "1";
+
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) {
+          closeAdminPin_();
+        }
+      });
+
+      if (modal) {
+        modal.addEventListener("click", (e) => {
+          e.stopPropagation();
+        });
+      }
+    }
+
     setTimeout(() => input.focus(), 20);
   }
 
@@ -397,43 +418,37 @@ async function loadLiveMatchups(){
   }
 
   async function unlockAdmin_() {
-  const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
-  if (!pin) {
-    setAdminStatus_("adminPinStatus", "Enter PIN.", true);
-    return;
-  }
-
-  setAdminStatus_("adminPinStatus", "Checking...");
-
-  try {
-    const res = await fetch("/api/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin })
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data?.ok || !data?.token) {
-      throw new Error(data?.error || "Invalid PIN");
+    if (_adminUnlockInFlight) return
+    const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
+    if (!pin) {
+      setAdminStatus_("adminPinStatus", "Enter PIN.", true);
+      return;
     }
-
-    setAdminToken_(data.token);
-    _adminContext = null;
-
-    // Load admin data FIRST while PIN modal is still open
-    await initAdminOverlay_();
-
-    // Only close PIN after admin overlay is ready
-    closeAdminPin_();
-    openAdminOverlay_();
-
-  } catch (err) {
-    clearAdminToken_();
-    _adminContext = null;
-    setAdminStatus_("adminPinStatus", err.message || String(err), true);
+    _adminUnlockInFlight = true;
+    setAdminStatus_("adminPinStatus", "Checking...");
+    try {
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok || !data?.token) {
+        throw new Error(data?.error || "Invalid PIN");
+      }
+      setAdminToken_(data.token);
+      _adminContext = null;
+      await initAdminOverlay_();
+      closeAdminPin_();
+      openAdminOverlay_();
+    } catch (err) {
+      clearAdminToken_();
+      _adminContext = null;
+      setAdminStatus_("adminPinStatus", err.message || String(err), true);
+    } finally {
+      _adminUnlockInFlight = false;
+    }
   }
-}
 
   async function initAdminOverlay_() {
     const ctx = await getAdminContext_();
@@ -2845,8 +2860,8 @@ function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
     const pinBackdrop = document.getElementById("adminPinBackdrop");
     const pinInput = document.getElementById("adminPinInput");
-    const pinSubmit = document.getElementById("adminPinSubmit");
-    const pinCancel = document.getElementById("adminPinCancel");
+    const pinBackdrop = document.getElementById("adminPinBackdrop");
+    const pinInput = document.getElementById("adminPinInput");
     const closeBtn = document.getElementById("adminCloseBtn");
     const lockBtn = document.getElementById("adminLockBtn");
 
@@ -2892,20 +2907,23 @@ function initAdminControls_() {
     portal.addEventListener("touchcancel", cancelPress);
   }
 
-  if (pinCancel && !pinCancel.dataset.bound) {
-    pinCancel.dataset.bound = "1";
-    pinCancel.addEventListener("click", closeAdminPin_);
-  }
-
-  if (pinSubmit && !pinSubmit.dataset.bound) {
-    pinSubmit.dataset.bound = "1";
-    pinSubmit.addEventListener("click", unlockAdmin_);
-  }
-
   if (pinInput && !pinInput.dataset.bound) {
     pinInput.dataset.bound = "1";
     pinInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") unlockAdmin_();
+      if (e.key === "Escape") {
+        closeAdminPin_();
+        return;
+      }
+      if (e.key === "Enter") {
+        unlockAdmin_();
+      }
+    });
+    pinInput.addEventListener("input", () => {
+      const pin = String(pinInput.value || "").trim();
+      setAdminStatus_("adminPinStatus", "", false);
+      if (pin.length === ADMIN_PIN_LENGTH) {
+        unlockAdmin_();
+      }
     });
   }
 
