@@ -425,7 +425,7 @@ async function loadLiveMatchups(){
       return;
     }
     _adminUnlockInFlight = true;
-    setAdminStatus_("adminPinStatus", "Checking...");
+    setAdminStatus_("adminPinStatus", "Slingshot...engage");
     try {
       const res = await fetch("/api/admin-login", {
         method: "POST",
