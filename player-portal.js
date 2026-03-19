@@ -230,15 +230,15 @@ async function loadLiveMatchups(){
 
       const p1Drivers = (m.p1Drivers || []).length
         ? (m.p1Drivers || []).map(driverLine).join("<br>")
-        : `<span class="microMeta">No drivers assigned yet</span>`;
+        : `<span class="microMeta">No drivers yet</span>`;
 
       const p2Drivers = (m.p2Drivers || []).length
         ? (m.p2Drivers || []).map(driverLine).join("<br>")
-        : `<span class="microMeta">No drivers assigned yet</span>`;
+        : `<span class="microMeta">No drivers yet</span>`;
 
       const leaderLine =
         m.leader
-          ? `${m.leader === "Tie" ? "Leader: Tie" : `Leader: ${escapeHtml(m.leader)}`}`
+          ? `${m.leader === "Tie" ? "Leader:" : `Leader: ${escapeHtml(m.leader)}`}`
           : `Leader: -`;
 
       return `
