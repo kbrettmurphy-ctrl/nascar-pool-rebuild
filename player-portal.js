@@ -2987,5 +2987,5 @@ function initAdminControls_() {
 
     // start live matchup polling
     loadLiveMatchups();
-    setInterval(loadLiveMatchups, 45000);
+    setInterval(loadLiveMatchups, 30000);
   };
