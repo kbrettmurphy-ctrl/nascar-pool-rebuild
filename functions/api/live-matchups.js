@@ -1,6 +1,6 @@
 export async function onRequestGet(context) {
   try {
-    const { env } = context;
+    const { env, request } = context;
 
     const headers = {
       apikey: env.SUPABASE_SECRET_KEY,
@@ -27,8 +27,8 @@ export async function onRequestGet(context) {
     }
 
     /*
-    STEP 1
-    Find current race (first race without results)
+      STEP 1
+      Find current race (first race without results)
     */
     const races = await getJson(
       `/rest/v1/races?select=id,race_number,race_name,season_year&order=race_number.asc`
@@ -53,8 +53,8 @@ export async function onRequestGet(context) {
     }
 
     /*
-    STEP 2
-    Pull NASCAR race list
+      STEP 2
+      Pull NASCAR race list
     */
     const raceListUrl =
       `https://cf.nascar.com/cacher/${currentRace.season_year}/race_list_basic.json`;
@@ -75,8 +75,8 @@ export async function onRequestGet(context) {
         : [];
 
     /*
-    STEP 3
-    Sort chronologically
+      STEP 3
+      Sort chronologically
     */
     const sorted = cupRaces
       .slice()
@@ -87,8 +87,8 @@ export async function onRequestGet(context) {
       });
 
     /*
-    STEP 4
-    Remove exhibition races
+      STEP 4
+      Remove exhibition races
     */
     const pointsRaces = sorted.filter(r => {
       const name = String(r?.race_name || "").toLowerCase();
@@ -101,8 +101,8 @@ export async function onRequestGet(context) {
     });
 
     /*
-    STEP 5
-    Resolve NASCAR race ID
+      STEP 5
+      Resolve NASCAR race ID
     */
     const nascarRace =
       pointsRaces[currentRace.race_number - 1];
@@ -115,11 +115,10 @@ export async function onRequestGet(context) {
     }
 
     /*
-    STEP 6
-    Pull live NASCAR feed
+      STEP 6
+      Pull live NASCAR feed
     */
-    const liveUrl =
-      `https://cf.nascar.com/live/feeds/live-feed.json`;
+    const liveUrl = `https://cf.nascar.com/live/feeds/live-feed.json`;
 
     const liveResp = await fetch(liveUrl, {
       headers: {
@@ -132,8 +131,8 @@ export async function onRequestGet(context) {
     const liveJson = await liveResp.json();
 
     /*
-    STEP 7
-    Extract running order
+      STEP 7
+      Extract running order
     */
     const vehicles =
       Array.isArray(liveJson?.vehicles)
@@ -154,20 +153,19 @@ export async function onRequestGet(context) {
         car: String(v?.vehicle_number ?? "").trim()
       };
 
-      for (const key of buildLookupKeys(name)) {
+      const keys = buildLookupKeys(name);
+      for (const key of keys) {
         driverPositions[key] = info;
       }
     }
 
     /*
-    STEP 8
-    Pull matchup data from your existing API
+      STEP 8
+      Pull matchup data from your existing API
     */
-    const origin = new URL(context.request.url).origin;
+    const origin = new URL(request.url).origin;
 
-    const raceDataResp =
-      await fetch(`${origin}/api/player-race-data`);
-
+    const raceDataResp = await fetch(`${origin}/api/player-race-data`);
     const raceData = await raceDataResp.json();
 
     const current = raceData?.matchups?.current;
@@ -175,15 +173,13 @@ export async function onRequestGet(context) {
     if (!current) {
       return json({
         ok: false,
-        error: "Could not determine current matchup context"
+        error: "Could not determine current race context"
       }, 500);
     }
 
-    const raceKey =
-      `${current.tournament}||${current.race}`;
+    const raceKey = `${current.tournament}||${current.race}`;
 
-    const raceBlob =
-      raceData?.matchups?.races?.[raceKey];
+    const raceBlob = raceData?.matchups?.races?.[raceKey];
 
     const matchups =
       Array.isArray(raceBlob?.matchups)
@@ -191,16 +187,27 @@ export async function onRequestGet(context) {
         : [];
 
     /*
-    STEP 9
-    Calculate live matchup averages
+      STEP 9
+      Calculate live matchup averages
     */
     const liveMatchups = [];
+    const unresolvedDrivers = [];
 
     for (const m of matchups) {
       const p1Drivers = (m.p1Drivers || [])
         .filter(d => d && d.trim() !== "")
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
+
+          if (!found) {
+            unresolvedDrivers.push({
+              matchup: `${m.p1} vs ${m.p2}`,
+              side: "p1",
+              requested: d,
+              tried: buildLookupKeys(d)
+            });
+          }
+
           return {
             name: d,
             position: found?.position ?? null
@@ -211,6 +218,16 @@ export async function onRequestGet(context) {
         .filter(d => d && d.trim() !== "")
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
+
+          if (!found) {
+            unresolvedDrivers.push({
+              matchup: `${m.p1} vs ${m.p2}`,
+              side: "p2",
+              requested: d,
+              tried: buildLookupKeys(d)
+            });
+          }
+
           return {
             name: d,
             position: found?.position ?? null
@@ -256,7 +273,7 @@ export async function onRequestGet(context) {
     }
 
     /*
-    FINAL RESPONSE
+      FINAL RESPONSE
     */
     return json({
       ok: true,
@@ -270,8 +287,13 @@ export async function onRequestGet(context) {
 
       updated: new Date().toISOString(),
 
-      matchups: liveMatchups
+      matchups: liveMatchups,
+
+      debug: {
+        unresolvedDrivers
+      }
     });
+
   } catch (err) {
     return json({
       ok: false,
@@ -284,7 +306,8 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
     }
   });
 }
@@ -303,19 +326,35 @@ function getAliasCandidates(name) {
   const n = normalizeName(name);
 
   const aliases = {
-    "john h nemechek": ["john hunter nemechek"],
-    "john hunter nemechek": ["john h nemechek"],
+    "john h nemechek": [
+      "john hunter nemechek"
+    ],
+    "john hunter nemechek": [
+      "john h nemechek"
+    ],
 
-    "aj allmendinger": ["a j allmendinger"],
-    "a j allmendinger": ["aj allmendinger"],
+    "aj allmendinger": [
+      "a j allmendinger"
+    ],
+    "a j allmendinger": [
+      "aj allmendinger"
+    ],
 
-    "daniel suarez": ["daniel suarez"],
+    "daniel suarez": [
+      "daniel suarez"
+    ],
 
-    // Sub fallback for Bowman car situation
-    "justin allgaier": ["alex bowman"],
-
-    // Also allow the reverse, in case you ever store Bowman somewhere else
-    "alex bowman": ["justin allgaier"]
+    /*
+      Sub driver fallback
+      If your matchup data says Justin Allgaier but the feed is still keyed
+      under Bowman-related naming, try both.
+    */
+    "justin allgaier": [
+      "alex bowman"
+    ],
+    "alex bowman": [
+      "justin allgaier"
+    ]
   };
 
   return aliases[n] || [];
@@ -327,10 +366,10 @@ function buildLookupKeys(name) {
   const base = normalizeName(name);
   if (base) out.add(base);
 
-  const aliasCandidates = getAliasCandidates(name);
-  for (const alias of aliasCandidates) {
-    const normAlias = normalizeName(alias);
-    if (normAlias) out.add(normAlias);
+  const aliases = getAliasCandidates(name);
+  for (const alias of aliases) {
+    const n = normalizeName(alias);
+    if (n) out.add(n);
   }
 
   return [...out];
