@@ -128,8 +128,6 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const nascarRaceId = nascarRace.race_id;
-
     /*
     STEP 6
     Pull live NASCAR feed
@@ -167,11 +165,15 @@ export async function onRequestGet(context) {
 
       if (!name || !Number.isFinite(position)) continue;
 
-      driverPositions[normalizeName(name)] = {
+      const info = {
         name: name.trim(),
         position,
         car: v?.vehicle_number ?? null
       };
+
+      for (const key of buildLookupKeys(name)) {
+        driverPositions[key] = info;
+      }
 
     }
 
@@ -206,36 +208,34 @@ export async function onRequestGet(context) {
     */
 
     const liveMatchups = [];
-    
+
     for (const m of matchups) {
-      
+
       const p1Drivers = (m.p1Drivers || [])
         .filter(d => d && d.trim() !== "")
         .map(d => {
-          const key = normalizeName(d);
-          const pos = driverPositions[key]?.position ?? null;
+          const found = resolveDriverPosition(d, driverPositions);
           return {
             name: d,
-            position: pos
+            position: found?.position ?? null
           };
-      });
+        });
 
       const p2Drivers = (m.p2Drivers || [])
         .filter(d => d && d.trim() !== "")
         .map(d => {
-          const key = normalizeName(d);
-          const pos = driverPositions[key]?.position ?? null;
+          const found = resolveDriverPosition(d, driverPositions);
           return {
             name: d,
-            position: pos
+            position: found?.position ?? null
           };
-      });
+        });
 
       function avg(list) {
 
         const nums =
           list.map(x => x.position)
-          .filter(x => Number.isFinite(x));
+            .filter(x => Number.isFinite(x));
 
         if (nums.length !== list.length) return null;
 
@@ -259,7 +259,6 @@ export async function onRequestGet(context) {
       }
 
       liveMatchups.push({
-
         p1: m.p1,
         p1Drivers,
         p1Avg,
@@ -269,7 +268,6 @@ export async function onRequestGet(context) {
         p2Avg,
 
         leader
-
       });
 
     }
@@ -320,11 +318,56 @@ function json(data, status = 200) {
 }
 
 function normalizeName(s) {
-
   return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
 
+function aliasName(s) {
+  const n = normalizeName(s);
+
+  const aliases = {
+    "john h nemechek": "john hunter nemechek",
+    "daniel suarez": "daniel suarez",
+    "aj allmendinger": "a j allmendinger",
+    "a j allmendinger": "a j allmendinger"
+  };
+
+  return aliases[n] || n;
+}
+
+function buildLookupKeys(name) {
+  const out = new Set();
+
+  const base = normalizeName(name);
+  const aliased = aliasName(name);
+
+  if (base) out.add(base);
+  if (aliased) out.add(aliased);
+
+  if (base === "john hunter nemechek") {
+    out.add("john h nemechek");
+  }
+
+  if (base === "a j allmendinger") {
+    out.add("aj allmendinger");
+  }
+
+  return [...out];
+}
+
+function resolveDriverPosition(name, driverPositions) {
+  const keys = buildLookupKeys(name);
+
+  for (const key of keys) {
+    if (driverPositions[key]) {
+      return driverPositions[key];
+    }
+  }
+
+  return null;
 }
