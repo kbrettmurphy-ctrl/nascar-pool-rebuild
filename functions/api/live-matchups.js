@@ -1,7 +1,5 @@
 export async function onRequestGet(context) {
-
   try {
-
     const { env } = context;
 
     const headers = {
@@ -10,7 +8,6 @@ export async function onRequestGet(context) {
     };
 
     async function getJson(path) {
-
       const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
 
       const text = await res.text();
@@ -27,14 +24,12 @@ export async function onRequestGet(context) {
       }
 
       return data;
-
     }
 
     /*
     STEP 1
     Find current race (first race without results)
     */
-
     const races = await getJson(
       `/rest/v1/races?select=id,race_number,race_name,season_year&order=race_number.asc`
     );
@@ -61,7 +56,6 @@ export async function onRequestGet(context) {
     STEP 2
     Pull NASCAR race list
     */
-
     const raceListUrl =
       `https://cf.nascar.com/cacher/${currentRace.season_year}/race_list_basic.json`;
 
@@ -84,25 +78,19 @@ export async function onRequestGet(context) {
     STEP 3
     Sort chronologically
     */
-
     const sorted = cupRaces
       .slice()
       .sort((a, b) => {
-
         const da = Date.parse(a?.race_date || "") || 0;
         const db = Date.parse(b?.race_date || "") || 0;
-
         return da - db;
-
       });
 
     /*
     STEP 4
     Remove exhibition races
     */
-
     const pointsRaces = sorted.filter(r => {
-
       const name = String(r?.race_name || "").toLowerCase();
 
       if (name.includes("clash")) return false;
@@ -110,14 +98,12 @@ export async function onRequestGet(context) {
       if (name.includes("all-star")) return false;
 
       return true;
-
     });
 
     /*
     STEP 5
     Resolve NASCAR race ID
     */
-
     const nascarRace =
       pointsRaces[currentRace.race_number - 1];
 
@@ -132,7 +118,6 @@ export async function onRequestGet(context) {
     STEP 6
     Pull live NASCAR feed
     */
-
     const liveUrl =
       `https://cf.nascar.com/live/feeds/live-feed.json`;
 
@@ -150,7 +135,6 @@ export async function onRequestGet(context) {
     STEP 7
     Extract running order
     */
-
     const vehicles =
       Array.isArray(liveJson?.vehicles)
         ? liveJson.vehicles
@@ -159,7 +143,6 @@ export async function onRequestGet(context) {
     const driverPositions = {};
 
     for (const v of vehicles) {
-
       const name = v?.driver?.full_name || "";
       const position = Number(v?.running_position);
 
@@ -168,20 +151,18 @@ export async function onRequestGet(context) {
       const info = {
         name: name.trim(),
         position,
-        car: v?.vehicle_number ?? null
+        car: String(v?.vehicle_number ?? "").trim()
       };
 
       for (const key of buildLookupKeys(name)) {
         driverPositions[key] = info;
       }
-
     }
 
     /*
     STEP 8
     Pull matchup data from your existing API
     */
-
     const origin = new URL(context.request.url).origin;
 
     const raceDataResp =
@@ -190,6 +171,13 @@ export async function onRequestGet(context) {
     const raceData = await raceDataResp.json();
 
     const current = raceData?.matchups?.current;
+
+    if (!current) {
+      return json({
+        ok: false,
+        error: "Could not determine current matchup context"
+      }, 500);
+    }
 
     const raceKey =
       `${current.tournament}||${current.race}`;
@@ -206,11 +194,9 @@ export async function onRequestGet(context) {
     STEP 9
     Calculate live matchup averages
     */
-
     const liveMatchups = [];
 
     for (const m of matchups) {
-
       const p1Drivers = (m.p1Drivers || [])
         .filter(d => d && d.trim() !== "")
         .map(d => {
@@ -232,15 +218,13 @@ export async function onRequestGet(context) {
         });
 
       function avg(list) {
-
         const nums =
           list.map(x => x.position)
             .filter(x => Number.isFinite(x));
 
         if (nums.length !== list.length) return null;
 
-        return nums.reduce((a,b)=>a+b,0) / nums.length;
-
+        return nums.reduce((a, b) => a + b, 0) / nums.length;
       }
 
       const p1Avg = avg(p1Drivers);
@@ -269,15 +253,12 @@ export async function onRequestGet(context) {
 
         leader
       });
-
     }
 
     /*
     FINAL RESPONSE
     */
-
     return json({
-
       ok: true,
 
       race: {
@@ -290,31 +271,22 @@ export async function onRequestGet(context) {
       updated: new Date().toISOString(),
 
       matchups: liveMatchups
-
     });
-
-  }
-
-  catch (err) {
-
+  } catch (err) {
     return json({
       ok: false,
       error: err.message || String(err)
     }, 500);
-
   }
-
 }
 
 function json(data, status = 200) {
-
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json"
     }
   });
-
 }
 
 function normalizeName(s) {
@@ -327,34 +299,38 @@ function normalizeName(s) {
     .trim();
 }
 
-function aliasName(s) {
-  const n = normalizeName(s);
+function getAliasCandidates(name) {
+  const n = normalizeName(name);
 
   const aliases = {
-    "john h nemechek": "john hunter nemechek",
-    "daniel suarez": "daniel suarez",
-    "aj allmendinger": "a j allmendinger",
-    "a j allmendinger": "a j allmendinger"
+    "john h nemechek": ["john hunter nemechek"],
+    "john hunter nemechek": ["john h nemechek"],
+
+    "aj allmendinger": ["a j allmendinger"],
+    "a j allmendinger": ["aj allmendinger"],
+
+    "daniel suarez": ["daniel suarez"],
+
+    // Sub fallback for Bowman car situation
+    "justin allgaier": ["alex bowman"],
+
+    // Also allow the reverse, in case you ever store Bowman somewhere else
+    "alex bowman": ["justin allgaier"]
   };
 
-  return aliases[n] || n;
+  return aliases[n] || [];
 }
 
 function buildLookupKeys(name) {
   const out = new Set();
 
   const base = normalizeName(name);
-  const aliased = aliasName(name);
-
   if (base) out.add(base);
-  if (aliased) out.add(aliased);
 
-  if (base === "john hunter nemechek") {
-    out.add("john h nemechek");
-  }
-
-  if (base === "a j allmendinger") {
-    out.add("aj allmendinger");
+  const aliasCandidates = getAliasCandidates(name);
+  for (const alias of aliasCandidates) {
+    const normAlias = normalizeName(alias);
+    if (normAlias) out.add(normAlias);
   }
 
   return [...out];
