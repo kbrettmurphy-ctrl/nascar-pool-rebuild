@@ -314,6 +314,7 @@ function json(data, status = 200) {
 
 function normalizeName(s) {
   return String(s || "")
+    .replace(/\([^)]*\)/g, " ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
