@@ -314,15 +314,24 @@ function json(data, status = 200) {
 
 function normalizeName(s) {
   return String(s || "")
+    // remove anything in parentheses anywhere in the string
     .replace(/\([^)]*\)/g, " ")
+    
+    // normalize accents (Suárez → Suarez)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    
+    // lowercase
     .toLowerCase()
+    
+    // strip punctuation
     .replace(/[^a-z0-9\s]/g, " ")
+    
+    // collapse whitespace
     .replace(/\s+/g, " ")
+    
     .trim();
 }
-
 function getAliasCandidates(name) {
   const n = normalizeName(name);
 
