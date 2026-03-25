@@ -8,7 +8,7 @@
   const ADMIN_TOKEN_KEY = "nascar_pool_admin_token";
 
   const TOURNAMENT_PAYOUTS = {
-    1: "🖕🏻$100",
+    1: "$100",
     2: "$60",
     3: "$40",
     4: "$20"
