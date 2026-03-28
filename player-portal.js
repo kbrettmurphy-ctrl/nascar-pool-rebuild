@@ -2697,20 +2697,29 @@ function activePlayerIsTyler_() {
 
 function refillQueue() {
   const soft = buschGirls.filter(img => img.includes(BUSCH_SOFT_FOLDER));
+  const old = buschGirls.filter(img => img.includes(BUSCH_OLD_FOLDER));
+
   const warmup = takeRandom_(soft, Math.min(BUSCH_WARMUP_COUNT, soft.length));
   const warmupSet = new Set(warmup);
 
-  const remaining = buschGirls.filter(img => !warmupSet.has(img));
-
   const isTyler = activePlayerIsTyler_();
+
+  // Everybody except Tyler gets NO old folder images at all.
+  const eligiblePool = buschGirls.filter(img => {
+    if (warmupSet.has(img)) return false;
+    if (!isTyler && img.includes(BUSCH_OLD_FOLDER)) return false;
+    return true;
+  });
+
   const weightedPool = [];
 
-  for (const img of remaining) {
+  for (const img of eligiblePool) {
     let weight = BUSCH_DEFAULT_OTHER_WEIGHT;
 
     if (img.includes(BUSCH_SOFT_FOLDER)) {
       weight = isTyler ? BUSCH_TYLER_SOFT_WEIGHT : BUSCH_DEFAULT_SOFT_WEIGHT;
-    } else if (isTyler && img.includes(BUSCH_OLD_FOLDER)) {
+    } else if (img.includes(BUSCH_OLD_FOLDER)) {
+      // Only Tyler can ever reach this branch because old/ is filtered out above for everyone else
       weight = BUSCH_TYLER_OLD_WEIGHT;
     } else if (isTyler) {
       weight = BUSCH_TYLER_OTHER_WEIGHT;
@@ -2723,7 +2732,7 @@ function refillQueue() {
 
   const shuffledMain = shuffle_(weightedPool);
 
-  // de-dupe while preserving the weighted front-loading effect
+  // de-dupe while preserving weighted front-loading
   const seen = new Set();
   const main = [];
   for (const img of shuffledMain) {
