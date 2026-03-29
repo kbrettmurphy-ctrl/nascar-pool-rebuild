@@ -82,7 +82,7 @@
     content:"";
     position: fixed;
     inset: 0;
-    background-image: url("nascar-logo.png");
+    background-image: url("img/nascar-logo.png");
     background-repeat: no-repeat;
     background-size: 300px;
     background-position: 50% calc(50% + var(--wmShift));
