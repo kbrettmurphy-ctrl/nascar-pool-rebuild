@@ -137,7 +137,9 @@ export async function onRequestPost(context) {
       .map((row) => {
         const driverName =
           row?.driver_fullname ||
+          row?.driver_full_name ||
           row?.DriverNameTag ||
+          row?.display_name ||
           (row?.DriverFirstName && row?.DriverLastName
             ? `${row.DriverFirstName} ${row.DriverLastName}`
             : "") ||
@@ -151,9 +153,16 @@ export async function onRequestPost(context) {
           row?.FinishPos ??
           row?.FinPos;
 
+        const lapsCompleted =
+          row?.laps_completed ??
+          row?.LapsCompleted ??
+          row?.laps ??
+          0;
+
         return {
           driver_name: String(driverName || "").trim(),
           finishing_position: Number(pos),
+          laps_completed: Number(lapsCompleted) || 0,
         };
       })
       .filter(
@@ -162,7 +171,12 @@ export async function onRequestPost(context) {
           Number.isFinite(x.finishing_position) &&
           x.finishing_position >= 1
       )
-      .sort((a, b) => a.finishing_position - b.finishing_position);
+      .sort((a, b) => {
+        if (a.finishing_position !== b.finishing_position) {
+          return a.finishing_position - b.finishing_position;
+        }
+        return b.laps_completed - a.laps_completed;
+      });
 
     // 7) Load drivers
     const driversRes = await fetch(
@@ -184,24 +198,126 @@ export async function onRequestPost(context) {
       drivers.map((d) => [normalizeName(d.name), { id: d.id, name: d.name }])
     );
 
-    const inserts = [];
+    const rawMatched = [];
+    const unmatchedDrivers = [];
 
     for (const row of normalized) {
       const match = driverMap.get(normalizeName(row.driver_name));
-      if (!match) continue;
+      if (!match) {
+        unmatchedDrivers.push(row.driver_name);
+        continue;
+      }
 
-      inserts.push({
+      rawMatched.push({
         race_id: raceId,
         finishing_position: row.finishing_position,
         driver_id: match.id,
+        driver_name: match.name,
+        source_driver_name: row.driver_name,
+        laps_completed: row.laps_completed,
       });
     }
+
+    if (!rawMatched.length) {
+      return json({
+        ok: false,
+        error: "No race results matched known drivers",
+        details: {
+          normalizedCount: normalized.length,
+          unmatchedDrivers: uniqueStrings_(unmatchedDrivers),
+        },
+      }, 500);
+    }
+
+    // 7b) Deduplicate by driver_id first
+    const byDriverId = new Map();
+    const duplicateDriversRemoved = [];
+
+    for (const row of rawMatched) {
+      const key = String(row.driver_id);
+      const existing = byDriverId.get(key);
+
+      if (!existing) {
+        byDriverId.set(key, row);
+        continue;
+      }
+
+      const winner = chooseBetterRaceRow_(existing, row);
+      const loser = winner === existing ? row : existing;
+
+      byDriverId.set(key, winner);
+      duplicateDriversRemoved.push({
+        type: "duplicate_driver_id",
+        kept: summarizeInsertRow_(winner),
+        dropped: summarizeInsertRow_(loser),
+      });
+    }
+
+    // 7c) Deduplicate by finishing_position next
+    const byPosition = new Map();
+    const duplicatePositionsRemoved = [];
+
+    for (const row of byDriverId.values()) {
+      const key = String(row.finishing_position);
+      const existing = byPosition.get(key);
+
+      if (!existing) {
+        byPosition.set(key, row);
+        continue;
+      }
+
+      const winner = chooseBetterRaceRow_(existing, row);
+      const loser = winner === existing ? row : existing;
+
+      byPosition.set(key, winner);
+      duplicatePositionsRemoved.push({
+        type: "duplicate_finishing_position",
+        kept: summarizeInsertRow_(winner),
+        dropped: summarizeInsertRow_(loser),
+      });
+    }
+
+    const inserts = Array.from(byPosition.values())
+      .map((row) => ({
+        race_id: row.race_id,
+        finishing_position: row.finishing_position,
+        driver_id: row.driver_id,
+      }))
+      .sort((a, b) => a.finishing_position - b.finishing_position);
 
     if (!inserts.length) {
       return json({
         ok: false,
-        error: "No race results matched known drivers",
+        error: "No usable race results remained after dedupe",
       }, 500);
+    }
+
+    // Final validation just in case NASCAR found a fresh way to be annoying
+    const seenDriverIds = new Set();
+    const seenPositions = new Set();
+
+    for (const row of inserts) {
+      const driverKey = `${row.race_id}::${row.driver_id}`;
+      const posKey = `${row.race_id}::${row.finishing_position}`;
+
+      if (seenDriverIds.has(driverKey)) {
+        return json({
+          ok: false,
+          error: "Duplicate driver detected before insert",
+          details: row,
+        }, 500);
+      }
+
+      if (seenPositions.has(posKey)) {
+        return json({
+          ok: false,
+          error: "Duplicate finishing_position detected before insert",
+          details: row,
+        }, 500);
+      }
+
+      seenDriverIds.add(driverKey);
+      seenPositions.add(posKey);
     }
 
     // 8) Clear old race results
@@ -230,18 +346,34 @@ export async function onRequestPost(context) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Prefer: "return=representation",
         apikey: env.SUPABASE_SECRET_KEY,
         Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
       },
       body: JSON.stringify(inserts),
     });
 
+    const insertRaw = await insertRes.text();
+
+    let insertParsed = null;
+    try {
+      insertParsed = insertRaw ? JSON.parse(insertRaw) : null;
+    } catch {
+      insertParsed = insertRaw;
+    }
+
     if (!insertRes.ok) {
-      const insertText = await insertRes.text();
       return json({
         ok: false,
         error: "Failed to insert race results",
-        details: insertText,
+        details: {
+          supabase: insertParsed,
+          insertCount: inserts.length,
+          insertsPreview: inserts.slice(0, 15),
+          unmatchedDrivers: uniqueStrings_(unmatchedDrivers),
+          duplicateDriversRemoved,
+          duplicatePositionsRemoved,
+        },
       }, 500);
     }
 
@@ -331,7 +463,13 @@ export async function onRequestPost(context) {
       tournamentId,
       round: roundNumber,
       generatedRound: nextRoundNumber <= 4 ? nextRoundNumber : null,
+      normalizedRows: normalized.length,
+      matchedRows: rawMatched.length,
       insertedResults: inserts.length,
+      unmatchedDrivers: uniqueStrings_(unmatchedDrivers),
+      duplicateDriversRemoved,
+      duplicatePositionsRemoved,
+      insertResponseCount: Array.isArray(insertParsed) ? insertParsed.length : null,
       swissUpdate: swissUpdateParsed,
       pairings: pairingsResult,
       winningsSync,
@@ -733,4 +871,39 @@ function getRaceResultsRows(feed) {
   }
 
   return [];
+}
+
+function chooseBetterRaceRow_(a, b) {
+  const aPos = Number(a?.finishing_position);
+  const bPos = Number(b?.finishing_position);
+  const aLaps = Number(a?.laps_completed || 0);
+  const bLaps = Number(b?.laps_completed || 0);
+
+  if (Number.isFinite(aPos) && Number.isFinite(bPos) && aPos !== bPos) {
+    return aPos < bPos ? a : b;
+  }
+
+  if (aLaps !== bLaps) {
+    return aLaps > bLaps ? a : b;
+  }
+
+  const aName = String(a?.driver_name || a?.source_driver_name || "");
+  const bName = String(b?.driver_name || b?.source_driver_name || "");
+
+  return aName.localeCompare(bName) <= 0 ? a : b;
+}
+
+function summarizeInsertRow_(row) {
+  return {
+    race_id: row?.race_id ?? null,
+    finishing_position: row?.finishing_position ?? null,
+    driver_id: row?.driver_id ?? null,
+    driver_name: row?.driver_name ?? "",
+    source_driver_name: row?.source_driver_name ?? "",
+    laps_completed: row?.laps_completed ?? 0,
+  };
+}
+
+function uniqueStrings_(arr) {
+  return [...new Set((arr || []).map((x) => String(x || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
