@@ -306,21 +306,33 @@ async function loadLiveMatchups(){
   }
 
   async function adminFetch_(url, options = {}) {
-    const token = getAdminToken_();
-    const headers = {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`
-    };
+  const token = getAdminToken_();
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`
+  };
 
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json().catch(() => ({}));
+  const res = await fetch(url, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
 
-    if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || data?.message || `Request failed: ${res.status}`);
-    }
+  if (!res.ok || !data?.ok) {
+    const detailText =
+      typeof data?.details === "string"
+        ? data.details
+        : data?.details
+          ? JSON.stringify(data.details)
+          : "";
 
-    return data;
+    throw new Error(
+      data?.error ||
+      detailText ||
+      data?.message ||
+      `Request failed: ${res.status}`
+    );
   }
+
+  return data;
+}
 
   async function getAdminContext_() {
     if (_adminContext) return _adminContext;
