@@ -88,6 +88,7 @@ export async function onRequestPost(context) {
 
     // --------------------------------------------------
     // 3) Find this tournament's Round 1 race via tournament_rounds
+    //    We need raceId only for checking the VIEW.
     // --------------------------------------------------
     const roundRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id&tournament_id=eq.${tournamentId}&round_number=eq.1&limit=1`,
@@ -110,7 +111,7 @@ export async function onRequestPost(context) {
 
     // --------------------------------------------------
     // 4) Refuse overwrite if Round 1 already has scored data
-    //    Read from the VIEW, but do not write/delete there
+    //    Read from swiss_matchup_results VIEW
     // --------------------------------------------------
     const existingViewRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_avg,player2_avg,winner_id&tournament_id=eq.${tournamentId}&round_number=eq.1&race_id=eq.${raceId}&order=match_number.asc`,
@@ -145,10 +146,11 @@ export async function onRequestPost(context) {
 
     // --------------------------------------------------
     // 5) Clear old unscored Round 1 pairings
-    //    WRITE to swiss_pairings, not swiss_matchup_results
+    //    WRITE to swiss_pairings base table
+    //    NOTE: no race_id column here
     // --------------------------------------------------
     const deleteRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/swiss_pairings?tournament_id=eq.${tournamentId}&round_number=eq.1&race_id=eq.${raceId}`,
+      `${env.SUPABASE_URL}/rest/v1/swiss_pairings?tournament_id=eq.${tournamentId}&round_number=eq.1`,
       {
         method: "DELETE",
         headers: readHeaders
@@ -162,7 +164,6 @@ export async function onRequestPost(context) {
 
     // --------------------------------------------------
     // 6) Build actual Round 1 pairings from seeds
-    //    WRITE ONLY base-table columns
     // --------------------------------------------------
     const bySeed = new Map(rows.map(r => [Number(r.seed), Number(r.player_id)]));
     const seedPairs = [
@@ -187,7 +188,6 @@ export async function onRequestPost(context) {
       return {
         tournament_id: tournamentId,
         round_number: 1,
-        race_id: raceId,
         match_number: idx + 1,
         player1_id: p1Id,
         player2_id: p2Id
@@ -218,6 +218,7 @@ export async function onRequestPost(context) {
       message: `Saved ${Array.isArray(seedData) ? seedData.length : rows.length} seeds and created ${Array.isArray(insertData) ? insertData.length : pairingRows.length} Round 1 pairings`,
       data: {
         tournamentId,
+        roundNumber: 1,
         raceId,
         seedsSaved: Array.isArray(seedData) ? seedData.length : rows.length,
         roundOnePairingsCreated: Array.isArray(insertData) ? insertData.length : pairingRows.length,
