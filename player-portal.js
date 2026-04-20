@@ -2935,7 +2935,7 @@ function initAdminControls_() {
         }
 
         openAdminPin_();
-      }, 900);
+      }, 300);
   }
 
   function cancelPress() {
