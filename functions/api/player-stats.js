@@ -197,6 +197,7 @@ export async function onRequestGet(context) {
 
       const built = buildStatsMap(rows).map(r => ({
         rank: r.rank,
+        player_id: r.player_id,
         player: r.player,
         W: r.W,
         L: r.L,
@@ -263,17 +264,46 @@ export async function onRequestGet(context) {
     }
 
     for (const t of tournaments || []) {
-      const label = `Tournament ${Number(t.tournament_number)}`;
-      const rows = tournamentsOut[label] || [];
-      const winner = rows.find(r => Number(r.rank) === 1);
-      if (winner) {
-        const found = overallRaw.find(x => String(x.player) === String(winner.player));
-        if (found) {
-          const w = getWinsRow(Number(found.player_id), found.player);
-          w.tourneyWins += 1;
-        }
-      }
+  const tournamentId = Number(t.id);
+  const label = `Tournament ${Number(t.tournament_number)}`;
+  const rows = tournamentsOut[label] || [];
+
+  const completedMatchCountByPlayer = new Map();
+
+  for (const row of matchupRows || []) {
+    if (Number(row.tournament_id) !== tournamentId) continue;
+    if (!isCompletedMatch(row)) continue;
+
+    const p1Id = Number(row.player1_id);
+    const p2Id = Number(row.player2_id);
+
+    if (p1Id) {
+      completedMatchCountByPlayer.set(
+        p1Id,
+        (completedMatchCountByPlayer.get(p1Id) || 0) + 1
+      );
     }
+
+    if (p2Id) {
+      completedMatchCountByPlayer.set(
+        p2Id,
+        (completedMatchCountByPlayer.get(p2Id) || 0) + 1
+      );
+    }
+  }
+
+  const tournamentComplete =
+    rows.length === 16 &&
+    rows.every(r => Number(completedMatchCountByPlayer.get(Number(r.player_id)) || 0) >= 4);
+
+  if (!tournamentComplete) continue;
+
+  const winner = rows.find(r => Number(r.rank) === 1);
+  if (!winner) continue;
+
+  const w = getWinsRow(Number(winner.player_id), winner.player);
+  w.tourneyWins += 1;
+}
 
     const wins = {};
     for (const row of overallRaw) {
