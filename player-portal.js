@@ -2805,7 +2805,7 @@ function initBuschLongPress_() {
   let longPressTriggered = false;
 
   const MOVE_THRESHOLD = 10;
-  const HOLD_TIME = 2000;
+  const HOLD_TIME = 1000;
 
   function openPopup() {
     const nextImg = getRandomBuschGirl();
