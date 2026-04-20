@@ -19,16 +19,21 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "seeds array is required" }, 400);
     }
 
-    const headers = {
+    const writeHeaders = {
       "Content-Type": "application/json",
       apikey: env.SUPABASE_SECRET_KEY,
       Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
       Prefer: "resolution=merge-duplicates,return=representation"
     };
 
-    // -----------------------------
-    // 1) Validate incoming seed rows
-    // -----------------------------
+    const readHeaders = {
+      apikey: env.SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
+    };
+
+    // --------------------------------------------------
+    // 1) Validate and normalize incoming seed rows
+    // --------------------------------------------------
     const rows = seeds.map((row) => {
       const playerId = Number(row?.playerId);
       const seed = Number(row?.seed);
@@ -59,14 +64,14 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "Round 1 requires exactly 16 seeded players" }, 400);
     }
 
-    // -----------------------------
+    // --------------------------------------------------
     // 2) Save seeds to tournament_players
-    // -----------------------------
+    // --------------------------------------------------
     const seedRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/tournament_players?on_conflict=tournament_id,player_id`,
       {
         method: "POST",
-        headers,
+        headers: writeHeaders,
         body: JSON.stringify(rows)
       }
     );
@@ -81,17 +86,12 @@ export async function onRequestPost(context) {
       );
     }
 
-    // -----------------------------
+    // --------------------------------------------------
     // 3) Find this tournament's Round 1 race via tournament_rounds
-    // -----------------------------
+    // --------------------------------------------------
     const roundRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/tournament_rounds?select=id,tournament_id,round_number,race_id&tournament_id=eq.${tournamentId}&round_number=eq.1&limit=1`,
-      {
-        headers: {
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
-        }
-      }
+      `${env.SUPABASE_URL}/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id&tournament_id=eq.${tournamentId}&round_number=eq.1&limit=1`,
+      { headers: readHeaders }
     );
 
     const roundText = await roundRes.text();
@@ -108,51 +108,23 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: "Round 1 race not found" }, 400);
     }
 
-    // -----------------------------
-    // 4) Load player names
-    // -----------------------------
-    const playersRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/players?select=id,name&order=id.asc`,
-      {
-        headers: {
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
-        }
-      }
-    );
-
-    const playersText = await playersRes.text();
-    const players = playersText ? JSON.parse(playersText) : [];
-
-    if (!playersRes.ok) {
-      return json({ ok: false, error: playersText || "Failed loading players" }, 500);
-    }
-
-    const playerNameById = new Map(
-      (players || []).map(p => [Number(p.id), String(p.name || "").trim()])
-    );
-
-    // -----------------------------
-    // 5) Refuse overwrite if Round 1 already has scored data
-    // -----------------------------
-    const existingRes = await fetch(
+    // --------------------------------------------------
+    // 4) Refuse overwrite if Round 1 already has scored data
+    //    Read from the VIEW, but do not write/delete there
+    // --------------------------------------------------
+    const existingViewRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_avg,player2_avg,winner_id&tournament_id=eq.${tournamentId}&round_number=eq.1&race_id=eq.${raceId}&order=match_number.asc`,
-      {
-        headers: {
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
-        }
-      }
+      { headers: readHeaders }
     );
 
-    const existingText = await existingRes.text();
-    const existingRows = existingText ? JSON.parse(existingText) : [];
+    const existingViewText = await existingViewRes.text();
+    const existingViewRows = existingViewText ? JSON.parse(existingViewText) : [];
 
-    if (!existingRes.ok) {
-      return json({ ok: false, error: existingText || "Failed checking existing Round 1 matchups" }, 500);
+    if (!existingViewRes.ok) {
+      return json({ ok: false, error: existingViewText || "Failed checking existing Round 1 matchups" }, 500);
     }
 
-    const hasScoredRoundOne = (existingRows || []).some(r => {
+    const hasScoredRoundOne = (existingViewRows || []).some(r => {
       const a1 = Number(r?.player1_avg);
       const a2 = Number(r?.player2_avg);
       const winnerId = Number(r?.winner_id);
@@ -171,28 +143,27 @@ export async function onRequestPost(context) {
       }, 400);
     }
 
-    // -----------------------------
-    // 6) Clear old unscored Round 1 rows
-    // -----------------------------
+    // --------------------------------------------------
+    // 5) Clear old unscored Round 1 pairings
+    //    WRITE to swiss_pairings, not swiss_matchup_results
+    // --------------------------------------------------
     const deleteRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/swiss_matchup_results?tournament_id=eq.${tournamentId}&round_number=eq.1&race_id=eq.${raceId}`,
+      `${env.SUPABASE_URL}/rest/v1/swiss_pairings?tournament_id=eq.${tournamentId}&round_number=eq.1&race_id=eq.${raceId}`,
       {
         method: "DELETE",
-        headers: {
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
-        }
+        headers: readHeaders
       }
     );
 
     if (!deleteRes.ok) {
       const deleteText = await deleteRes.text();
-      return json({ ok: false, error: deleteText || "Failed clearing old Round 1 matchup rows" }, 500);
+      return json({ ok: false, error: deleteText || "Failed clearing old Round 1 pairings" }, 500);
     }
 
-    // -----------------------------
-    // 7) Build actual Round 1 matchup rows
-    // -----------------------------
+    // --------------------------------------------------
+    // 6) Build actual Round 1 pairings from seeds
+    //    WRITE ONLY base-table columns
+    // --------------------------------------------------
     const bySeed = new Map(rows.map(r => [Number(r.seed), Number(r.player_id)]));
     const seedPairs = [
       [1, 16],
@@ -205,7 +176,7 @@ export async function onRequestPost(context) {
       [8, 9]
     ];
 
-    const matchupRows = seedPairs.map(([s1, s2], idx) => {
+    const pairingRows = seedPairs.map(([s1, s2], idx) => {
       const p1Id = bySeed.get(s1);
       const p2Id = bySeed.get(s2);
 
@@ -219,33 +190,19 @@ export async function onRequestPost(context) {
         race_id: raceId,
         match_number: idx + 1,
         player1_id: p1Id,
-        player1_name: playerNameById.get(p1Id) || "",
-        player2_id: p2Id,
-        player2_name: playerNameById.get(p2Id) || "",
-        player1_driver_1: null,
-        player1_driver_2: null,
-        player1_avg: null,
-        player2_driver_1: null,
-        player2_driver_2: null,
-        player2_avg: null,
-        winner_id: null
+        player2_id: p2Id
       };
     });
 
-    // -----------------------------
-    // 8) Insert real Round 1 rows into swiss_matchup_results
-    // -----------------------------
+    // --------------------------------------------------
+    // 7) Insert real Round 1 rows into swiss_pairings
+    // --------------------------------------------------
     const insertRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/swiss_matchup_results`,
+      `${env.SUPABASE_URL}/rest/v1/swiss_pairings`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-          Prefer: "return=representation"
-        },
-        body: JSON.stringify(matchupRows)
+        headers: writeHeaders,
+        body: JSON.stringify(pairingRows)
       }
     );
 
@@ -253,18 +210,18 @@ export async function onRequestPost(context) {
     const insertData = insertText ? JSON.parse(insertText) : [];
 
     if (!insertRes.ok) {
-      return json({ ok: false, error: insertText || "Failed creating Round 1 matchup rows" }, 500);
+      return json({ ok: false, error: insertText || "Failed creating Round 1 pairings" }, 500);
     }
 
     return json({
       ok: true,
-      message: `Saved ${Array.isArray(seedData) ? seedData.length : rows.length} seeds and created ${Array.isArray(insertData) ? insertData.length : matchupRows.length} Round 1 matchup rows`,
+      message: `Saved ${Array.isArray(seedData) ? seedData.length : rows.length} seeds and created ${Array.isArray(insertData) ? insertData.length : pairingRows.length} Round 1 pairings`,
       data: {
         tournamentId,
         raceId,
         seedsSaved: Array.isArray(seedData) ? seedData.length : rows.length,
-        roundOneMatchupsCreated: Array.isArray(insertData) ? insertData.length : matchupRows.length,
-        matchups: Array.isArray(insertData) ? insertData : matchupRows
+        roundOnePairingsCreated: Array.isArray(insertData) ? insertData.length : pairingRows.length,
+        pairings: Array.isArray(insertData) ? insertData : pairingRows
       }
     });
   } catch (err) {
