@@ -2064,6 +2064,7 @@ refreshActiveView();
           <button class="secondary" data-mode="tourney">Tourney Ranks</button>
           <button class="secondary" data-mode="h2h">H2H</button>
           <button class="secondary" data-mode="wins">Wins</button>
+          <button class="secondary" data-mode="winnings">Winnings</button>
           <button class="secondary" data-mode="drivers">Driver Usage</button>
         </div>
         <div class="statsPanel" id="statsPanel"></div>
@@ -2093,6 +2094,7 @@ refreshActiveView();
     if (_statsMode === "tourney") return renderTourney_(box);
     if (_statsMode === "h2h") return renderH2H_(box);
     if (_statsMode === "wins") return renderWins_(box);
+    if (_statsMode === "winnings") return renderWinnings_(box);
     if (_statsMode === "drivers") return renderDrivers_(box);
     box.innerHTML = "";
   }
@@ -2408,6 +2410,47 @@ refreshActiveView();
 
     sel.onchange = load;
     load();
+  }
+  
+  function renderWinnings_(box){
+    const data = _cache_standings || {};
+    const rows = Array.isArray(data.winnings) ? data.winnings : [];
+    const you = loadPlayerName().trim().toLowerCase();
+
+    if (!rows.length){
+      box.innerHTML = `<div class="muted">(No winnings data yet)</div>`;
+      resetStatPillScrollSoon(box);
+      return;
+    }
+
+    let html = `
+      <div class="big">Winnings</div>
+      <div class="muted">Everyone's winnings, highest first. Capitalism, but dumber.</div>
+    `;
+
+    rows.forEach(r => {
+      const rank = r.rank ?? "";
+      const name = String(r.player || "").trim();
+      const winnings = Number(r.winnings || 0);
+      const paidout = Number(r.paidout || 0);
+      const unpaid = Number(r.unpaid || 0);
+      const isYou = you && name.toLowerCase() === you;
+
+      html += `
+        <div class="statsRow ${isYou ? "youRow" : ""}">
+          <div class="rankBadge">${escapeHtml(rank || "—")}</div>
+          <div class="statsName">${escapeHtml(name)}</div>
+          <div class="statsBadges">
+            <span class="miniPill"><span class="k">Won:</span> $${winnings.toFixed(2)}</span>
+            <span class="miniPill"><span class="k">Paid:</span> $${paidout.toFixed(2)}</span>
+            <span class="miniPill"><span class="k">Left:</span> $${unpaid.toFixed(2)}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    box.innerHTML = html;
+    resetStatPillScrollSoon(box);
   }
 
   async function renderDrivers_(box){
