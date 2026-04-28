@@ -40,6 +40,10 @@ export async function onRequestGet(context) {
     const tournaments = await getJson(
       `/rest/v1/tournaments?select=id,tournament_number&order=tournament_number.asc`
     );
+    
+    const financialRows = await getJson(
+      `/rest/v1/player_financials?select=player_id,winnings,paidout,players(name)&order=player_id.asc`
+    );
 
     const scoreMap = new Map(
       (scoreRows || []).map(r => [`${r.race_id}||${r.player_id}`, r])
@@ -414,7 +418,31 @@ export async function onRequestGet(context) {
 
       h2h[playerName] = rows;
     }
+    
+    // WINNINGS
+    const winnings = (financialRows || [])
+      .map(row => {
+        const name =
+          String(row?.players?.name || row?.players?.[0]?.name || "").trim();
 
+        return {
+          player: name,
+          winnings: Number(row?.winnings || 0),
+          paidout: Number(row?.paidout || 0),
+          unpaid: Math.max(0, Number(row?.winnings || 0) - Number(row?.paidout || 0))
+        };
+      })
+      .filter(row => row.player)
+      .sort((a, b) =>
+        b.winnings - a.winnings ||
+        b.unpaid - a.unpaid ||
+        a.player.localeCompare(b.player)
+      )
+      .map((row, idx) => ({
+        rank: idx + 1,
+        ...row
+      }));
+    
     return json({
       ok: true,
       data: {
@@ -423,6 +451,7 @@ export async function onRequestGet(context) {
         tournamentHeaders,
         tournaments: tournamentsOut,
         wins,
+        winnings,
         drivers: driversOut,
         h2h
       }
