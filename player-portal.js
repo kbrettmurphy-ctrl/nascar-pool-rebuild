@@ -2432,8 +2432,6 @@ refreshActiveView();
       const rank = r.rank ?? "";
       const name = String(r.player || "").trim();
       const winnings = Number(r.winnings || 0);
-      const paidout = Number(r.paidout || 0);
-      const unpaid = Number(r.unpaid || 0);
       const isYou = you && name.toLowerCase() === you;
 
       html += `
@@ -2441,9 +2439,7 @@ refreshActiveView();
           <div class="rankBadge">${escapeHtml(rank || "—")}</div>
           <div class="statsName">${escapeHtml(name)}</div>
           <div class="statsBadges">
-            <span class="miniPill"><span class="k">Won:</span> $${winnings.toFixed(2)}</span>
-            <span class="miniPill"><span class="k">Paid:</span> $${paidout.toFixed(2)}</span>
-            <span class="miniPill"><span class="k">Left:</span> $${unpaid.toFixed(2)}</span>
+            <span class="miniPill">$${winnings.toFixed(2)}</span>
           </div>
         </div>
       `;
