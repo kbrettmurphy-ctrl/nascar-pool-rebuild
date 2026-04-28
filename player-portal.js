@@ -2425,7 +2425,6 @@ refreshActiveView();
 
     let html = `
       <div class="big">Winnings</div>
-      <div class="muted">Everyone's winnings, highest first. Capitalism, but dumber.</div>
     `;
 
     rows.forEach(r => {
