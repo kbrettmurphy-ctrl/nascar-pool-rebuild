@@ -2702,6 +2702,25 @@ const BUSCH_TYLER_OLD_WEIGHT = 100;
 const BUSCH_TYLER_SOFT_WEIGHT = 1;
 const BUSCH_TYLER_OTHER_WEIGHT = 1;
 
+const SHOW_KYLE_TRIBUTE = true;
+const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
+
+function showKyleTributeOnLoad_() {
+  if (!SHOW_KYLE_TRIBUTE) return;
+
+  const popup = document.getElementById("buschPopup");
+  const popupImg = document.getElementById("buschPopupImg");
+
+  if (!popup || !popupImg) return;
+
+  popupImg.src = KYLE_TRIBUTE_IMG;
+  popupImg.alt = "Kyle Busch tribute";
+
+  popup.hidden = false;
+  document.body.style.overflow = "hidden";
+  document.body.classList.add("noSelect");
+}
+
 async function loadBuschGirls() {
   try {
     const res = await fetch("/img/buschgirls/manifest.json", { cache: "no-store" });
@@ -3070,6 +3089,7 @@ function initAdminControls_() {
     persistHScroll(".navInner", "nascar_nav_scroll");
     await loadBuschGirls();
     initBuschLongPress_();
+    showKyleTributeOnLoad_();
 
     // start live matchup polling
     loadLiveMatchups();
