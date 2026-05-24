@@ -242,8 +242,22 @@ const topLine = [
   networkText ? `TV: ${escapeHtml(networkText)}` : ""
 ].filter(Boolean).join(" • ");
 
+function flagDot_(flag) {
+  const f = Number(flag);
+
+  // NASCAR live feed common-ish values:
+  // 1 green, 2 yellow, 3 red. If the feed gets weird, no dot.
+  if (f === 1) return `<span style="color:var(--green);">●</span>`;
+  if (f === 2) return `<span style="color:var(--yellow);">●</span>`;
+  if (f === 3) return `<span style="color:var(--red);">●</span>`;
+
+  return "";
+}
+
+const flagDot = flagDot_(race.flag);
+
 const bottomLine =
-  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`;
+  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go${flagDot ? ` ${flagDot}` : ""}`;
 
 info.innerHTML = `
   <div>${topLine}</div>
