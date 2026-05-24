@@ -209,11 +209,12 @@ async function loadLiveMatchups(){
   if (Number.isNaN(d.getTime())) return "";
 
   return d.toLocaleString("en-US", {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short"
-  });
+  weekday: "short",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/New_York",
+  timeZoneName: "short"
+});
 }
 
 const startText = formatRaceStart_(race.startTime);
