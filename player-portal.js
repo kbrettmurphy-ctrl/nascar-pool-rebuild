@@ -237,13 +237,20 @@ const normalizedStart = normalizeRaceStart_(race.startTime);
 const startText = formatRaceStart_(normalizedStart);
 const networkText = String(race.network || "").trim();
 
-const raceInfoParts = [
+const topLine = [
   startText ? `Start: ${escapeHtml(startText)}` : "",
-  networkText ? `TV: ${escapeHtml(networkText)}` : "",
-  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`
-].filter(Boolean);
+  networkText ? `TV: ${escapeHtml(networkText)}` : ""
+].filter(Boolean).join(" • ");
 
-info.innerHTML = raceInfoParts.join(" • ");
+const bottomLine =
+  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`;
+
+info.innerHTML = `
+  <div>${topLine}</div>
+  <div style="margin-top:2px;">
+    ${bottomLine}
+  </div>
+`;
 
     const savedPlayer = loadPlayerName().trim().toLowerCase();
 
