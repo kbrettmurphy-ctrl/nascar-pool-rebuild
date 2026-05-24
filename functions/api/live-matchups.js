@@ -9,7 +9,6 @@ export async function onRequestGet(context) {
 
     async function getJson(path) {
       const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
-
       const text = await res.text();
 
       let data;
@@ -26,36 +25,19 @@ export async function onRequestGet(context) {
       return data;
     }
 
-    /*
-      STEP 1
-      Find current race (first race without results)
-    */
     const races = await getJson(
       `/rest/v1/races?select=id,race_number,race_name,season_year&order=race_number.asc`
     );
 
-    const results = await getJson(
-      `/rest/v1/race_results?select=race_id`
-    );
+    const results = await getJson(`/rest/v1/race_results?select=race_id`);
 
-    const completed = new Set(
-      (results || []).map(r => Number(r.race_id))
-    );
-
-    const currentRace =
-      (races || []).find(r => !completed.has(Number(r.id)));
+    const completed = new Set((results || []).map(r => Number(r.race_id)));
+    const currentRace = (races || []).find(r => !completed.has(Number(r.id)));
 
     if (!currentRace) {
-      return json({
-        ok: false,
-        error: "No current race found"
-      }, 404);
+      return json({ ok: false, error: "No current race found" }, 404);
     }
 
-    /*
-      STEP 2
-      Pull NASCAR race list
-    */
     const raceListUrl =
       `https://cf.nascar.com/cacher/${currentRace.season_year}/race_list_basic.json`;
 
@@ -69,58 +51,31 @@ export async function onRequestGet(context) {
 
     const raceListJson = await raceListResp.json();
 
-    const cupRaces =
-      Array.isArray(raceListJson?.series_1)
-        ? raceListJson.series_1
-        : [];
+    const cupRaces = Array.isArray(raceListJson?.series_1)
+      ? raceListJson.series_1
+      : [];
 
-    /*
-      STEP 3
-      Sort chronologically
-    */
-    const sorted = cupRaces
-      .slice()
-      .sort((a, b) => {
-        const da = Date.parse(a?.race_date || "") || 0;
-        const db = Date.parse(b?.race_date || "") || 0;
-        return da - db;
-      });
+    const sorted = cupRaces.slice().sort((a, b) => {
+      const da = Date.parse(a?.race_date || a?.date_scheduled || "") || 0;
+      const db = Date.parse(b?.race_date || b?.date_scheduled || "") || 0;
+      return da - db;
+    });
 
-    /*
-      STEP 4
-      Remove exhibition races
-    */
     const pointsRaces = sorted.filter(r => {
       const name = String(r?.race_name || "").toLowerCase();
-
       if (name.includes("clash")) return false;
       if (name.includes("duel")) return false;
       if (name.includes("all-star")) return false;
-
       return true;
     });
 
-    /*
-      STEP 5
-      Resolve NASCAR race ID
-    */
-    const nascarRace =
-      pointsRaces[currentRace.race_number - 1];
+    const nascarRace = pointsRaces[currentRace.race_number - 1];
 
     if (!nascarRace) {
-      return json({
-        ok: false,
-        error: "Could not resolve NASCAR race"
-      }, 500);
+      return json({ ok: false, error: "Could not resolve NASCAR race" }, 500);
     }
 
-    /*
-      STEP 6
-      Pull live NASCAR feed
-    */
-    const liveUrl = `https://cf.nascar.com/live/feeds/live-feed.json`;
-
-    const liveResp = await fetch(liveUrl, {
+    const liveResp = await fetch(`https://cf.nascar.com/live/feeds/live-feed.json`, {
       headers: {
         Accept: "application/json",
         Referer: "https://www.nascar.com/",
@@ -130,14 +85,9 @@ export async function onRequestGet(context) {
 
     const liveJson = await liveResp.json();
 
-    /*
-      STEP 7
-      Extract running order
-    */
-    const vehicles =
-      Array.isArray(liveJson?.vehicles)
-        ? liveJson.vehicles
-        : [];
+    const vehicles = Array.isArray(liveJson?.vehicles)
+      ? liveJson.vehicles
+      : [];
 
     const driverPositions = {};
 
@@ -159,10 +109,6 @@ export async function onRequestGet(context) {
       }
     }
 
-    /*
-      STEP 8
-      Pull matchup data from your existing API
-    */
     const origin = new URL(request.url).origin;
 
     const raceDataResp = await fetch(`${origin}/api/player-race-data`);
@@ -178,18 +124,12 @@ export async function onRequestGet(context) {
     }
 
     const raceKey = `${current.tournament}||${current.race}`;
-
     const raceBlob = raceData?.matchups?.races?.[raceKey];
 
-    const matchups =
-      Array.isArray(raceBlob?.matchups)
-        ? raceBlob.matchups
-        : [];
+    const matchups = Array.isArray(raceBlob?.matchups)
+      ? raceBlob.matchups
+      : [];
 
-    /*
-      STEP 9
-      Calculate live matchup averages
-    */
     const liveMatchups = [];
     const unresolvedDrivers = [];
 
@@ -235,9 +175,9 @@ export async function onRequestGet(context) {
         });
 
       function avg(list) {
-        const nums =
-          list.map(x => x.position)
-            .filter(x => Number.isFinite(x));
+        const nums = list
+          .map(x => x.position)
+          .filter(x => Number.isFinite(x));
 
         if (nums.length !== list.length) return null;
 
@@ -250,58 +190,43 @@ export async function onRequestGet(context) {
       let leader = null;
 
       if (p1Avg !== null && p2Avg !== null) {
-        if (p1Avg < p2Avg) {
-          leader = m.p1;
-        } else if (p2Avg < p1Avg) {
-          leader = m.p2;
-        } else {
-          leader = "Tie";
-        }
+        if (p1Avg < p2Avg) leader = m.p1;
+        else if (p2Avg < p1Avg) leader = m.p2;
+        else leader = "Tie";
       }
 
       liveMatchups.push({
         p1: m.p1,
         p1Drivers,
         p1Avg,
-
         p2: m.p2,
         p2Drivers,
         p2Avg,
-
         leader
       });
     }
 
-    /*
-      FINAL RESPONSE
-    */
     return json({
       ok: true,
 
       race: {
-  name: currentRace.race_name,
-  lap: liveJson?.lap_number ?? null,
-  lapsToGo: liveJson?.laps_to_go ?? null,
-  flag: liveJson?.flag_state ?? null,
+        name: currentRace.race_name,
+        lap: liveJson?.lap_number ?? null,
+        lapsToGo: liveJson?.laps_to_go ?? null,
+        flag: liveJson?.flag_state ?? null,
 
-  startTime:
-    nascarRace?.race_date ||
-    nascarRace?.date_scheduled ||
-    nascarRace?.start_time ||
-    nascarRace?.start_date ||
-    null,
+        startTime:
+          nascarRace?.race_date ||
+          nascarRace?.date_scheduled ||
+          nascarRace?.start_time ||
+          nascarRace?.start_date ||
+          null,
 
-  network:
-  nascarRace?.broadcast_provider ||
-  nascarRace?.tv_provider ||
-  nascarRace?.tv_network ||
-  nascarRace?.broadcast_network ||
-  nascarRace?.network ||
-  ""
-},
+        network: getTvNetwork_(nascarRace),
+        radio: getRadioNetwork_(nascarRace)
+      },
 
       updated: new Date().toISOString(),
-
       matchups: liveMatchups,
 
       debug: {
@@ -317,6 +242,61 @@ export async function onRequestGet(context) {
   }
 }
 
+function getTvNetwork_(race) {
+  const candidates = [
+    race?.television_broadcaster,
+    race?.television_network,
+    race?.tv_broadcaster,
+    race?.tv_network,
+    race?.tvNetwork,
+    race?.broadcast_network,
+    race?.broadcastNetwork,
+    race?.broadcast_provider,
+    race?.broadcastProvider,
+    race?.tv_provider,
+    race?.tvProvider,
+    race?.streaming_provider,
+    race?.streamingProvider,
+    race?.streaming_network,
+    race?.streamingNetwork,
+    race?.network,
+    race?.channel
+  ];
+
+  const found = candidates
+    .map(v => String(v || "").trim())
+    .find(Boolean);
+
+  return normalizeTvNetwork_(found);
+}
+
+function getRadioNetwork_(race) {
+  return String(
+    race?.radio_broadcaster ||
+    race?.radio_network ||
+    race?.radioNetwork ||
+    ""
+  ).trim();
+}
+
+function normalizeTvNetwork_(value) {
+  const v = String(value || "").trim();
+  if (!v) return "";
+
+  const low = v.toLowerCase();
+
+  if (low.includes("prime")) return "Prime";
+  if (low.includes("amazon")) return "Prime";
+  if (low.includes("fox")) return "FOX";
+  if (low.includes("fs1")) return "FS1";
+  if (low.includes("nbc")) return "NBC";
+  if (low.includes("usa")) return "USA";
+  if (low.includes("tnt")) return "TNT";
+  if (low.includes("cw")) return "The CW";
+
+  return v;
+}
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -329,57 +309,29 @@ function json(data, status = 200) {
 
 function normalizeName(s) {
   return String(s || "")
-    // remove anything in parentheses anywhere in the string
     .replace(/\([^)]*\)/g, " ")
-    
-    // normalize accents (Suárez → Suarez)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    
-    // lowercase
     .toLowerCase()
-    
-    // strip punctuation
     .replace(/[^a-z0-9\s]/g, " ")
-    
-    // collapse whitespace
     .replace(/\s+/g, " ")
-    
     .trim();
 }
+
 function getAliasCandidates(name) {
   const n = normalizeName(name);
 
   const aliases = {
-    "john h nemechek": [
-      "john hunter nemechek"
-    ],
-    "john hunter nemechek": [
-      "john h nemechek"
-    ],
+    "john h nemechek": ["john hunter nemechek"],
+    "john hunter nemechek": ["john h nemechek"],
 
-    "aj allmendinger": [
-      "a j allmendinger"
-    ],
-    "a j allmendinger": [
-      "aj allmendinger"
-    ],
+    "aj allmendinger": ["a j allmendinger"],
+    "a j allmendinger": ["aj allmendinger"],
 
-    "daniel suarez": [
-      "daniel suarez"
-    ],
+    "daniel suarez": ["daniel suarez"],
 
-    /*
-      Sub driver fallback
-      If your matchup data says Justin Allgaier but the feed is still keyed
-      under Bowman-related naming, try both.
-    */
-    "justin allgaier": [
-      "alex bowman"
-    ],
-    "alex bowman": [
-      "justin allgaier"
-    ]
+    "justin allgaier": ["alex bowman"],
+    "alex bowman": ["justin allgaier"]
   };
 
   return aliases[n] || [];
