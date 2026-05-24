@@ -202,22 +202,39 @@ async function loadLiveMatchups(){
 
     const race = data.race || {};
 
-    function formatRaceStart_(value) {
+    function normalizeRaceStart_(value) {
+  if (!value) return "";
+
+  let v = String(value).trim();
+
+  // NASCAR sometimes sends "6 PM Eastern" as a timestamp with no offset.
+  // If there is no Z or +/- timezone offset, treat it as Eastern time.
+  if (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) &&
+    !/[zZ]|[+-]\d{2}:\d{2}$/.test(v)
+  ) {
+    v += "-04:00";
+  }
+
+  return v;
+}
+
+function formatRaceStart_(value) {
   if (!value) return "";
 
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
 
   return d.toLocaleString("en-US", {
-  weekday: "short",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "America/New_York",
-  timeZoneName: "short"
-});
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short"
+  });
 }
 
-const startText = formatRaceStart_(race.startTime);
+const normalizedStart = normalizeRaceStart_(race.startTime);
+const startText = formatRaceStart_(normalizedStart);
 const networkText = String(race.network || "").trim();
 
 const raceInfoParts = [
