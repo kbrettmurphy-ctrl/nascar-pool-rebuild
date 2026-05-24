@@ -85,9 +85,40 @@ export async function onRequestGet(context) {
 
     const liveJson = await liveResp.json();
 
-    const vehicles = Array.isArray(liveJson?.vehicles)
-      ? liveJson.vehicles
-      : [];
+    const liveSeriesId = Number(liveJson?.series_id ?? 0);
+    const liveRaceId = Number(liveJson?.race_id ?? 0);
+    const expectedNascarRaceId = Number(nascarRace?.race_id ?? 0);
+
+    const liveRaceName = normalizeRaceName_(
+      liveJson?.race_name ||
+      liveJson?.race_title ||
+      ""
+    );
+
+    const expectedRaceName = normalizeRaceName_(
+      currentRace?.race_name ||
+      nascarRace?.race_name ||
+      ""
+    );
+
+    const isCorrectCupRace =
+      liveSeriesId === 1 &&
+      (
+        (liveRaceId && expectedNascarRaceId && liveRaceId === expectedNascarRaceId) ||
+        (
+          liveRaceName &&
+          expectedRaceName &&
+          (
+            liveRaceName.includes(expectedRaceName) ||
+            expectedRaceName.includes(liveRaceName)
+          )
+        )
+      );
+
+    const vehicles =
+      isCorrectCupRace && Array.isArray(liveJson?.vehicles)
+        ? liveJson.vehicles
+        : [];
 
     const driverPositions = {};
 
@@ -139,7 +170,7 @@ export async function onRequestGet(context) {
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
 
-          if (!found) {
+          if (isCorrectCupRace && !found) {
             unresolvedDrivers.push({
               matchup: `${m.p1} vs ${m.p2}`,
               side: "p1",
@@ -159,7 +190,7 @@ export async function onRequestGet(context) {
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
 
-          if (!found) {
+          if (isCorrectCupRace && !found) {
             unresolvedDrivers.push({
               matchup: `${m.p1} vs ${m.p2}`,
               side: "p2",
@@ -211,9 +242,23 @@ export async function onRequestGet(context) {
 
       race: {
         name: currentRace.race_name,
-        lap: liveJson?.lap_number ?? null,
-        lapsToGo: liveJson?.laps_to_go ?? null,
-        flag: liveJson?.flag_state ?? null,
+
+        lap: isCorrectCupRace
+          ? liveJson?.lap_number ?? null
+          : null,
+
+        lapsToGo: isCorrectCupRace
+          ? liveJson?.laps_to_go ?? null
+          : null,
+
+        flag: isCorrectCupRace
+          ? liveJson?.flag_state ?? null
+          : null,
+
+        liveSeriesId,
+        liveRaceId,
+        expectedNascarRaceId,
+        isCorrectCupRace,
 
         startTime:
           nascarRace?.race_date ||
@@ -227,10 +272,13 @@ export async function onRequestGet(context) {
       },
 
       updated: new Date().toISOString(),
+
       matchups: liveMatchups,
 
       debug: {
-        unresolvedDrivers
+        unresolvedDrivers,
+        liveRaceName,
+        expectedRaceName
       }
     });
 
@@ -295,6 +343,19 @@ function normalizeTvNetwork_(value) {
   if (low.includes("cw")) return "The CW";
 
   return v;
+}
+
+function normalizeRaceName_(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/nascar/g, " ")
+    .replace(/cup series/g, " ")
+    .replace(/craftsman truck series/g, " ")
+    .replace(/xfinity series/g, " ")
+    .replace(/presented by .*/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function json(data, status = 200) {
