@@ -202,8 +202,30 @@ async function loadLiveMatchups(){
 
     const race = data.race || {};
 
-    info.innerHTML =
-      `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`;
+    function formatRaceStart_(value) {
+  if (!value) return "";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short"
+  });
+}
+
+const startText = formatRaceStart_(race.startTime);
+const networkText = String(race.network || "").trim();
+
+const raceInfoParts = [
+  startText ? `Start: ${escapeHtml(startText)}` : "",
+  networkText ? `TV: ${escapeHtml(networkText)}` : "",
+  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go`
+].filter(Boolean);
+
+info.innerHTML = raceInfoParts.join(" • ");
 
     const savedPlayer = loadPlayerName().trim().toLowerCase();
 
