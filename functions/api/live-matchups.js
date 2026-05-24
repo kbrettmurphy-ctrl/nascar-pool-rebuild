@@ -292,11 +292,12 @@ export async function onRequestGet(context) {
     null,
 
   network:
-    nascarRace?.tv_network ||
-    nascarRace?.broadcast_network ||
-    nascarRace?.network ||
-    nascarRace?.radio_broadcaster ||
-    ""
+  nascarRace?.broadcast_provider ||
+  nascarRace?.tv_provider ||
+  nascarRace?.tv_network ||
+  nascarRace?.broadcast_network ||
+  nascarRace?.network ||
+  ""
 },
 
       updated: new Date().toISOString(),
