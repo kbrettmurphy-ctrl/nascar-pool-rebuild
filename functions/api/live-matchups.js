@@ -279,11 +279,25 @@ export async function onRequestGet(context) {
       ok: true,
 
       race: {
-        name: currentRace.race_name,
-        lap: liveJson?.lap_number ?? null,
-        lapsToGo: liveJson?.laps_to_go ?? null,
-        flag: liveJson?.flag_state ?? null
-      },
+  name: currentRace.race_name,
+  lap: liveJson?.lap_number ?? null,
+  lapsToGo: liveJson?.laps_to_go ?? null,
+  flag: liveJson?.flag_state ?? null,
+
+  startTime:
+    nascarRace?.race_date ||
+    nascarRace?.date_scheduled ||
+    nascarRace?.start_time ||
+    nascarRace?.start_date ||
+    null,
+
+  network:
+    nascarRace?.tv_network ||
+    nascarRace?.broadcast_network ||
+    nascarRace?.network ||
+    nascarRace?.radio_broadcaster ||
+    ""
+},
 
       updated: new Date().toISOString(),
 
