@@ -2764,7 +2764,7 @@ const BUSCH_TYLER_OLD_WEIGHT = 100;
 const BUSCH_TYLER_SOFT_WEIGHT = 1;
 const BUSCH_TYLER_OTHER_WEIGHT = 1;
 
-const SHOW_KYLE_TRIBUTE = true;
+const SHOW_KYLE_TRIBUTE = false;
 const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
 function showKyleTributeOnLoad_() {
