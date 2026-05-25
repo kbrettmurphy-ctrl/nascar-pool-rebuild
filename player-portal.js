@@ -201,97 +201,75 @@ async function loadLiveMatchups(){
     }
 
     const race = data.race || {};
-    
     const liveTitle = document.querySelector("#view-live .big");
 
-function flagColor_(flag) {
-  const f = Number(flag);
+    function flagColor_(flag) {
+      const f = Number(flag);
+      if (f === 1) return "var(--green)";
+      if (f === 2) return "var(--yellow)";
+      if (f === 3) return "var(--red)";
+      return "";
+    }
 
-  if (f === 1) return "var(--green)";
-  if (f === 2) return "var(--yellow)";
-  if (f === 3) return "var(--red)";
+    function flagDot_(flag) {
+      const color = flagColor_(flag);
+      return color ? `<span style="color:${color};">●</span>` : "";
+    }
 
-  return "";
-}
-
-function flagDot_(flag) {
-  const color = flagColor_(flag);
-  return color ? `<span style="color:${color};">●</span>` : "";
-}
-
-const liveColor = flagColor_(race.flag);
-if (liveTitle) {
-  liveTitle.style.color = liveColor || "";
-}
-
-function normalizeRaceStart_(value) {
+    const liveColor = flagColor_(race.flag);
+    if (liveTitle) {
+      liveTitle.style.color = liveColor || "";
+    }
 
     function normalizeRaceStart_(value) {
-  if (!value) return "";
+      if (!value) return "";
 
-  let v = String(value).trim();
+      let v = String(value).trim();
 
-  // NASCAR sometimes sends "6 PM Eastern" as a timestamp with no offset.
-  // If there is no Z or +/- timezone offset, treat it as Eastern time.
-  if (
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) &&
-    !/[zZ]|[+-]\d{2}:\d{2}$/.test(v)
-  ) {
-    v += "-04:00";
-  }
+      if (
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) &&
+        !/[zZ]|[+-]\d{2}:\d{2}$/.test(v)
+      ) {
+        v += "-04:00";
+      }
 
-  return v;
-}
+      return v;
+    }
 
-function formatRaceStart_(value) {
-  if (!value) return "";
+    function formatRaceStart_(value) {
+      if (!value) return "";
 
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
 
-  return d.toLocaleString("en-US", {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short"
-  });
-}
+      return d.toLocaleString("en-US", {
+        weekday: "short",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short"
+      });
+    }
 
-const normalizedStart = normalizeRaceStart_(race.startTime);
-const startText = formatRaceStart_(normalizedStart);
-const networkText = String(race.network || "").trim();
+    const normalizedStart = normalizeRaceStart_(race.startTime);
+    const startText = formatRaceStart_(normalizedStart);
+    const networkText = String(race.network || "").trim();
 
-const topLine = [
-  startText ? `Start: ${escapeHtml(startText)}` : "",
-  networkText ? `TV: ${escapeHtml(networkText)}` : ""
-].filter(Boolean).join(" • ");
+    const topLine = [
+      startText ? `Start: ${escapeHtml(startText)}` : "",
+      networkText ? `TV: ${escapeHtml(networkText)}` : ""
+    ].filter(Boolean).join(" • ");
 
-function flagDot_(flag) {
-  const f = Number(flag);
+    const flagDot = flagDot_(race.flag);
 
-  // NASCAR live feed common-ish values:
-  // 1 green, 2 yellow, 3 red. If the feed gets weird, no dot.
-  if (f === 1) return `<span style="color:var(--green);">●</span>`;
-  if (f === 2) return `<span style="color:var(--yellow);">●</span>`;
-  if (f === 3) return `<span style="color:var(--red);">●</span>`;
+    const bottomLine =
+      `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go${flagDot ? ` ${flagDot}` : ""}`;
 
-  return "";
-}
-
-const flagDot = flagDot_(race.flag);
-
-const bottomLine =
-  `Lap ${race.lap ?? "-"} • ${race.lapsToGo ?? "-"} to go${flagDot ? ` ${flagDot}` : ""}`;
-
-info.innerHTML = `
-  <div>${topLine}</div>
-  <div style="margin-top:2px;">
-    ${bottomLine}
-  </div>
-`;
+    info.innerHTML = `
+      <div>${topLine}</div>
+      <div style="margin-top:2px;">${bottomLine}</div>
+    `;
 
     const savedPlayer = loadPlayerName().trim().toLowerCase();
-
     const matchups = Array.isArray(data.matchups) ? [...data.matchups] : [];
 
     if (savedPlayer) {
@@ -371,7 +349,6 @@ info.innerHTML = `
     box.textContent = "Live scoring unavailable.";
     console.log("Live matchups failed:", err);
   }
-
 }
 
   /* ==========================================================
