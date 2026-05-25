@@ -201,6 +201,30 @@ async function loadLiveMatchups(){
     }
 
     const race = data.race || {};
+    
+    const liveTitle = document.querySelector("#view-live .big");
+
+function flagColor_(flag) {
+  const f = Number(flag);
+
+  if (f === 1) return "var(--green)";
+  if (f === 2) return "var(--yellow)";
+  if (f === 3) return "var(--red)";
+
+  return "";
+}
+
+function flagDot_(flag) {
+  const color = flagColor_(flag);
+  return color ? `<span style="color:${color};">●</span>` : "";
+}
+
+const liveColor = flagColor_(race.flag);
+if (liveTitle) {
+  liveTitle.style.color = liveColor || "";
+}
+
+function normalizeRaceStart_(value) {
 
     function normalizeRaceStart_(value) {
   if (!value) return "";
