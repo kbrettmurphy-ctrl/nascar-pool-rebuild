@@ -868,25 +868,35 @@
   }
   
   html.iosStandalone{
-  --navH: 82px;
+  --navH: 94px;
   --standaloneNavLift: 18px;
 }
 
 html.iosStandalone body{
-  padding-bottom: calc(var(--navH) + var(--standaloneNavLift));
+  padding-bottom: var(--navH);
 }
 
 html.iosStandalone .bottomNav{
-  bottom: var(--standaloneNavLift);
-  padding: 10px 10px 10px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 10px calc(10px + var(--standaloneNavLift));
+  background: var(--bg);
+  border-top: 1px solid rgba(255,255,255,.10);
+}
+
+html.iosStandalone .navInner{
+  transform: translateY(calc(-1 * var(--standaloneNavLift)));
+  padding: 10px;
   border-radius: 22px;
-  left: 10px;
-  right: 10px;
+  background: rgba(2,11,18,.92);
   border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 html.iosStandalone .sponsor-container{
-  bottom: calc(var(--navH) + var(--standaloneNavLift));
+  bottom: var(--navH);
 }
 
   .navInner{
