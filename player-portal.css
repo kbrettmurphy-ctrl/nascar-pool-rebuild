@@ -866,6 +866,16 @@
     border-top: 1px solid rgba(255,255,255,.10);
     z-index: 9999;
   }
+  
+  @media (display-mode: standalone){
+    body{
+      padding-bottom: var(--navH);
+    }
+
+    .bottomNav{
+      padding: 10px 10px 10px;
+    }
+  }
 
   .navInner{
     max-width: 920px;
