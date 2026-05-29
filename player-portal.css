@@ -860,7 +860,7 @@
   .bottomNav{
     position: fixed;
     left:0; right:0; bottom:0;
-    padding: 10px 26px calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
     background: rgba(2,11,18,.92);
     backdrop-filter: blur(10px);
     border-top: 1px solid rgba(255,255,255,.10);
