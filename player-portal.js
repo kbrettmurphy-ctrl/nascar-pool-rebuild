@@ -95,7 +95,17 @@
   /* ==========================================================
    Viewport / iOS bottom bar handling
    ========================================================== */
+  
+  (function markIOSStandalone(){
+    const isStandalone =
+      window.navigator.standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches;
 
+    if (isStandalone) {
+      document.documentElement.classList.add("iosStandalone");
+    }
+  })();
+  
   (function fixIOSBottomBar(){
     function update(){
       const vv = window.visualViewport;
