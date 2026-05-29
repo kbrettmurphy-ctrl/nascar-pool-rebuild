@@ -868,16 +868,29 @@
   }
   
   html.iosStandalone{
-    --navH: 60px;
-  }
+  --navH: 60px;
+}
 
-  html.iosStandalone body{
-    padding-bottom: var(--navH);
-  }
+html.iosStandalone body{
+  padding-bottom: var(--navH);
+}
 
-  html.iosStandalone .bottomNav{
-    padding: 10px 26px 10px;
-  }
+html.iosStandalone .bottomNav{
+  padding: 10px 0 10px;
+}
+
+html.iosStandalone .navInner{
+  padding-left: 44px;
+  padding-right: 44px;
+  scroll-padding-left: 44px;
+  scroll-padding-right: 44px;
+}
+
+html.iosStandalone .navInner::before,
+html.iosStandalone .navInner::after{
+  content:"";
+  flex: 0 0 1px;
+}
 
   .navInner{
     max-width: 920px;
