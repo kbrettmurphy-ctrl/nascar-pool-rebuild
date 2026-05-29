@@ -867,14 +867,16 @@
     z-index: 9999;
   }
   
-  @media (display-mode: standalone){
-    body{
-      padding-bottom: var(--navH);
-    }
+  html.iosStandalone{
+    --navH: 60px;
+  }
 
-    .bottomNav{
-      padding: 10px 10px 10px;
-    }
+  html.iosStandalone body{
+    padding-bottom: var(--navH);
+  }
+
+  html.iosStandalone .bottomNav{
+    padding: 10px 10px 10px;
   }
 
   .navInner{
