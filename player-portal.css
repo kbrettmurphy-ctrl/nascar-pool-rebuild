@@ -868,28 +868,25 @@
   }
   
   html.iosStandalone{
-  --navH: 60px;
+  --navH: 82px;
+  --standaloneNavLift: 18px;
 }
 
 html.iosStandalone body{
-  padding-bottom: var(--navH);
+  padding-bottom: calc(var(--navH) + var(--standaloneNavLift));
 }
 
 html.iosStandalone .bottomNav{
-  padding: 10px 0 10px;
+  bottom: var(--standaloneNavLift);
+  padding: 10px 10px 10px;
+  border-radius: 22px;
+  left: 10px;
+  right: 10px;
+  border: 1px solid rgba(255,255,255,.10);
 }
 
-html.iosStandalone .navInner{
-  padding-left: 44px;
-  padding-right: 44px;
-  scroll-padding-left: 44px;
-  scroll-padding-right: 44px;
-}
-
-html.iosStandalone .navInner::before,
-html.iosStandalone .navInner::after{
-  content:"";
-  flex: 0 0 1px;
+html.iosStandalone .sponsor-container{
+  bottom: calc(var(--navH) + var(--standaloneNavLift));
 }
 
   .navInner{
