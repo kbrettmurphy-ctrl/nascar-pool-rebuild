@@ -231,7 +231,7 @@ const liveColor = flagColor_(race.flag);
 if (liveCard) {
   liveCard.style.borderColor = liveColor || "var(--line)";
   liveCard.style.boxShadow = liveColor
-    ? `0 0 0 2px ${liveColor}, 0 0 18px rgba(255,255,255,.08)`
+    ? `0 0 0 1px ${liveColor}, 0 0 6px rgba(255,255,255,.04)`
     : "";
 }
 
