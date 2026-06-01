@@ -211,7 +211,7 @@ async function loadLiveMatchups(){
     }
 
     const race = data.race || {};
-    const liveTitle = document.querySelector("#view-live .big");
+    const liveCard = document.querySelector("#view-live .card");
 
     function flagColor_(flag) {
       const f = Number(flag);
@@ -227,8 +227,12 @@ async function loadLiveMatchups(){
     }
 
     const liveColor = flagColor_(race.flag);
-    if (liveTitle) {
-      liveTitle.style.color = liveColor || "";
+
+    if (liveCard) {
+      liveCard.style.borderColor = liveColor || "";
+      liveCard.style.boxShadow = liveColor
+        ? `0 0 0 2px ${liveColor}, 0 0 18px rgba(255,255,255,.08)`
+        : "";
     }
 
     function normalizeRaceStart_(value) {
