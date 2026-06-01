@@ -211,29 +211,29 @@ async function loadLiveMatchups(){
     }
 
     const race = data.race || {};
-    const liveCard = document.querySelector("#view-live .card");
+const liveCard = info.closest(".card");
 
-    function flagColor_(flag) {
-      const f = Number(flag);
-      if (f === 1) return "var(--green)";
-      if (f === 2) return "var(--yellow)";
-      if (f === 3) return "var(--red)";
-      return "";
-    }
+function flagColor_(flag) {
+  const f = Number(flag);
+  if (f === 1) return "var(--green)";
+  if (f === 2) return "var(--yellow)";
+  if (f === 3) return "var(--red)";
+  return "";
+}
 
-    function flagDot_(flag) {
-      const color = flagColor_(flag);
-      return color ? `<span style="color:${color};">●</span>` : "";
-    }
+function flagDot_(flag) {
+  const color = flagColor_(flag);
+  return color ? `<span style="color:${color};">●</span>` : "";
+}
 
-    const liveColor = flagColor_(race.flag);
+const liveColor = flagColor_(race.flag);
 
-    if (liveCard) {
-      liveCard.style.borderColor = liveColor || "";
-      liveCard.style.boxShadow = liveColor
-        ? `0 0 0 2px ${liveColor}, 0 0 18px rgba(255,255,255,.08)`
-        : "";
-    }
+if (liveCard) {
+  liveCard.style.borderColor = liveColor || "var(--line)";
+  liveCard.style.boxShadow = liveColor
+    ? `0 0 0 2px ${liveColor}, 0 0 18px rgba(255,255,255,.08)`
+    : "";
+}
 
     function normalizeRaceStart_(value) {
       if (!value) return "";
