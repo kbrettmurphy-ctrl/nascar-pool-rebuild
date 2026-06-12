@@ -2765,49 +2765,32 @@ refreshActiveView();
 let buschGirls = [];
 let buschQueue = [];
 
-const BUSCH_SOFT_FOLDER = "/soft/";
-const BUSCH_OLD_FOLDER = "/old/";
 const BUSCH_WARMUP_COUNT = 2;
-
-// Default weights for everybody else
-const BUSCH_DEFAULT_SOFT_WEIGHT = 1;
-const BUSCH_DEFAULT_OTHER_WEIGHT = 6;
-
-// Tyler exception
-const BUSCH_TYLER_OLD_WEIGHT = 100;
-const BUSCH_TYLER_SOFT_WEIGHT = 1;
-const BUSCH_TYLER_OTHER_WEIGHT = 1;
 
 const SHOW_KYLE_TRIBUTE = false;
 const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
-function showKyleTributeOnLoad_() {
-  if (!SHOW_KYLE_TRIBUTE) return;
-
-  const popup = document.getElementById("buschPopup");
-  const popupImg = document.getElementById("buschPopupImg");
-
-  if (!popup || !popupImg) return;
-
-  popupImg.src = KYLE_TRIBUTE_IMG;
-  popupImg.alt = "Kyle Busch tribute";
-
-  popup.hidden = false;
-  document.body.style.overflow = "hidden";
-  document.body.classList.add("noSelect");
-}
-
 async function loadBuschGirls() {
   try {
-    const res = await fetch("/img/buschgirls/manifest.json", { cache: "no-store" });
+    const res = await fetch("/api/buschgirls", { cache: "no-store" });
     const data = await res.json();
 
-    if (Array.isArray(data)) {
-      buschGirls = data;
-      refillQueue();
+    if (!res.ok || !data?.ok) {
+      throw new Error(data?.error || "Failed loading Busch Girls");
     }
+
+    buschGirls = (data.photos || [])
+      .map(p => ({
+        url: String(p.url || "").trim(),
+        folder: String(p.folder || "").trim().toLowerCase()
+      }))
+      .filter(p => p.url && p.folder);
+
+    refillQueue();
   } catch (err) {
-    console.error("Failed to load Busch girls manifest", err);
+    console.error("Failed to load Busch Girls", err);
+    buschGirls = [];
+    buschQueue = [];
   }
 }
 
@@ -2829,50 +2812,29 @@ function activePlayerIsTyler_() {
 }
 
 function refillQueue() {
-  const soft = buschGirls.filter(img => img.includes(BUSCH_SOFT_FOLDER));
-  const old = buschGirls.filter(img => img.includes(BUSCH_OLD_FOLDER));
+  const soft = buschGirls.filter(p => p.folder === "soft");
+  const old = buschGirls.filter(p => p.folder === "old");
+  const spicy = buschGirls.filter(p => p.folder === "spicy");
+  const spicier = buschGirls.filter(p => p.folder === "spicier");
 
   const warmup = takeRandom_(soft, Math.min(BUSCH_WARMUP_COUNT, soft.length));
-  const warmupSet = new Set(warmup);
+  const warmupUrls = new Set(warmup.map(p => p.url));
 
   const isTyler = activePlayerIsTyler_();
 
-  // Everybody except Tyler gets NO old folder images at all.
-  const eligiblePool = buschGirls.filter(img => {
-    if (warmupSet.has(img)) return false;
-    if (!isTyler && img.includes(BUSCH_OLD_FOLDER)) return false;
-    return true;
-  });
-
-  const weightedPool = [];
-
-  for (const img of eligiblePool) {
-    let weight = BUSCH_DEFAULT_OTHER_WEIGHT;
-
-    if (img.includes(BUSCH_SOFT_FOLDER)) {
-      weight = isTyler ? BUSCH_TYLER_SOFT_WEIGHT : BUSCH_DEFAULT_SOFT_WEIGHT;
-    } else if (img.includes(BUSCH_OLD_FOLDER)) {
-      // Only Tyler can ever reach this branch because old/ is filtered out above for everyone else
-      weight = BUSCH_TYLER_OLD_WEIGHT;
-    } else if (isTyler) {
-      weight = BUSCH_TYLER_OTHER_WEIGHT;
-    }
-
-    for (let i = 0; i < weight; i++) {
-      weightedPool.push(img);
-    }
+  if (isTyler) {
+    buschQueue = [
+      ...warmup,
+      ...shuffle_(old.filter(p => !warmupUrls.has(p.url)))
+    ];
+    return;
   }
 
-  const shuffledMain = shuffle_(weightedPool);
-
-  // de-dupe while preserving weighted front-loading
-  const seen = new Set();
-  const main = [];
-  for (const img of shuffledMain) {
-    if (seen.has(img)) continue;
-    seen.add(img);
-    main.push(img);
-  }
+  const main = shuffle_([
+    ...spicy,
+    ...spicier,
+    ...soft.filter(p => !warmupUrls.has(p.url))
+  ]);
 
   buschQueue = [...warmup, ...main];
 }
@@ -2884,7 +2846,8 @@ function getRandomBuschGirl() {
     refillQueue();
   }
 
-  return buschQueue.shift();
+  const next = buschQueue.shift();
+  return next?.url || null;
 }
 
 function initBuschLongPress_() {
