@@ -166,6 +166,7 @@
         <button class="adminTab active" data-admin-tab="raceops" type="button">Race Ops</button>
         <button class="adminTab" data-admin-tab="seeds" type="button">Seeds</button>
         <button class="adminTab" data-admin-tab="funds" type="button">Funds</button>
+        <button class="adminTab" data-admin-tab="buschgirls" type="button">Busch Girls</button>
       </div>
 
       <div id="adminTab-raceops" class="adminTabPane active">
@@ -209,6 +210,30 @@
           <button id="venmoBalanceBtn" class="primary" style="background:var(--glassBlue42);">Venmo: $0.00</button>
         </div>
         <div id="adminFundsStatus" class="adminStatus"></div>
+      </div>
+
+      <div id="adminTab-buschgirls" class="adminTabPane">
+        <div class="big">Busch Girls Upload</div>
+        <div class="muted">Upload photos into the Supabase bucket. Humanity evolves, allegedly.</div>
+
+        <div class="adminField">
+          <label for="buschFolderSelect">Folder</label>
+          <select id="buschFolderSelect">
+            <option value="soft">soft</option>
+            <option value="old">old</option>
+            <option value="spicy">spicy</option>
+            <option value="spicier">spicier</option>
+          </select>
+        </div>
+
+        <div class="adminField">
+          <label for="buschUploadInput">Photos</label>
+          <input id="buschUploadInput" type="file" accept="image/*" multiple>
+        </div>
+
+        <button id="buschUploadBtn" class="primary" type="button">Upload Photos</button>
+
+        <div id="buschUploadStatus" class="adminStatus"></div>
       </div>
     </div>
   </div>
