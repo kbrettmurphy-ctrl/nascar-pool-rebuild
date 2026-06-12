@@ -854,6 +854,53 @@ refreshActiveView();
     }
   }
 
+  async function uploadBuschGirls_() {
+    const folder = String(document.getElementById("buschFolderSelect")?.value || "").trim();
+    const input = document.getElementById("buschUploadInput");
+    const status = document.getElementById("buschUploadStatus");
+
+    const files = Array.from(input?.files || []);
+
+    if (!folder) {
+      setAdminStatus_("buschUploadStatus", "Pick a folder.", true);
+      return;
+    }
+
+    if (!files.length) {
+      setAdminStatus_("buschUploadStatus", "Choose at least one photo.", true);
+      return;
+    }
+
+    setAdminStatus_("buschUploadStatus", `Uploading ${files.length} photo(s)...`);
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const form = new FormData();
+        form.append("folder", folder);
+        form.append("file", files[i]);
+
+        await adminFetch_("/api/upload-buschgirl", {
+          method: "POST",
+          body: form
+        });
+
+        setAdminStatus_(
+          "buschUploadStatus",
+          `Uploaded ${i + 1} of ${files.length}...`
+        );
+      }
+
+      input.value = "";
+      buschGirls = [];
+      buschQueue = [];
+      await loadBuschGirls();
+
+      setAdminStatus_("buschUploadStatus", `Uploaded ${files.length} photo(s).`);
+    } catch (err) {
+      setAdminStatus_("buschUploadStatus", err.message || String(err), true);
+    }
+  }
+
   async function clearAssignments_() {
     const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
     if (!raceId) {
@@ -3111,6 +3158,7 @@ function initAdminControls_() {
   document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
+  document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
 }
 
   window.addEventListener("resize", () => {
