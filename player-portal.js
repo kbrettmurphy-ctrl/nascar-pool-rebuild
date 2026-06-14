@@ -2902,30 +2902,23 @@ function initBuschLongPress_() {
   const logo = document.getElementById("buschLogo");
   const popup = document.getElementById("buschPopup");
   const closeBtn = document.getElementById("buschPopupClose");
-  const backdrop = popup?.querySelector(".buschPopupBackdrop");
+  const popupCard = popup?.querySelector(".buschPopupCard");
   const popupImg = document.querySelector(".buschPopupImg");
 
-  if (!trigger || !popup) return;
+  if (!trigger || !popup || !popupImg || !popupCard) return;
 
-  // Best manual haptic hack we have
-  let hapticDiv = null;
-  function triggerHaptic() {
-    if (!hapticDiv) {
-      hapticDiv = document.createElement("div");
-      hapticDiv.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
-      hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
-      document.body.appendChild(hapticDiv);
-    }
-    const label = hapticDiv.querySelector("label");
-    const input = hapticDiv.querySelector("input");
-    if (label && input) {
-      label.click();
-      setTimeout(() => {
-        input.checked = false;
-        label.click();
-      }, 16);
-    }
-  }
+  if (closeBtn) closeBtn.style.display = "none";
+
+  let pressTimer = null;
+  let startX = 0;
+  let startY = 0;
+  let longPressTriggered = false;
+  let buschHistory = [];
+  let buschHistoryIndex = -1;
+
+  const MOVE_THRESHOLD = 10;
+  const HOLD_TIME = 2000;
+  const TAP_MOVE_THRESHOLD = 8;
 
   function suppressNativePress(e) {
     e.preventDefault();
@@ -2940,19 +2933,55 @@ function initBuschLongPress_() {
   trigger.addEventListener("dragstart", suppressNativePress);
   trigger.addEventListener("selectstart", suppressNativePress);
 
-  popupImg?.addEventListener("contextmenu", suppressNativePress);
+  popupImg.addEventListener("contextmenu", suppressNativePress);
 
-  let pressTimer = null;
-  let startX = 0;
-  let startY = 0;
-  let longPressTriggered = false;
+  let hapticDiv = null;
+  function triggerHaptic() {
+    if (!hapticDiv) {
+      hapticDiv = document.createElement("div");
+      hapticDiv.style.cssText = "position:absolute; left:-9999px; opacity:0; pointer-events:none; z-index:-1;";
+      hapticDiv.innerHTML = `<input type="checkbox" id="bh" switch><label for="bh"></label>`;
+      document.body.appendChild(hapticDiv);
+    }
 
-  const MOVE_THRESHOLD = 10;
-  const HOLD_TIME = 1000;
+    const label = hapticDiv.querySelector("label");
+    const input = hapticDiv.querySelector("input");
+
+    if (label && input) {
+      label.click();
+      setTimeout(() => {
+        input.checked = false;
+        label.click();
+      }, 16);
+    }
+  }
+
+  function showBuschImage_(src) {
+    if (src) popupImg.src = src;
+  }
+
+  function nextBuschImage_() {
+    const nextImg = getRandomBuschGirl();
+    if (!nextImg) return;
+
+    if (buschHistoryIndex < buschHistory.length - 1) {
+      buschHistory = buschHistory.slice(0, buschHistoryIndex + 1);
+    }
+
+    buschHistory.push(nextImg);
+    buschHistoryIndex = buschHistory.length - 1;
+    showBuschImage_(nextImg);
+  }
+
+  function prevBuschImage_() {
+    if (buschHistoryIndex > 0) {
+      buschHistoryIndex -= 1;
+      showBuschImage_(buschHistory[buschHistoryIndex]);
+    }
+  }
 
   function openPopup() {
-    const nextImg = getRandomBuschGirl();
-    if (popupImg && nextImg) popupImg.src = nextImg;
+    nextBuschImage_();
 
     triggerHaptic();
     if (navigator.vibrate) navigator.vibrate([8, 12]);
@@ -2998,6 +3027,7 @@ function initBuschLongPress_() {
 
   function handleTouchMove(e) {
     if (!pressTimer) return;
+
     const t = e.touches[0];
     if (!t) return;
 
@@ -3014,13 +3044,14 @@ function initBuschLongPress_() {
       e.preventDefault();
       e.stopPropagation();
     }
+
     cancelPress();
+
     setTimeout(() => {
       longPressTriggered = false;
     }, 0);
   }
 
-  // Attach listeners
   trigger.addEventListener("mousedown", startPress);
   trigger.addEventListener("mouseup", endPress);
   trigger.addEventListener("mouseleave", endPress);
@@ -3030,20 +3061,50 @@ function initBuschLongPress_() {
   trigger.addEventListener("touchend", endPress, { passive: false });
   trigger.addEventListener("touchcancel", endPress, { passive: false });
 
-  closeBtn?.addEventListener("click", closePopup);
-
-  function closeIfOutsideCard(e) {
-    if (!e.target.closest(".buschPopupCard")) {
-      e.preventDefault();
-      e.stopPropagation();
+  popup.addEventListener("click", (e) => {
+    if (e.target === popup || e.target.classList.contains("buschPopupBackdrop")) {
       closePopup();
     }
-  }
+  });
 
-  popup.addEventListener("pointerdown", closeIfOutsideCard);
+  let tapStartX = 0;
+  let tapStartY = 0;
+  let tapStartedWithMultiTouch = false;
+
+  popupImg.addEventListener("pointerdown", (e) => {
+    tapStartX = e.clientX || 0;
+    tapStartY = e.clientY || 0;
+    tapStartedWithMultiTouch = false;
+  });
+
+  popupImg.addEventListener("touchstart", (e) => {
+    tapStartedWithMultiTouch = e.touches.length > 1;
+  }, { passive: true });
+
+  popupImg.addEventListener("click", (e) => {
+    if (tapStartedWithMultiTouch) return;
+
+    const dx = Math.abs((e.clientX || 0) - tapStartX);
+    const dy = Math.abs((e.clientY || 0) - tapStartY);
+
+    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) return;
+
+    const rect = popupImg.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    if (x < rect.width / 2) {
+      prevBuschImage_();
+    } else {
+      nextBuschImage_();
+    }
+  });
 
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !popup.hidden) closePopup();
+    if (popup.hidden) return;
+
+    if (e.key === "Escape") closePopup();
+    if (e.key === "ArrowRight") nextBuschImage_();
+    if (e.key === "ArrowLeft") prevBuschImage_();
   });
 }
 
