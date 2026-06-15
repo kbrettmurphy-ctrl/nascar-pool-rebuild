@@ -1378,7 +1378,7 @@ html.iosStandalone .bottomNav{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: -18px;
   height: 75px;
   padding: 0;
 }
@@ -1387,7 +1387,7 @@ html.iosStandalone .bottomNav .navInner{
   position: absolute;
   left: 10px;
   right: 10px;
-  bottom: -4px;
+  bottom: 10px;
   max-width: none;
   margin: 0;
 }
