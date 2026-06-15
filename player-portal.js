@@ -2811,6 +2811,7 @@ refreshActiveView();
 
 let buschGirls = [];
 let buschQueue = [];
+let buschSeenUrls = new Set();
 
 const BUSCH_WARMUP_COUNT = 2;
 
@@ -2901,7 +2902,24 @@ function getRandomBuschGirl() {
     refillQueue();
   }
 
+  while (buschQueue.length) {
+    const next = buschQueue.shift();
+    const url = next?.url || "";
+
+    if (!url) continue;
+    if (buschSeenUrls.has(url)) continue;
+
+    buschSeenUrls.add(url);
+    return url;
+  }
+
+  // If we somehow burned through everything, reset and start over.
+  buschSeenUrls.clear();
+  refillQueue();
+
   const next = buschQueue.shift();
+  if (next?.url) buschSeenUrls.add(next.url);
+
   return next?.url || null;
 }
 
