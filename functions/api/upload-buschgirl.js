@@ -51,6 +51,20 @@ export async function onRequestPost(context) {
     const publicUrl =
       `${env.SUPABASE_URL}/storage/v1/object/public/buschgirls/${path}`;
 
+    const maxSortRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?folder=eq.${encodeURIComponent(folder)}&select=sort_order&order=sort_order.desc.nullslast&limit=1`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SECRET_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
+        }
+      }
+    );
+
+    const maxSortRows = await maxSortRes.json().catch(() => []);
+    const maxSort = Number(maxSortRows?.[0]?.sort_order || 0);
+    const nextSortOrder = maxSort + 1;
+
     const insertRes = await fetch(
       `${env.SUPABASE_URL}/rest/v1/buschgirls_photos`,
       {
@@ -66,7 +80,7 @@ export async function onRequestPost(context) {
           filename,
           url: publicUrl,
           active: true,
-          sort_order: null
+          sort_order: nextSortOrder
         }])
       }
     );
