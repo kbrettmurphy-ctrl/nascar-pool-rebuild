@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v2";
+const CACHE_NAME = "nascar-pool-pwa-v3";
 
 const STATIC_ASSETS = [
   "/",
@@ -64,31 +64,46 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = {};
+  event.waitUntil(showQueuedPushMessage_());
+});
+
+async function showQueuedPushMessage_() {
+  let playerName = "";
 
   try {
-    data = event.data ? event.data.json() : {};
-  } catch {
-    data = {
-      title: "NASCAR Pool",
-      body: event.data ? event.data.text() : "New update available."
-    };
-  }
+    const clientsList = await clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
 
-  const title = data.title || "NASCAR Pool";
+    for (const client of clientsList) {
+      const url = new URL(client.url);
+      playerName = url.searchParams.get("playerName") || "";
+      if (playerName) break;
+    }
+  } catch {}
+
+  let msg = null;
+
+  try {
+    const qs = playerName ? `?playerName=${encodeURIComponent(playerName)}` : "";
+    const res = await fetch(`/api/next-push-message${qs}`, { cache: "no-store" });
+    const data = await res.json();
+    msg = data?.message || null;
+  } catch {}
+
+  const title = msg?.title || "NASCAR Pool";
   const options = {
-    body: data.body || "New update available.",
+    body: msg?.body || "New update available.",
     icon: "/img/icon-192.png",
     badge: "/img/icon-192.png",
     data: {
-      url: data.url || "/"
+      url: msg?.url || "/"
     }
   };
 
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
-});
+  await self.registration.showNotification(title, options);
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
