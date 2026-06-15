@@ -2630,7 +2630,7 @@ refreshActiveView();
     load();
   }
   
-  const VAPID_PUBLIC_KEY = "PASTE_YOUR_PUBLIC_VAPID_KEY_HERE";
+  const VAPID_PUBLIC_KEY = "BL7txU7e0ugTZE227ErMGB8h5dU5tp54iyfZzuyE7a1PVUYNLlM9i_1ila3s0zDrInVgdw4ItJDcgO720cNo5g0";
 
 function urlBase64ToUint8Array_(base64String) {
   const padding = "=".repeat((4 - base64String.length % 4) % 4);
