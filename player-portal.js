@@ -2980,6 +2980,60 @@ function initBuschLongPress_() {
 
   popupImg?.addEventListener("contextmenu", suppressNativePress);
 
+  let photoInfoTimer = null;
+
+function buschPhotoInfoFromSrc_(src) {
+  const cleanSrc = String(src || "").split("?")[0];
+
+  const found = buschGirls.find(p =>
+    String(p.url || "").split("?")[0] === cleanSrc
+  );
+
+  const url = found?.url || cleanSrc;
+  const parts = url.split("/");
+  const file = decodeURIComponent(parts.pop() || "");
+  const folder = found?.folder || decodeURIComponent(parts.pop() || "");
+
+  return { folder, file, url };
+}
+
+function showBuschPhotoInfo_() {
+  if (!popupImg?.src) return;
+
+  const info = buschPhotoInfoFromSrc_(popupImg.src);
+
+  alert(
+    `Folder: ${info.folder || "(unknown)"}\n` +
+    `File: ${info.file || "(unknown)"}`
+  );
+}
+
+popupImg?.addEventListener("touchstart", () => {
+  clearTimeout(photoInfoTimer);
+  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
+}, { passive: true });
+
+popupImg?.addEventListener("touchend", () => {
+  clearTimeout(photoInfoTimer);
+}, { passive: true });
+
+popupImg?.addEventListener("touchcancel", () => {
+  clearTimeout(photoInfoTimer);
+}, { passive: true });
+
+popupImg?.addEventListener("mousedown", () => {
+  clearTimeout(photoInfoTimer);
+  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
+});
+
+popupImg?.addEventListener("mouseup", () => {
+  clearTimeout(photoInfoTimer);
+});
+
+popupImg?.addEventListener("mouseleave", () => {
+  clearTimeout(photoInfoTimer);
+});
+
   let pressTimer = null;
   let startX = 0;
   let startY = 0;
