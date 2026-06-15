@@ -4,7 +4,7 @@
   "description": "NASCAR Pool player portal, live matchups, standings, bracket, and dues.",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "browser",
   "orientation": "portrait",
   "background_color": "#020b12",
   "theme_color": "#020b12",
