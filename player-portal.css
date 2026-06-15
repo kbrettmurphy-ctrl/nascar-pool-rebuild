@@ -868,26 +868,26 @@
   }
   
   html.iosStandalone{
-    --navH: calc(75px + env(safe-area-inset-bottom));
+    --navH: 76px;
   }
 
   html.iosStandalone body{
     padding-top: calc(var(--pad) + env(safe-area-inset-top));
-    padding-bottom: var(--navH);
+    padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom));
   }
 
   html.iosStandalone .bottomNav{
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    padding: 8px 10px 8px;
     background: rgba(2,11,18,.92);
     border-top: 1px solid rgba(255,255,255,.10);
     border-radius: 0;
   }
-  
+
   html.iosStandalone .sponsor-container{
-    bottom: var(--navH);
+    bottom: calc(var(--navH) + env(safe-area-inset-bottom));
   }
 
   .navInner{
@@ -1386,9 +1386,4 @@
     width:100%;
     font-size:12px;
   }
-}
-
-/* PWA / iPhone standalone safe-area fix */
-html.iosStandalone body{
-  padding-top: calc(var(--pad) + env(safe-area-inset-top));
 }
