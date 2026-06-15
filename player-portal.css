@@ -873,13 +873,12 @@
 
 html.iosStandalone body{
   padding-top: calc(var(--pad) + env(safe-area-inset-top));
-  padding-bottom: 0;
+  padding-bottom: 75px;
 }
 
 html.iosStandalone .bottomNav{
   bottom: 0;
-  transform: translateY(env(safe-area-inset-bottom));
-  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  padding: 10px 10px 0;
 }
 
 html.iosStandalone .sponsor-container{
@@ -1381,12 +1380,4 @@ html.iosStandalone .sponsor-container{
     width:100%;
     font-size:12px;
   }
-}
-
-html.iosStandalone .bottomNav{
-  outline: 3px solid lime !important;
-}
-
-html.iosStandalone .bottomNav .navInner{
-  outline: 3px solid red !important;
 }
