@@ -1381,12 +1381,12 @@ html.iosStandalone .sponsor-container{
     width:100%;
     font-size:12px;
   }
+}
 
-    html.iosStandalone .bottomNav{
+html.iosStandalone .bottomNav{
   outline: 3px solid lime !important;
 }
 
 html.iosStandalone .bottomNav .navInner{
   outline: 3px solid red !important;
-}
 }
