@@ -61,9 +61,14 @@ export async function onRequestPost(context) {
       if (!playerName || !nums) continue;
 
       try {
+        const raceName =
+          String(body?.raceName || "").trim() ||
+          String(row?.race_name || "").trim() ||
+          `Race ${raceId}`;
+
         const push = await sendPlayerNotification(env, playerName, {
           title: "Assignments Posted",
-          body: `Race ${raceId} assignments are live. Your numbers are ${nums}.`,
+          body: `${raceName} assignments are live. Your numbers: ${nums.replace(/,/g, " & ")}.`,
           url: "/"
         });
 
