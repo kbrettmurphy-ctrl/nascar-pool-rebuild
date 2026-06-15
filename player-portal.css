@@ -873,7 +873,7 @@
 
 html.iosStandalone body{
   padding-top: calc(var(--pad) + env(safe-area-inset-top));
-  padding-bottom: 75px;
+  padding-bottom: 0;
 }
 
 html.iosStandalone .bottomNav{
