@@ -2817,6 +2817,13 @@ const BUSCH_WARMUP_COUNT = 2;
 const SHOW_KYLE_TRIBUTE = false;
 const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
+function preloadBuschImage_(src) {
+  if (!src) return;
+
+  const img = new Image();
+  img.src = src;
+}
+
 async function loadBuschGirls() {
   try {
     const res = await fetch("/api/buschgirls", { cache: "no-store" });
@@ -2834,6 +2841,7 @@ async function loadBuschGirls() {
       .filter(p => p.url && p.folder);
 
     refillQueue();
+    buschQueue.slice(0, 5).forEach(p => preloadBuschImage_(p.url));
   } catch (err) {
     console.error("Failed to load Busch Girls", err);
     buschGirls = [];
@@ -2927,6 +2935,7 @@ function initBuschLongPress_() {
     buschHistory.push(nextImg);
     buschHistoryIndex = buschHistory.length - 1;
     showBuschImage_(nextImg);
+    buschQueue.slice(0, 3).forEach(p => preloadBuschImage_(p.url));
   }
 
   function prevBuschImage_() {
