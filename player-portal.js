@@ -3307,6 +3307,24 @@ popupImg?.addEventListener("mouseleave", () => {
   });
 }
 
+async function sendTestPush_() {
+  setAdminStatus_("adminFundsStatus", "Sending test push...");
+
+  try {
+    const data = await adminFetch_("/api/send-push-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+
+    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);
+    setAdminStatus_("adminFundsStatus", "Test push sent.");
+  } catch (err) {
+    alert(err.message || String(err));
+    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+  }
+}
+
 function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
     const pinBackdrop = document.getElementById("adminPinBackdrop");
@@ -3419,7 +3437,10 @@ function initAdminControls_() {
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
+  document.getElementById("adminTestPushBtn")?.addEventListener("click", sendTestPush_);
 }
+
+
 
   window.addEventListener("resize", () => {
     if (_statsMode !== "overall" && _statsMode !== "tourney") return;
