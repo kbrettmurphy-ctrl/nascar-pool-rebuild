@@ -3308,6 +3308,7 @@ popupImg?.addEventListener("mouseleave", () => {
 }
 
 async function sendTestPush_() {
+  alert("Test push button clicked");
   setAdminStatus_("adminFundsStatus", "Sending test push...");
 
   try {
