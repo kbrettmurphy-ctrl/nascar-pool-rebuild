@@ -1386,3 +1386,8 @@ html.iosStandalone .sponsor-container{
     font-size:12px;
   }
 }
+
+/* PWA / iPhone standalone safe-area fix */
+html.iosStandalone body{
+  padding-top: calc(var(--pad) + env(safe-area-inset-top));
+}
