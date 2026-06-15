@@ -1366,12 +1366,12 @@
 }
 
 html.iosStandalone{
-  --navH: 75px;
+  --navH: 55px;
 }
 
 html.iosStandalone body{
   padding-top: calc(var(--pad) + env(safe-area-inset-top));
-  padding-bottom: 95px;
+  padding-bottom: 75px;
 }
 
 html.iosStandalone .bottomNav{
@@ -1379,7 +1379,7 @@ html.iosStandalone .bottomNav{
   left: 0;
   right: 0;
   bottom: 0;
-  height: 75px;
+  height: 55px;
   padding: 0;
 }
 
@@ -1387,11 +1387,11 @@ html.iosStandalone .bottomNav .navInner{
   position: absolute;
   left: 10px;
   right: 10px;
-  bottom: 0;
+  bottom: 8px;
   max-width: none;
   margin: 0;
 }
 
 html.iosStandalone .sponsor-container{
-  bottom: 75px;
+  bottom: 55px;
 }
