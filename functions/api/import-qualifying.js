@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
 
     // 1) Load race metadata from Supabase
     const raceRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name`,
+      `${env.SUPABASE_URL}/rest/v1/races?id=eq.${raceId}&select=id,season_year,race_number,race_name,race_short`,
       {
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
@@ -277,6 +277,99 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: inserted }, 500);
     }
 
+    const raceLabel =
+      String(race.race_short || "").trim() ||
+      String(race.race_name || "").trim() ||
+      `Race ${raceId}`;
+
+    const driverByQualPos = new Map();
+
+    for (const row of normalized) {
+      const match = driverMap.get(normalizeName(row.driver_name));
+      if (match) {
+        driverByQualPos.set(Number(row.qualifying_position), match.name);
+      }
+    }
+
+    const pushResults = [];
+
+    try {
+      const assignmentsRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/player_assignments?select=player_id,assignment_slot,qualifying_position&race_id=eq.${raceId}&order=player_id.asc,assignment_slot.asc`,
+        {
+          headers: {
+            apikey: env.SUPABASE_SECRET_KEY,
+            Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+          },
+        }
+      );
+
+      const assignments = await assignmentsRes.json().catch(() => []);
+
+      if (assignmentsRes.ok && Array.isArray(assignments) && assignments.length) {
+        const playerIds = [...new Set(assignments.map(a => Number(a.player_id)).filter(Number.isFinite))];
+
+        const playersRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/players?select=id,name&id=in.(${playerIds.join(",")})`,
+          {
+            headers: {
+              apikey: env.SUPABASE_SECRET_KEY,
+              Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+            },
+          }
+        );
+
+        const players = await playersRes.json().catch(() => []);
+        const playerNameById = new Map(
+          Array.isArray(players)
+            ? players.map(p => [Number(p.id), String(p.name || "").trim()])
+            : []
+        );
+
+        const byPlayer = new Map();
+
+        for (const a of assignments) {
+          const playerId = Number(a.player_id);
+          const playerName = playerNameById.get(playerId);
+          const driverName = driverByQualPos.get(Number(a.qualifying_position));
+
+          if (!playerName || !driverName) continue;
+
+          if (!byPlayer.has(playerName)) byPlayer.set(playerName, []);
+          byPlayer.get(playerName).push(driverName);
+        }
+
+        for (const [playerName, driverNames] of byPlayer.entries()) {
+          const uniqueDrivers = [...new Set(driverNames)].filter(Boolean);
+          if (!uniqueDrivers.length) continue;
+
+          try {
+            const push = await sendPlayerNotification(env, playerName, {
+              title: "Drivers Assigned",
+              body: `Your drivers for ${raceLabel} are ${uniqueDrivers.join(" & ")}.`,
+              url: "/"
+            });
+
+            pushResults.push({ playerName, ...push });
+          } catch (err) {
+            pushResults.push({
+              playerName,
+              sent: 0,
+              failed: 1,
+              error: err.message || String(err)
+            });
+          }
+        }
+      }
+    } catch (err) {
+      pushResults.push({
+        playerName: null,
+        sent: 0,
+        failed: 1,
+        error: err.message || String(err)
+      });
+    }
+
     return json({
       ok: true,
       raceId,
@@ -286,6 +379,7 @@ export async function onRequestPost(context) {
       chosenRunName: chosenRun?.run_name || chosenRun?.name || "",
       resolvedNascarRaceId: targetRaceId,
       resolvedNascarRaceName: targetRace?.race_name || targetRace?.name || "",
+      pushResults,
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
