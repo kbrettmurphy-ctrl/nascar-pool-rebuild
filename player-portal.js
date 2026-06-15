@@ -3308,7 +3308,6 @@ popupImg?.addEventListener("mouseleave", () => {
 }
 
 async function sendTestPush_() {
-  alert("Test push button clicked");
   setAdminStatus_("adminFundsStatus", "Sending test push...");
 
   try {
@@ -3318,7 +3317,7 @@ async function sendTestPush_() {
       body: JSON.stringify({})
     });
 
-    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);
+    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed\n\n${JSON.stringify(data.results || [], null, 2)}`);
     setAdminStatus_("adminFundsStatus", "Test push sent.");
   } catch (err) {
     alert(err.message || String(err));
