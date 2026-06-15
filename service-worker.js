@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v5";
+const CACHE_NAME = "nascar-pool-pwa-v6";
 
 const STATIC_ASSETS = [
   "/",
@@ -63,26 +63,26 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("push", (event) => {
-  event.waitUntil(showQueuedPushMessage_());
+sself.addEventListener("push", (event) => {
+  event.waitUntil(showPushNotification_(event));
 });
 
-async function showQueuedPushMessage_() {
-  let msg = null;
+async function showPushNotification_(event) {
+  let data = {};
 
   try {
-    const res = await fetch("/api/next-push-message", { cache: "no-store" });
-    const data = await res.json();
-    msg = data?.message || null;
-  } catch {}
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
 
-  const title = msg?.title || "NASCAR Pool";
+  const title = data.title || "NASCAR Pool";
   const options = {
-    body: msg?.body || "New update available.",
+    body: data.body || "New update available.",
     icon: "/img/icon-192.png",
     badge: "/img/icon-192.png",
     data: {
-      url: msg?.url || "/"
+      url: data.url || "/"
     }
   };
 
