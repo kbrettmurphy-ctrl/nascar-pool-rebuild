@@ -867,8 +867,21 @@
     z-index: 9999;
   }
   
+  html.iosStandalone{
+    --navH: 75px;
+  }
+
   html.iosStandalone body{
     padding-top: calc(var(--pad) + env(safe-area-inset-top));
+    padding-bottom: 75px;
+  }
+
+  html.iosStandalone .bottomNav{
+    padding: 10px 10px 10px;
+  }
+
+  html.iosStandalone .sponsor-container{
+    bottom: 75px;
   }
 
   .navInner{
