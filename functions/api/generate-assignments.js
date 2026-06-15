@@ -1,4 +1,5 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
+import { sendPlayerNotification } from "./_push";
 
 export async function onRequestPost(context) {
   try {
@@ -49,11 +50,40 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
+    const pushResults = [];
+
+    for (const row of data || []) {
+      const playerName = String(row?.player_name || "").trim();
+      const nums = Array.isArray(row?.assigned_numbers)
+        ? row.assigned_numbers.join(" and ")
+        : String(row?.assigned_numbers || "").trim();
+
+      if (!playerName || !nums) continue;
+
+      try {
+        const push = await sendPlayerNotification(env, playerName, {
+          title: "Assignments Posted",
+          body: `Race ${raceId} assignments are live. Your numbers are ${nums}.`,
+          url: "/"
+        });
+
+        pushResults.push({ playerName, ...push });
+      } catch (err) {
+        pushResults.push({
+          playerName,
+          sent: 0,
+          failed: 1,
+          error: err.message || String(err)
+        });
+      }
+    }
+
     return json({
       ok: true,
       raceId,
       message: `Assignments generated for race ${raceId}`,
-      data
+      data,
+      pushResults
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
