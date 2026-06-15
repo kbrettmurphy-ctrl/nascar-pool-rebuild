@@ -22,7 +22,7 @@ export async function onRequestPost(context) {
     }
 
     const originalName = String(file.name || "upload.jpg").replace(/[^\w.\-]+/g, "_");
-    const filename = `${Date.now()}_${originalName}`;
+    const filename = originalName;
     const path = `${folder}/${filename}`;
 
     const bytes = await file.arrayBuffer();
