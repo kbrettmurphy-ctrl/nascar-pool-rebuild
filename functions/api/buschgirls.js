@@ -3,7 +3,7 @@ export async function onRequestGet(context) {
     const { env } = context;
 
     const res = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id,folder,filename,url&active=eq.true&order=folder.asc,sort_order.asc,uploaded_at.asc`,
+      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id,folder,filename,url,uploaded_at&active=eq.true&order=folder.asc,sort_order.asc,uploaded_at.asc`
       {
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
