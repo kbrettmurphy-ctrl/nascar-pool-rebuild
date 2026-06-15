@@ -868,22 +868,22 @@
   }
   
   html.iosStandalone{
-    --navH: 75px;
-  }
+  --navH: 75px;
+}
 
-  html.iosStandalone body{
-    padding-top: calc(var(--pad) + env(safe-area-inset-top));
-    padding-bottom: 75px;
-  }
+html.iosStandalone body{
+  padding-top: calc(var(--pad) + env(safe-area-inset-top));
+  padding-bottom: 75px;
+}
 
-  html.iosStandalone .bottomNav{
-    padding: 10px 10px 10px;
-  }
+html.iosStandalone .bottomNav{
+  bottom: calc(-1 * env(safe-area-inset-bottom));
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+}
 
-  html.iosStandalone .sponsor-container{
-    bottom: 75px;
-  }
-
+html.iosStandalone .sponsor-container{
+  bottom: 75px;
+}
   .navInner{
     max-width: 920px;
     margin:0 auto;
