@@ -2925,16 +2925,19 @@ function initBuschLongPress_() {
   }
 
   function nextBuschImage_() {
+    if (buschHistoryIndex < buschHistory.length - 1) {
+      buschHistoryIndex += 1;
+      showBuschImage_(buschHistory[buschHistoryIndex]);
+      return;
+    }
+
     const nextImg = getRandomBuschGirl();
     if (!nextImg) return;
-
-    if (buschHistoryIndex < buschHistory.length - 1) {
-      buschHistory = buschHistory.slice(0, buschHistoryIndex + 1);
-    }
 
     buschHistory.push(nextImg);
     buschHistoryIndex = buschHistory.length - 1;
     showBuschImage_(nextImg);
+
     buschQueue.slice(0, 3).forEach(p => preloadBuschImage_(p.url));
   }
 
