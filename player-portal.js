@@ -2629,6 +2629,86 @@ refreshActiveView();
     sel.onchange = load;
     load();
   }
+  
+  const VAPID_PUBLIC_KEY = "PASTE_YOUR_PUBLIC_VAPID_KEY_HERE";
+
+function urlBase64ToUint8Array_(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
+}
+
+async function enablePushNotifications_() {
+  const btn = document.getElementById("enableNotificationsBtn");
+  if (btn) btn.disabled = true;
+
+  try {
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("Service workers are not supported here.");
+    }
+
+    if (!("PushManager" in window)) {
+      throw new Error("Push notifications are not supported here.");
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      throw new Error("Notifications were not allowed.");
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+
+    const existing = await reg.pushManager.getSubscription();
+    const subscription = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY)
+    });
+
+    const res = await fetch("/api/save-push-subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playerName: loadPlayerName(),
+        subscription
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.ok) {
+      throw new Error(data?.error || "Failed saving notification subscription.");
+    }
+
+    alert("Notifications enabled.");
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function initPushNotifications_() {
+  const btn = document.getElementById("enableNotificationsBtn");
+  if (!btn) return;
+
+  if (!("Notification" in window)) {
+    btn.hidden = true;
+    return;
+  }
+
+  btn.addEventListener("click", enablePushNotifications_);
+}
 
   /* ==========================================================
    Bracket view
@@ -3351,6 +3431,7 @@ function initAdminControls_() {
   });
 
   window.onload = async () => {
+    initPushNotifications_();
     initAdminControls_();
     loadPlayersThenInit();
     persistHScroll(".navInner", "nascar_nav_scroll");
