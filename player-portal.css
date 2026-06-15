@@ -1388,3 +1388,23 @@ html.iosStandalone .sponsor-container{
     font-size:12px;
   }
 }
+
+html.iosStandalone .bottomNav{
+  bottom: 0 !important;
+  height: auto !important;
+  padding: 10px 10px 10px !important;
+}
+
+html.iosStandalone .bottomNav .navInner{
+  margin: 0 auto !important;
+  transform: none !important;
+}
+
+html.iosStandalone body{
+  padding-top: calc(var(--pad) + env(safe-area-inset-top)) !important;
+  padding-bottom: 75px !important;
+}
+
+html.iosStandalone .sponsor-container{
+  bottom: 75px !important;
+}
