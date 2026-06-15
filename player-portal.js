@@ -2886,11 +2886,27 @@ function refillQueue() {
     return;
   }
 
-  const main = shuffle_([
+  function isUploaded_(p) {
+    return /\/\d+_IMG_/i.test(p.url || "");
+  }
+
+  const eligibleMain = [
     ...spicy,
     ...spicier,
     ...soft.filter(p => !warmupUrls.has(p.url))
-  ]);
+  ];
+
+  const weightedMain = [];
+
+  eligibleMain.forEach(p => {
+    const weight = isUploaded_(p) ? 8 : 1;
+
+    for (let i = 0; i < weight; i++) {
+      weightedMain.push(p);
+    }
+  });
+
+  const main = shuffle_(weightedMain);
 
   buschQueue = [...warmup, ...main];
 }
