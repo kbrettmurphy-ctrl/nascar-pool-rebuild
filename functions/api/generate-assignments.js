@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
 
     try {
       const raceRes = await fetch(
-        `${env.SUPABASE_URL}/rest/v1/races?select=race_short&race_number=eq.${raceId}&limit=1`,
+        `${env.SUPABASE_URL}/rest/v1/races?select=race_short&id=eq.${raceId}&limit=1`,
         {
           headers: {
             apikey: env.SUPABASE_SECRET_KEY,
@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
       const raceRows = await raceRes.json().catch(() => []);
 
       if (raceRes.ok && Array.isArray(raceRows) && raceRows.length) {
-        raceName = raceRows[0].race_short || raceName;
+        raceName = String(raceRows[0].race_short || "").trim() || raceName;
       }
     } catch {}
 
