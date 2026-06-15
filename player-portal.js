@@ -2837,7 +2837,8 @@ async function loadBuschGirls() {
     buschGirls = (data.photos || [])
       .map(p => ({
         url: String(p.url || "").trim(),
-        folder: String(p.folder || "").trim().toLowerCase()
+        folder: String(p.folder || "").trim().toLowerCase(),
+        uploadedAt: String(p.uploaded_at || "").trim()
       }))
       .filter(p => p.url && p.folder);
 
