@@ -1366,32 +1366,23 @@
 }
 
 html.iosStandalone{
-  --navH: 55px;
+  --navH: 92px;
 }
 
 html.iosStandalone body{
-  padding-top: calc(var(--pad) + env(safe-area-inset-top));
-  padding-bottom: 75px;
+  padding-bottom: var(--navH);
 }
 
 html.iosStandalone .bottomNav{
-  position: fixed;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 55px;
-  padding: 0;
-}
-
-html.iosStandalone .bottomNav .navInner{
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 8px;
-  max-width: none;
-  margin: 0;
+  padding: 18px 10px 18px;
+  background: rgba(2,11,18,.92);
+  border-top: 1px solid rgba(255,255,255,.10);
+  border-radius: 0;
 }
 
 html.iosStandalone .sponsor-container{
-  bottom: 55px;
+  bottom: var(--navH);
 }
