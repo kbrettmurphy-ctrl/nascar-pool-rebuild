@@ -877,8 +877,8 @@ html.iosStandalone body{
 }
 
 html.iosStandalone .bottomNav{
-  bottom: calc(-1 * env(safe-area-inset-bottom));
-  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  bottom: -58px;
+  padding: 10px 10px 68px;
 }
 
 html.iosStandalone .sponsor-container{
