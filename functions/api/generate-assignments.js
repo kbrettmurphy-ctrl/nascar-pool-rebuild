@@ -50,6 +50,26 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
+    let raceName = `Race ${raceId}`;
+
+    try {
+      const raceRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/races?select=race_short&race_number=eq.${raceId}&limit=1`,
+        {
+          headers: {
+            apikey: env.SUPABASE_SECRET_KEY,
+            Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
+          }
+        }
+      );
+
+      const raceRows = await raceRes.json().catch(() => []);
+
+      if (raceRes.ok && Array.isArray(raceRows) && raceRows.length) {
+        raceName = raceRows[0].race_short || raceName;
+      }
+    } catch {}
+
     const pushResults = [];
 
     for (const row of data || []) {
@@ -61,14 +81,11 @@ export async function onRequestPost(context) {
       if (!playerName || !nums) continue;
 
       try {
-        const raceName =
-          String(body?.raceName || "").trim() ||
-          String(row?.race_name || "").trim() ||
-          `Race ${raceId}`;
+        const cleanNums = nums.replace(/,/g, " & ");
 
         const push = await sendPlayerNotification(env, playerName, {
           title: "Assignments Posted",
-          body: `${raceName} assignments are live. Your numbers: ${nums.replace(/,/g, " & ")}.`,
+          body: `${raceName} assignments are live. Your numbers: ${cleanNums}.`,
           url: "/"
         });
 
