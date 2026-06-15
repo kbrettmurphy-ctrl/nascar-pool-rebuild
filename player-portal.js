@@ -2841,15 +2841,7 @@ async function loadBuschGirls() {
         uploadedAt: String(p.uploaded_at || "").trim()
       }))
       .filter(p => p.url && p.folder);
-    alert(
-      "Total: " + buschGirls.length +
-      "\nSpicier: " + buschGirls.filter(p => p.folder === "spicier").length +
-      "\nRecent(30d): " + buschGirls.filter(p => {
-        const t = Date.parse(p.uploadedAt || "");
-        return Number.isFinite(t) &&
-          (Date.now() - t) / 86400000 <= 30;
-      }).length
-    );
+    
     refillQueue();
     buschQueue.slice(0, 5).forEach(p => preloadBuschImage_(p.url));
   } catch (err) {
