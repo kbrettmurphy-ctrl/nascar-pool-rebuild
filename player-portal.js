@@ -2887,8 +2887,15 @@ function refillQueue() {
     return;
   }
 
-  function isUploaded_(p) {
-    return /\/\d+_IMG_/i.test(p.url || "");
+  function uploadWeight_(p) {
+    const t = Date.parse(p.uploadedAt || "");
+    if (!Number.isFinite(t)) return 1;
+
+    const ageDays = (Date.now() - t) / (1000 * 60 * 60 * 24);
+
+    if (ageDays <= 7) return 8;
+    if (ageDays <= 30) return 3;
+    return 1;
   }
 
   const eligibleMain = [
@@ -2900,7 +2907,7 @@ function refillQueue() {
   const weightedMain = [];
 
   eligibleMain.forEach(p => {
-    const weight = isUploaded_(p) ? 8 : 1;
+    const weight = uploadWeight_(p);
 
     for (let i = 0; i < weight; i++) {
       weightedMain.push(p);
