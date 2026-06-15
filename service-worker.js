@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-sself.addEventListener("push", (event) => {
+self.addEventListener("push", (event) => {
   event.waitUntil(showPushNotification_(event));
 });
 
