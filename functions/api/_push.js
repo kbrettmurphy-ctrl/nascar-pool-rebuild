@@ -99,129 +99,108 @@ async function sendEncryptedWebPush(subscription, payload, env) {
   });
 }
 
-async function encryptPushPayload(payloadText, receiverPublicKeyBase64, authSecretBase64) {
-  const receiverPublicKeyBytes = base64urlDecode(receiverPublicKeyBase64);
-  const authSecretBytes = base64urlDecode(authSecretBase64);
-
-  const senderKeys = await crypto.subtle.generateKey(
-    {
-      name: "ECDH",
-      namedCurve: "P-256"
-    },
+async function encryptPushPayload(payloadText, p256dh, authSecret) {
+  const serverKeys = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
     true,
     ["deriveBits"]
   );
 
-  const senderPublicKeyBytes = new Uint8Array(
-    await crypto.subtle.exportKey("raw", senderKeys.publicKey)
+  const serverPublicRaw = new Uint8Array(
+    await crypto.subtle.exportKey("raw", serverKeys.publicKey)
   );
 
-  const receiverPublicKey = await crypto.subtle.importKey(
+  const clientPublicRaw = base64urlDecode(p256dh);
+  const auth = base64urlDecode(authSecret);
+
+  const clientPublicKey = await crypto.subtle.importKey(
     "raw",
-    receiverPublicKeyBytes,
-    {
-      name: "ECDH",
-      namedCurve: "P-256"
-    },
+    clientPublicRaw,
+    { name: "ECDH", namedCurve: "P-256" },
     false,
     []
   );
 
   const sharedSecret = new Uint8Array(
     await crypto.subtle.deriveBits(
-      {
-        name: "ECDH",
-        public: receiverPublicKey
-      },
-      senderKeys.privateKey,
+      { name: "ECDH", public: clientPublicKey },
+      serverKeys.privateKey,
       256
     )
   );
 
   const salt = crypto.getRandomValues(new Uint8Array(16));
 
-  const authInfo = utf8("Content-Encoding: auth\0");
-  const prk = await hkdf(authSecretBytes, sharedSecret, authInfo, 32);
+  const prk = await hmacSign(auth, sharedSecret);
 
-  const keyInfo = concatBytes(
-    utf8("Content-Encoding: aes128gcm\0P-256\0"),
-    uint16(receiverPublicKeyBytes.length),
-    receiverPublicKeyBytes,
-    uint16(senderPublicKeyBytes.length),
-    senderPublicKeyBytes
+  const info = concatBytes(
+    utf8("WebPush: info\0"),
+    clientPublicRaw,
+    serverPublicRaw
   );
 
-  const nonceInfo = concatBytes(
-    utf8("Content-Encoding: nonce\0P-256\0"),
-    uint16(receiverPublicKeyBytes.length),
-    receiverPublicKeyBytes,
-    uint16(senderPublicKeyBytes.length),
-    senderPublicKeyBytes
+  const ikm = await hkdfExpand(prk, info, 32);
+  const contentPrk = await hmacSign(salt, ikm);
+
+  const cek = await hkdfExpand(
+    contentPrk,
+    utf8("Content-Encoding: aes128gcm\0"),
+    16
   );
 
-  const cek = await hkdf(salt, prk, keyInfo, 16);
-  const nonce = await hkdf(salt, prk, nonceInfo, 12);
+  const nonce = await hkdfExpand(
+    contentPrk,
+    utf8("Content-Encoding: nonce\0"),
+    12
+  );
 
-  const recordSize = 4096;
   const plaintext = concatBytes(
     utf8(payloadText),
     new Uint8Array([0x02])
   );
 
-  const cryptoKey = await crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     "raw",
     cek,
-    {
-      name: "AES-GCM"
-    },
+    { name: "AES-GCM" },
     false,
     ["encrypt"]
   );
 
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
-      {
-        name: "AES-GCM",
-        iv: nonce,
-        tagLength: 128
-      },
-      cryptoKey,
+      { name: "AES-GCM", iv: nonce, tagLength: 128 },
+      key,
       plaintext
     )
   );
 
   return concatBytes(
     salt,
-    uint32(recordSize),
-    new Uint8Array([senderPublicKeyBytes.length]),
-    senderPublicKeyBytes,
+    uint32(4096),
+    new Uint8Array([serverPublicRaw.length]),
+    serverPublicRaw,
     ciphertext
   );
 }
 
-async function hkdf(salt, ikm, info, length) {
-  const prkKey = await crypto.subtle.importKey(
+async function hmacSign(keyBytes, dataBytes) {
+  const key = await crypto.subtle.importKey(
     "raw",
-    salt,
-    {
-      name: "HMAC",
-      hash: "SHA-256"
-    },
+    keyBytes,
+    { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
 
-  const prk = new Uint8Array(
-    await crypto.subtle.sign("HMAC", prkKey, ikm)
-  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, dataBytes));
+}
 
-  const okmKey = await crypto.subtle.importKey(
+async function hkdfExpand(prk, info, length) {
+  const key = await crypto.subtle.importKey(
     "raw",
     prk,
-    {
-      name: "HMAC",
-      hash: "SHA-256"
-    },
+    { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
@@ -231,10 +210,12 @@ async function hkdf(salt, ikm, info, length) {
   let counter = 1;
 
   while (output.length < length) {
-    const input = concatBytes(previous, info, new Uint8Array([counter]));
-
     previous = new Uint8Array(
-      await crypto.subtle.sign("HMAC", okmKey, input)
+      await crypto.subtle.sign(
+        "HMAC",
+        key,
+        concatBytes(previous, info, new Uint8Array([counter]))
+      )
     );
 
     output = concatBytes(output, previous);
