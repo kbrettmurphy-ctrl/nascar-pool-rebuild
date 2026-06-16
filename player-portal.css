@@ -1387,3 +1387,10 @@ html.iosStandalone{
   html.iosStandalone .sponsor-container{
     bottom: calc(var(--navH) + env(safe-area-inset-bottom));
   }
+
+html.iosStandalone .adminOverlay{
+  padding:
+    calc(14px + env(safe-area-inset-top))
+    14px
+    calc(14px + env(safe-area-inset-bottom) + 90px);
+}
