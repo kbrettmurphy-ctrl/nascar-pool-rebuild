@@ -3316,17 +3316,39 @@ popupImg?.addEventListener("mouseleave", () => {
 }
 
 async function sendTestPush_() {
-  setAdminStatus_("adminFundsStatus", "Sending test push...");
+  const title = prompt("Push title:", "NASCAR Pool");
+  if (title === null) return;
+
+  const body = prompt("Push message:");
+  if (body === null) return;
+
+  const cleanTitle = String(title || "").trim();
+  const cleanBody = String(body || "").trim();
+
+  if (!cleanTitle || !cleanBody) {
+    alert("Title and message are required.");
+    return;
+  }
+
+  if (!confirm(`Send this push to all subscribers?\n\n${cleanTitle}\n${cleanBody}`)) {
+    return;
+  }
+
+  setAdminStatus_("adminFundsStatus", "Sending push...");
 
   try {
     const data = await adminFetch_("/api/send-push-notification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        title: cleanTitle,
+        body: cleanBody,
+        url: "/"
+      })
     });
 
-    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed\n\n${JSON.stringify(data.results || [], null, 2)}`);
-    setAdminStatus_("adminFundsStatus", "Test push sent.");
+    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);
+    setAdminStatus_("adminFundsStatus", `Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed.`);
   } catch (err) {
     alert(err.message || String(err));
     setAdminStatus_("adminFundsStatus", err.message || String(err), true);
