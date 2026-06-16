@@ -577,7 +577,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
 
       const scoreText =
         Number.isFinite(myAvg) && Number.isFinite(oppAvg)
-          ? `${myAvg.toFixed(1)}-${oppAvg.toFixed(1)}`
+          ? ` ${myAvg.toFixed(1)}-${oppAvg.toFixed(1)}`
           : "";
       try {
         if (roundNumber === 4) {
@@ -585,21 +585,19 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
           const rank = Number(standing?.rank || 0);
           const payout = payoutByRank[rank] || 0;
 
-          const resultLine = scoreText
-            ? `${won ? "Beat" : "Lost to"} ${opponentName} ${scoreText}.`
-            : `${won ? "Beat" : "Lost to"} ${opponentName}.`;
-
-          const lines = [resultLine];
+          const lines = [
+            `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
+          ];
 
           if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
-            lines.push(`${lastName_(winningDriverName)} won: +$25.`);
+            lines.push(`${winningDriverName} won ${raceLabel} and earned you $25.`);
           }
 
           if (rank) {
             lines.push(
               payout
-                ? `${ordinal_(rank)} overall: +$${payout}.`
-                : `${ordinal_(rank)} overall.`
+                ? `You placed ${ordinal_(rank)} overall and won $${payout}.`
+                : `You placed ${ordinal_(rank)} overall.`
             );
           }
 
@@ -627,7 +625,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
 
           const push = await sendPlayerNotification(env, playerName, {
             title: "Results Posted",
-            body: `${won ? "Beat" : "Lost to"} ${opponentName}${scoreText ? ` ${scoreText}` : ""}.${nextOpponentName ? ` Next: ${nextOpponentName}.` : ""}`,
+            body: `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
             url: "/"
           });
 
@@ -657,7 +655,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
       try {
         const push = await sendPlayerNotification(env, playerName, {
           title: "Race Winner",
-          body: `${lastName_(winningDriverName)} won ${raceLabel}: +$25.`,
+          body: `${winningDriverName} won ${raceLabel} and earned you $25.`,
           url: "/"
         });
 
@@ -689,11 +687,6 @@ function ordinal_(n) {
   if (x % 10 === 2) return `${x}nd`;
   if (x % 10 === 3) return `${x}rd`;
   return `${x}th`;
-}
-
-function lastName_(name) {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : String(name || "").trim();
 }
 
 async function syncPlayerFinancialWinnings(env) {
