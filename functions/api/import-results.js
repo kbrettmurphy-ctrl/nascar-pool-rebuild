@@ -631,8 +631,6 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
           const payout = payoutByRank[rank] || 0;
           const tournamentRaceBonus = tournamentRaceBonusByPlayerId.get(playerId) || 0;
           const totalTournamentWinnings = payout + tournamentRaceBonus;
-          const raceBonus = raceWinnerPlayerIds.has(playerId) && winningDriverName ? 25 : 0;
-          const totalTournamentWinnings = payout + raceBonus;
 
           const lines = [
             `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
