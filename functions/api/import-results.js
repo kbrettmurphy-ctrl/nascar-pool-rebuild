@@ -636,7 +636,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
             `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
           ];
 
-          if (raceBonus) {
+          if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
             lines.push(`${winningDriverName} won ${raceLabel} for an extra $25.`);
           }
 
@@ -706,7 +706,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
       try {
         const push = await sendPlayerNotification(env, playerName, {
           title: "Race Winner",
-          body: `${winningDriverName} won ${raceLabel} and earned you $25.`,
+          body: `${winningDriverName} won ${raceLabel} for an extra $25.`,
           url: "/"
         });
 
