@@ -671,17 +671,17 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
 
           const winnerText =
             raceWinnerPlayerIds.has(playerId) && winningDriverName
-              ? ` 🏁 ${winningDriverName} won ${raceLabel}: +$25.`
+              ? `🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\n`
               : "";
 
           const nextText =
             nextRoundNumber <= 4 && nextOpponentName
-              ? ` Next: ${nextOpponentName}.`
+              ? ` Round ${nextRoundNumber} is against ${nextOpponentName}.`
               : "";
 
           const push = await sendPlayerNotification(env, playerName, {
             title: "Results Posted",
-            body:`🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\nYou ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
+            body: `${winnerText}You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
             url: "/"
           });
 
