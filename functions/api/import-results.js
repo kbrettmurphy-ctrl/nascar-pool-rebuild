@@ -669,14 +669,19 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
           const nextOpponentId = nextOpponentByPlayerId.get(playerId);
           const nextOpponentName = nameById.get(nextOpponentId);
 
+          const winnerText =
+            raceWinnerPlayerIds.has(playerId) && winningDriverName
+              ? ` 🏁 ${winningDriverName} won ${raceLabel}: +$25.`
+              : "";
+
           const nextText =
             nextRoundNumber <= 4 && nextOpponentName
-              ? ` Your round ${nextRoundNumber} matchup is against ${nextOpponentName}.`
+              ? ` Next: ${nextOpponentName}.`
               : "";
 
           const push = await sendPlayerNotification(env, playerName, {
             title: "Results Posted",
-            body: `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
+            body:`🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\n\nYou ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
             url: "/"
           });
 
@@ -698,7 +703,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
     }
   }
 
-  if (roundNumber !== 4 && winningDriverName) {
+  /*if (roundNumber !== 4 && winningDriverName) {
     for (const playerId of raceWinnerPlayerIds) {
       const playerName = nameById.get(playerId);
       if (!playerName) continue;
@@ -725,7 +730,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
         });
       }
     }
-  }
+  }*/
 
   return pushResults;
 }
