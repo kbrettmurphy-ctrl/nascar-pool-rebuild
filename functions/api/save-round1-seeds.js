@@ -1,4 +1,5 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
+import { sendPlayerNotification } from "./_push";
 
 export async function onRequestPost(context) {
   try {
@@ -213,6 +214,80 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: insertText || "Failed creating Round 1 pairings" }, 500);
     }
 
+    // --------------------------------------------------
+    // 8) Send seed + Round 1 matchup notifications
+    // --------------------------------------------------
+    const pushResults = [];
+
+    try {
+      const playerIds = [
+        ...new Set(
+          rows
+            .map(r => Number(r.player_id))
+            .filter(Number.isFinite)
+        )
+      ];
+
+      const playersRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/players?select=id,name&id=in.(${playerIds.join(",")})`,
+        { headers: readHeaders }
+      );
+
+      const players = await playersRes.json().catch(() => []);
+
+      const playerNameById = new Map(
+        Array.isArray(players)
+          ? players.map(p => [Number(p.id), String(p.name || "").trim()])
+          : []
+      );
+
+      const seedByPlayerId = new Map(
+        rows.map(r => [Number(r.player_id), Number(r.seed)])
+      );
+
+      const opponentByPlayerId = new Map();
+
+      for (const p of pairingRows) {
+        opponentByPlayerId.set(Number(p.player1_id), Number(p.player2_id));
+        opponentByPlayerId.set(Number(p.player2_id), Number(p.player1_id));
+      }
+
+      for (const row of rows) {
+        const playerId = Number(row.player_id);
+        const playerName = playerNameById.get(playerId);
+        const seed = seedByPlayerId.get(playerId);
+
+        const opponentId = opponentByPlayerId.get(playerId);
+        const opponentName = playerNameById.get(opponentId);
+
+        if (!playerName || !seed || !opponentName) continue;
+
+        try {
+          const push = await sendPlayerNotification(env, playerName, {
+            title: "Seeds Posted",
+            body: `You’re the #${seed} seed for Tourney ${tournamentId} and your round 1 matchup is against ${opponentName}.`,
+            url: "/"
+          });
+
+          pushResults.push({ playerName, ...push });
+        } catch (err) {
+          pushResults.push({
+            playerName,
+            sent: 0,
+            failed: 1,
+            error: err.message || String(err)
+          });
+        }
+      }
+    } catch (err) {
+      pushResults.push({
+        playerName: null,
+        sent: 0,
+        failed: 1,
+        error: err.message || String(err)
+      });
+    }
+
     return json({
       ok: true,
       message: `Saved ${Array.isArray(seedData) ? seedData.length : rows.length} seeds and created ${Array.isArray(insertData) ? insertData.length : pairingRows.length} Round 1 pairings`,
@@ -222,7 +297,8 @@ export async function onRequestPost(context) {
         raceId,
         seedsSaved: Array.isArray(seedData) ? seedData.length : rows.length,
         roundOnePairingsCreated: Array.isArray(insertData) ? insertData.length : pairingRows.length,
-        pairings: Array.isArray(insertData) ? insertData : pairingRows
+        pairings: Array.isArray(insertData) ? insertData : pairingRows,
+        pushResults
       }
     });
   } catch (err) {
