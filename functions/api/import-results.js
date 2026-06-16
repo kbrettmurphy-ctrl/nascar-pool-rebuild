@@ -355,6 +355,111 @@ export async function onRequestPost(context) {
   }
 }
 
+function isCompletedMatch(row) {
+  const a1 = Number(row.player1_avg);
+  const a2 = Number(row.player2_avg);
+  const winnerId = Number(row.winner_id);
+
+  return (
+    Number.isFinite(a1) &&
+    Number.isFinite(a2) &&
+    a1 > 0 &&
+    a2 > 0 &&
+    Number.isFinite(winnerId) &&
+    winnerId > 0
+  );
+}
+
+function buildTournamentStats(rows, scoreMap) {
+  const statsMap = new Map();
+
+  function getPlayerRow(playerId, playerName) {
+    const key = String(playerId);
+    if (!statsMap.has(key)) {
+      statsMap.set(key, {
+        player_id: Number(playerId),
+        player: String(playerName || "").trim(),
+        W: 0,
+        L: 0,
+        avg_sum: 0,
+        match_count: 0,
+        min_finish: 99999,
+      });
+    }
+    return statsMap.get(key);
+  }
+
+  function updateMinFinish(playerRow, scoreRow) {
+    if (!scoreRow) return;
+
+    const f1 = Number(scoreRow.driver_1_finish);
+    const f2 = Number(scoreRow.driver_2_finish);
+
+    if (Number.isFinite(f1) && f1 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f1);
+    if (Number.isFinite(f2) && f2 > 0) playerRow.min_finish = Math.min(playerRow.min_finish, f2);
+  }
+
+  for (const row of rows || []) {
+    if (!isCompletedMatch(row)) continue;
+
+    const p1Id = Number(row.player1_id);
+    const p2Id = Number(row.player2_id);
+    const raceId = Number(row.race_id);
+
+    const p1 = getPlayerRow(p1Id, row.player1_name);
+    const p2 = getPlayerRow(p2Id, row.player2_name);
+
+    const a1 = Number(row.player1_avg);
+    const a2 = Number(row.player2_avg);
+    const winnerId = Number(row.winner_id);
+
+    p1.match_count += 1;
+    p2.match_count += 1;
+    p1.avg_sum += a1;
+    p2.avg_sum += a2;
+
+    if (winnerId === p1Id) {
+      p1.W += 1;
+      p2.L += 1;
+    } else if (winnerId === p2Id) {
+      p2.W += 1;
+      p1.L += 1;
+    }
+
+    updateMinFinish(p1, scoreMap.get(`${raceId}||${p1Id}`) || null);
+    updateMinFinish(p2, scoreMap.get(`${raceId}||${p2Id}`) || null);
+  }
+
+  const out = Array.from(statsMap.values()).map((r) => {
+    const rawAvg = r.match_count > 0 ? r.avg_sum / r.match_count : 0;
+    const rawWinPct = r.match_count > 0 ? r.W / r.match_count : 0;
+
+    return {
+      rank: 0,
+      player_id: r.player_id,
+      player: r.player,
+      W: r.W,
+      L: r.L,
+      __rawWinPct: rawWinPct,
+      __rawAvg: rawAvg,
+      __minFinish: r.min_finish,
+    };
+  });
+
+  out.sort((a, b) => {
+    if (b.__rawWinPct !== a.__rawWinPct) return b.__rawWinPct - a.__rawWinPct;
+    if (a.__rawAvg !== b.__rawAvg) return a.__rawAvg - b.__rawAvg;
+    if (a.__minFinish !== b.__minFinish) return a.__minFinish - b.__minFinish;
+    return String(a.player).localeCompare(String(b.player));
+  });
+
+  out.forEach((row, idx) => {
+    row.rank = idx + 1;
+  });
+
+  return out;
+}
+
 async function sendResultsNotifications_({ env, raceId, race, tournamentId, roundNumber, nextRoundNumber }) {
   const headers = {
     apikey: env.SUPABASE_SECRET_KEY,
@@ -473,69 +578,67 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
   }
 
   if (roundNumber === 4) {
-    const standings = await getJson(
-      `/rest/v1/swiss_standings?select=*&tournament_id=eq.${tournamentId}`
+    const allMatchups = await getJson(
+      `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&tournament_id=eq.${tournamentId}`
     );
 
-    standings.sort((a, b) => {
-      const wpA = Number(a.win_pct || 0);
-      const wpB = Number(b.win_pct || 0);
+    const allScores = await getJson(
+      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_finish,driver_2_finish`
+    );
 
-      if (wpB !== wpA) return wpB - wpA;
+    const scoreMap = new Map(
+      (allScores || []).map(r => [`${r.race_id}||${r.player_id}`, r])
+    );
 
-      const winsA = Number(a.wins || 0);
-      const winsB = Number(b.wins || 0);
+    const standings = buildTournamentStats(allMatchups || [], scoreMap);
 
-      if (winsB !== winsA) return winsB - winsA;
+    const tournamentComplete =
+      standings.length === 16 &&
+      standings.every(x => (Number(x.W) + Number(x.L)) >= 4);
 
-      const lossesA = Number(a.losses || 0);
-      const lossesB = Number(b.losses || 0);
+    if (tournamentComplete) {
+      const payoutByRank = {
+        1: 100,
+        2: 60,
+        3: 40,
+        4: 20
+      };
 
-      if (lossesA !== lossesB) return lossesA - lossesB;
+      for (const row of standings) {
+        const playerName = String(row.player || "").trim();
+        const rank = Number(row.rank);
+        const wins = Number(row.W || 0);
+        const losses = Number(row.L || 0);
 
-      const avgA = Number(a.avg || 9999);
-      const avgB = Number(b.avg || 9999);
+        if (!playerName || !rank) continue;
 
-      return avgA - avgB;
-    });
+        const payout = payoutByRank[rank] || 0;
+        const payoutText = payout ? ` You won $${payout}.` : "";
 
-    const payoutByRank = {
-      1: 100,
-      2: 60,
-      3: 40,
-      4: 20
-    };
+        try {
+          const push = await sendPlayerNotification(env, playerName, {
+            title: "Tournament Complete",
+            body: `You finished Tourney ${tournamentId} in ${ordinal_(rank)} place at ${wins}-${losses}.${payoutText}`,
+            url: "/"
+          });
 
-    for (let i = 0; i < standings.length; i++) {
-      const row = standings[i];
-
-      const rank = i + 1;
-      const playerName = String(row.player_name || "").trim();
-
-      if (!playerName) continue;
-
-      const wins = Number(row.wins || 0);
-      const losses = Number(row.losses || 0);
-
-      const payout = payoutByRank[rank] || 0;
-
-      const payoutText =
-        payout > 0
-          ? ` You won $${payout}.`
-          : "";
-
-      const push = await sendPlayerNotification(env, playerName, {
-        title: "Tournament Complete",
-        body: `You finished Tourney ${tournamentId} in ${ordinal_(rank)} place at ${wins}-${losses}.${payoutText}`,
-        url: "/"
-      });
-
-      pushResults.push({
-        type: "tournamentComplete",
-        playerName,
-        rank,
-        ...push
-      });
+          pushResults.push({
+            type: "tournamentComplete",
+            playerName,
+            rank,
+            ...push
+          });
+        } catch (err) {
+          pushResults.push({
+            type: "tournamentComplete",
+            playerName,
+            rank,
+            sent: 0,
+            failed: 1,
+            error: err.message || String(err)
+          });
+        }
+      }
     }
   }
 
