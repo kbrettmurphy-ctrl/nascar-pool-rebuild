@@ -495,87 +495,40 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
   const nameById = new Map(players.map(p => [Number(p.id), String(p.name || "").trim()]));
   const driverById = new Map(drivers.map(d => [Number(d.id), String(d.name || "").trim()]));
 
+  const winningDriverRow = (raceResults || []).find(r => Number(r.finishing_position) === 1);
+  const winningDriverId = Number(winningDriverRow?.driver_id);
+  const winningDriverName = driverById.get(winningDriverId) || "";
+
+  const raceWinnerPlayerIds = new Set();
+
+  if (winningDriverName) {
+    for (const score of scores || []) {
+      const playerId = Number(score.player_id);
+      const d1 = String(score.driver_1_name || "").trim();
+      const d2 = String(score.driver_2_name || "").trim();
+
+      if (
+        normalizeName(d1) === normalizeName(winningDriverName) ||
+        normalizeName(d2) === normalizeName(winningDriverName)
+      ) {
+        raceWinnerPlayerIds.add(playerId);
+      }
+    }
+  }
+
   const nextOpponentByPlayerId = new Map();
+
   for (const m of nextMatchups || []) {
     const p1 = Number(m.player1_id);
     const p2 = Number(m.player2_id);
+
     if (p1 && p2) {
       nextOpponentByPlayerId.set(p1, p2);
       nextOpponentByPlayerId.set(p2, p1);
     }
   }
 
-  for (const m of matchups || []) {
-    const p1 = Number(m.player1_id);
-    const p2 = Number(m.player2_id);
-    const winner = Number(m.winner_id);
-    if (!p1 || !p2 || !winner) continue;
-
-    for (const playerId of [p1, p2]) {
-      const playerName = nameById.get(playerId);
-      const opponentId = playerId === p1 ? p2 : p1;
-      const opponentName = nameById.get(opponentId) || "your opponent";
-      const won = playerId === winner;
-
-      const myAvg = Number(playerId === p1 ? m.player1_avg : m.player2_avg);
-      const oppAvg = Number(playerId === p1 ? m.player2_avg : m.player1_avg);
-
-      const nextOpponentId = nextOpponentByPlayerId.get(playerId);
-      const nextOpponentName = nameById.get(nextOpponentId);
-
-      const scoreText =
-        Number.isFinite(myAvg) && Number.isFinite(oppAvg)
-          ? ` ${myAvg.toFixed(1)}-${oppAvg.toFixed(1)}`
-          : "";
-
-      const nextText =
-        nextRoundNumber <= 4 && nextOpponentName
-          ? ` Your round ${nextRoundNumber} matchup is against ${nextOpponentName}.`
-          : "";
-
-      if (!playerName) continue;
-
-      try {
-        const push = await sendPlayerNotification(env, playerName, {
-          title: "Results Posted",
-          body: `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
-          url: "/"
-        });
-
-        pushResults.push({ type: "result", playerName, ...push });
-      } catch (err) {
-        pushResults.push({ type: "result", playerName, sent: 0, failed: 1, error: err.message || String(err) });
-      }
-    }
-  }
-
-  const winningDriverRow = (raceResults || []).find(r => Number(r.finishing_position) === 1);
-  const winningDriverId = Number(winningDriverRow?.driver_id);
-  const winningDriverName = driverById.get(winningDriverId);
-
-  if (winningDriverId && winningDriverName) {
-    for (const score of scores || []) {
-      const playerId = Number(score.player_id);
-      const playerName = nameById.get(playerId);
-      const d1 = String(score.driver_1_name || "").trim();
-      const d2 = String(score.driver_2_name || "").trim();
-
-      if (!playerName) continue;
-      if (normalizeName(d1) !== normalizeName(winningDriverName) && normalizeName(d2) !== normalizeName(winningDriverName)) continue;
-
-      try {
-        const push = await sendPlayerNotification(env, playerName, {
-          title: "Race Winner",
-          body: `${winningDriverName} won ${raceLabel} for your team.`,
-          url: "/"
-        });
-
-        pushResults.push({ type: "raceWinner", playerName, ...push });
-      } catch (err) {
-        pushResults.push({ type: "raceWinner", playerName, sent: 0, failed: 1, error: err.message || String(err) });
-      }
-    }
-  }
+  let tournamentRankByPlayerId = new Map();
 
   if (roundNumber === 4) {
     const allMatchups = await getJson(
@@ -592,52 +545,134 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
 
     const standings = buildTournamentStats(allMatchups || [], scoreMap);
 
-    const tournamentComplete =
-      standings.length === 16 &&
-      standings.every(x => (Number(x.W) + Number(x.L)) >= 4);
+    tournamentRankByPlayerId = new Map(
+      standings.map(row => [Number(row.player_id), row])
+    );
+  }
 
-    if (tournamentComplete) {
-      const payoutByRank = {
-        1: 100,
-        2: 60,
-        3: 40,
-        4: 20
-      };
+  const payoutByRank = {
+    1: 100,
+    2: 60,
+    3: 40,
+    4: 20
+  };
 
-      for (const row of standings) {
-        const playerName = String(row.player || "").trim();
-        const rank = Number(row.rank);
-        const wins = Number(row.W || 0);
-        const losses = Number(row.L || 0);
+  for (const m of matchups || []) {
+    const p1 = Number(m.player1_id);
+    const p2 = Number(m.player2_id);
+    const winner = Number(m.winner_id);
 
-        if (!playerName || !rank) continue;
+    if (!p1 || !p2 || !winner) continue;
 
-        const payout = payoutByRank[rank] || 0;
-        const payoutText = payout ? ` You won $${payout}.` : "";
+    for (const playerId of [p1, p2]) {
+      const playerName = nameById.get(playerId);
+      const opponentId = playerId === p1 ? p2 : p1;
+      const opponentName = nameById.get(opponentId) || "your opponent";
+      const won = playerId === winner;
 
-        try {
+      const myAvg = Number(playerId === p1 ? m.player1_avg : m.player2_avg);
+      const oppAvg = Number(playerId === p1 ? m.player2_avg : m.player1_avg);
+
+      if (!playerName) continue;
+
+      const scoreText =
+        Number.isFinite(myAvg) && Number.isFinite(oppAvg)
+          ? ` ${myAvg.toFixed(1)}-${oppAvg.toFixed(1)}`
+          : "";
+
+      try {
+        if (roundNumber === 4) {
+          const standing = tournamentRankByPlayerId.get(playerId);
+          const rank = Number(standing?.rank || 0);
+          const payout = payoutByRank[rank] || 0;
+
+          const lines = [
+            `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
+          ];
+
+          if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
+            lines.push(`${winningDriverName} won ${raceLabel} and earned you $25.`);
+          }
+
+          if (rank) {
+            lines.push(
+              payout
+                ? `You placed ${ordinal_(rank)} overall and won $${payout}.`
+                : `You placed ${ordinal_(rank)} overall.`
+            );
+          }
+
           const push = await sendPlayerNotification(env, playerName, {
-            title: "Tournament Complete",
-            body: `You finished Tourney ${tournamentId} in ${ordinal_(rank)} place at ${wins}-${losses}.${payoutText}`,
+            title: `Tournament ${tournamentId} Complete`,
+            body: lines.join(" "),
             url: "/"
           });
 
           pushResults.push({
-            type: "tournamentComplete",
+            type: "tournamentCompleteCombined",
             playerName,
             rank,
             ...push
           });
-        } catch (err) {
+
+        } else {
+          const nextOpponentId = nextOpponentByPlayerId.get(playerId);
+          const nextOpponentName = nameById.get(nextOpponentId);
+
+          const nextText =
+            nextRoundNumber <= 4 && nextOpponentName
+              ? ` Your round ${nextRoundNumber} matchup is against ${nextOpponentName}.`
+              : "";
+
+          const push = await sendPlayerNotification(env, playerName, {
+            title: "Results Posted",
+            body: `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
+            url: "/"
+          });
+
           pushResults.push({
-            type: "tournamentComplete",
+            type: "result",
             playerName,
-            rank,
-            sent: 0,
-            failed: 1,
-            error: err.message || String(err)
+            ...push
           });
         }
+      } catch (err) {
+        pushResults.push({
+          type: roundNumber === 4 ? "tournamentCompleteCombined" : "result",
+          playerName,
+          sent: 0,
+          failed: 1,
+          error: err.message || String(err)
+        });
+      }
+    }
+  }
+
+  if (roundNumber !== 4 && winningDriverName) {
+    for (const playerId of raceWinnerPlayerIds) {
+      const playerName = nameById.get(playerId);
+      if (!playerName) continue;
+
+      try {
+        const push = await sendPlayerNotification(env, playerName, {
+          title: "Race Winner",
+          body: `${winningDriverName} won ${raceLabel} and earned you $25.`,
+          url: "/"
+        });
+
+        pushResults.push({
+          type: "raceWinner",
+          playerName,
+          ...push
+        });
+      } catch (err) {
+        pushResults.push({
+          type: "raceWinner",
+          playerName,
+          sent: 0,
+          failed: 1,
+          error: err.message || String(err)
+        });
       }
     }
   }
