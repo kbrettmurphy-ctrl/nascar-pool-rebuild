@@ -3347,7 +3347,8 @@ async function sendTestPush_() {
       })
     });
 
-    alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);
+    /*alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);*/
+    alert(JSON.stringify(data, null, 2));
     setAdminStatus_("adminFundsStatus", `Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed.`);
   } catch (err) {
     alert(err.message || String(err));
