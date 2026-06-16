@@ -653,6 +653,7 @@ if (liveCard) {
     });
 
     setAdminStatus_(statusId, data.message || `${label} done.`);
+    /*
     if (url === "/api/import-qualifying") {
       alert(`Qualifying response:\n\n${JSON.stringify(data, null, 2)}`);
     }
@@ -660,7 +661,7 @@ if (liveCard) {
     if (url === "/api/import-results") {
       alert(`Results response:\n\n${JSON.stringify(data, null, 2)}`);
     }
-
+    */
 if (Array.isArray(data.data) && data.data.length) {
 
   const msg = data.data.map((row, i) => {
