@@ -681,7 +681,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
 
           const push = await sendPlayerNotification(env, playerName, {
             title: "Results Posted",
-            body:`🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\n\nYou ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
+            body:`🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\nYou ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
             url: "/"
           });
 
