@@ -529,6 +529,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
   }
 
   let tournamentRankByPlayerId = new Map();
+  let tournamentRaceBonusByPlayerId = new Map();
 
   if (roundNumber === 4) {
     const allMatchups = await getJson(
@@ -536,8 +537,52 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
     );
 
     const allScores = await getJson(
-      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_finish,driver_2_finish`
+      `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_finish,driver_2_finish`
     );
+
+    const tournamentRounds = await getJson(
+      `/rest/v1/tournament_rounds?select=race_id&tournament_id=eq.${tournamentId}`
+    );
+
+    const tournamentRaceIds = new Set(
+      (tournamentRounds || []).map(r => Number(r.race_id)).filter(Boolean)
+    );
+
+    const allRaceResults = await getJson(
+      `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
+    );
+
+    const winningDriverIdByRaceId = new Map();
+
+    for (const row of allRaceResults || []) {
+      if (Number(row.finishing_position) === 1) {
+        winningDriverIdByRaceId.set(Number(row.race_id), Number(row.driver_id));
+      }
+    }
+
+    const driverIdByName = new Map(
+      (drivers || []).map(d => [normalizeName(d.name), Number(d.id)])
+    );
+
+    for (const score of allScores || []) {
+      const playerId = Number(score.player_id);
+      const scoreRaceId = Number(score.race_id);
+
+      if (!playerId || !tournamentRaceIds.has(scoreRaceId)) continue;
+
+      const winningDriverId = winningDriverIdByRaceId.get(scoreRaceId);
+      if (!winningDriverId) continue;
+
+      const d1 = driverIdByName.get(normalizeName(score.driver_1_name || ""));
+      const d2 = driverIdByName.get(normalizeName(score.driver_2_name || ""));
+
+      if (Number(d1) === winningDriverId || Number(d2) === winningDriverId) {
+        tournamentRaceBonusByPlayerId.set(
+          playerId,
+          (tournamentRaceBonusByPlayerId.get(playerId) || 0) + 25
+        );
+      }
+    }
 
     const scoreMap = new Map(
       (allScores || []).map(r => [`${r.race_id}||${r.player_id}`, r])
@@ -584,21 +629,29 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
           const standing = tournamentRankByPlayerId.get(playerId);
           const rank = Number(standing?.rank || 0);
           const payout = payoutByRank[rank] || 0;
+          const tournamentRaceBonus = tournamentRaceBonusByPlayerId.get(playerId) || 0;
+          const totalTournamentWinnings = payout + tournamentRaceBonus;
+          const raceBonus = raceWinnerPlayerIds.has(playerId) && winningDriverName ? 25 : 0;
+          const totalTournamentWinnings = payout + raceBonus;
 
           const lines = [
             `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
           ];
 
-          if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
-            lines.push(`${winningDriverName} won ${raceLabel} and earned you $25.`);
+          if (raceBonus) {
+            lines.push(`${winningDriverName} won ${raceLabel} for an extra $25.`);
           }
 
           if (rank) {
             lines.push(
               payout
-                ? `You placed ${ordinal_(rank)} overall and won $${payout}.`
+                ? `You placed ${ordinal_(rank)} overall for $${payout}.`
                 : `You placed ${ordinal_(rank)} overall.`
             );
+          }
+
+          if (totalTournamentWinnings > 0) {
+            lines.push(`Tournament winnings: $${totalTournamentWinnings}.`);
           }
 
           const push = await sendPlayerNotification(env, playerName, {
