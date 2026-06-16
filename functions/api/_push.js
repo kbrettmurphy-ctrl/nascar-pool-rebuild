@@ -18,7 +18,7 @@ async function sendPushWhere(env, filter, payload) {
   const qs = filter ? `&${filter}` : "";
 
   const res = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/push_subscriptions?select=id,subscription${qs}`,
+    `${env.SUPABASE_URL}/rest/v1/push_subscriptions?select=id,subscription${qs}&paused=eq.false`,
     { headers }
   );
 
