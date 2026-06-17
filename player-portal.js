@@ -157,7 +157,9 @@
 
   async function getPlayerBracket_(tournament){
     const qs = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
-    const res = await fetch(`/api/player-bracket${qs}`);
+    const res = await fetch(`/api/player-bracket${qs}`, {
+      cache: "no-store"
+    });
     const data = await res.json();
     if (!res.ok || !data || !data.ok) {
       throw new Error(data?.error || "player-bracket failed");
@@ -636,6 +638,23 @@ if (liveCard) {
       select.value = currentValue;
     });
   }
+  
+  async function refreshAfterAdminChange_() {
+    _adminContext = null;
+
+    try {
+      sessionStorage.removeItem("nascar_admin_context_cache");
+      sessionStorage.removeItem("nascar_admin_context_cache_ts");
+    } catch {}
+
+    await refreshActiveView();
+
+    try {
+      await initAdminOverlay_();
+    } catch (err) {
+      console.log("Admin overlay refresh failed:", err);
+    }
+  }
 
   async function runAdminRaceOp_(url, statusId, label) {
   const raceId = Number(document.getElementById("adminRaceSelect")?.value || 0);
@@ -685,7 +704,7 @@ if (Array.isArray(data.data) && data.data.length) {
   alert(`${data.message || label}\n\n${msg}`);
 }
 
-refreshActiveView();
+await refreshAfterAdminChange_();
   } catch (err) {
     setAdminStatus_(statusId, err.message || String(err), true);
   }
@@ -722,6 +741,7 @@ refreshActiveView();
         body: JSON.stringify({ tournamentId, seeds: rows })
       });
       setAdminStatus_("adminSeedsStatus", data.message || "Seeds saved.");
+      await refreshAfterAdminChange_();
     } catch (err) {
       setAdminStatus_("adminSeedsStatus", err.message || String(err), true);
     }
@@ -856,7 +876,7 @@ refreshActiveView();
       });
 
       alert(data.message || "Seeds cleared.");
-      renderAdminSeeds_();
+      await refreshAfterAdminChange_();
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -922,6 +942,7 @@ refreshActiveView();
     const data = await res.json();
 
     alert(data.message || "Assignments cleared.");
+    await refreshAfterAdminChange_();
   }
 
   /* ==========================================================
