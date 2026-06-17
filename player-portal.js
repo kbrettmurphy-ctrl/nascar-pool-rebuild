@@ -3511,8 +3511,22 @@ function initAdminControls_() {
       syncOverallNameColumnWidth_();
     }, 150);
   });
+  
+  async function forcePwaUpdate_() {
+    if (!("serviceWorker" in navigator)) return;
+
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+
+    await reg.update();
+
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+  }
 
   window.onload = async () => {
+    await forcePwaUpdate_();
     initPushNotifications_();
     initAdminControls_();
     loadPlayersThenInit();
