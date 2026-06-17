@@ -3141,9 +3141,18 @@ function showBuschPhotoInfo_() {
   );
 }
 
-popupImg?.addEventListener("touchstart", () => {
+popupImg?.addEventListener("touchstart", (e) => {
   clearTimeout(photoInfoTimer);
+
+  if (e.touches.length !== 1) return;
+
   photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
+}, { passive: true });
+
+popupImg?.addEventListener("touchmove", (e) => {
+  if (e.touches.length !== 1) {
+    clearTimeout(photoInfoTimer);
+  }
 }, { passive: true });
 
 popupImg?.addEventListener("touchend", () => {
