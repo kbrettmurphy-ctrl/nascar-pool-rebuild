@@ -1,5 +1,8 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
-import { sendAllNotifications } from "./_push";
+import {
+  sendAllNotifications,
+  sendPlayerNotification
+} from "./_push";
 
 export async function onRequestPost(context) {
   try {
@@ -16,7 +19,11 @@ export async function onRequestPost(context) {
       url: body?.url || "/"
     };
 
-    const result = await sendAllNotifications(env, payload);
+    const playerName = String(body?.playerName || "").trim();
+
+    const result = playerName
+      ? await sendPlayerNotification(env, playerName, payload)
+      : await sendAllNotifications(env, payload);
 
     return json({
       ok: true,
