@@ -3346,8 +3346,13 @@ popupImg?.addEventListener("mouseleave", () => {
 }
 
 async function sendTestPush_() {
+  const playerName = prompt(
+    "Player name (leave blank for everyone):",
+    ""
+  );
+  
   const title = prompt("Push title:", "NASCAR Pool");
-  if (title === null) return;
+    if (title === null) return;
 
   const body = prompt("Push message:");
   if (body === null) return;
