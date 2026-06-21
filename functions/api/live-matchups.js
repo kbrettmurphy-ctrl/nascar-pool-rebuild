@@ -1,3 +1,4 @@
+import { sendAllNotifications } from "./_push";
 export async function onRequestGet(context) {
   try {
     const { env, request } = context;
@@ -114,6 +115,20 @@ export async function onRequestGet(context) {
           )
         )
       );
+      
+    let greenFlagPush = null;
+
+      if (
+        isCorrectCupRace &&
+        Number(liveJson?.flag_state) === 1
+      ) {
+        greenFlagPush = await maybeSendGreenFlagStartPush_({
+          env,
+          headers,
+          raceId: currentRace.id,
+          raceName: currentRace.race_name
+        });
+      }
 
     const vehicles =
       isCorrectCupRace && Array.isArray(liveJson?.vehicles)
@@ -278,7 +293,8 @@ export async function onRequestGet(context) {
       debug: {
         unresolvedDrivers,
         liveRaceName,
-        expectedRaceName
+        expectedRaceName,
+        greenFlagPush
       }
     });
 
@@ -423,4 +439,59 @@ function resolveDriverPosition(name, driverPositions) {
   }
 
   return null;
+}
+
+async function maybeSendGreenFlagStartPush_({
+  env,
+  headers,
+  raceId,
+  raceName
+}) {
+  const eventType = "green_flag_start";
+
+  const insertRes = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/push_event_log`,
+    {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      },
+      body: JSON.stringify({
+        race_id: Number(raceId),
+        event_type: eventType
+      })
+    }
+  );
+
+  // Unique constraint means this race/event already fired.
+  if (insertRes.status === 409) {
+    return {
+      sent: false,
+      reason: "already_sent"
+    };
+  }
+
+  const insertText = await insertRes.text();
+
+  if (!insertRes.ok) {
+    return {
+      sent: false,
+      reason: "log_insert_failed",
+      status: insertRes.status,
+      details: insertText
+    };
+  }
+
+  const result = await sendAllNotifications(env, {
+    title: "Green Flag",
+    body: `${raceName || "The race"} is underway.`,
+    url: "/"
+  });
+
+  return {
+    sent: true,
+    result
+  };
 }
