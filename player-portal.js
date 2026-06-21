@@ -3376,6 +3376,7 @@ async function sendTestPush_() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        playerName: String(playerName || "").trim(),
         title: cleanTitle,
         body: cleanBody,
         url: "/"
