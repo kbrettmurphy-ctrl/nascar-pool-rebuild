@@ -485,8 +485,8 @@ async function maybeSendGreenFlagStartPush_({
   }
 
   const result = await sendAllNotifications(env, {
-    title: "Green Flag",
-    body: `${raceName || "The race"} is underway.`,
+    title: "GREEN FLAG!!!",
+    body: "BOOGITY,BOOGITY,BOOGITY! Let's go racin boys!",
     url: "/"
   });
 
