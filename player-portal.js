@@ -38,6 +38,19 @@
   let _duesLoaded = false;
   let _myMatchupLoaded = false;
   let _bracketLoaded = false;
+  
+  let _livePollTimer = null;
+
+  function startLivePolling_() {
+    if (_livePollTimer) return;
+  
+    _livePollTimer = setInterval(() => {
+      if (document.hidden) return;
+      if (activeView !== "live") return;
+  
+      loadLiveMatchups();
+    }, 30000);
+  }
 
   /* ==========================================================
    Spoiler toggle
@@ -1055,6 +1068,7 @@ await refreshAfterAdminChange_();
 
     if (which === "live") {
       loadLiveMatchups();
+      startLivePolling_();
     }
   }
 
@@ -3541,7 +3555,18 @@ function initAdminControls_() {
     initBuschLongPress_();
     showKyleTributeOnLoad_();
 
-    // start live matchup polling
-    loadLiveMatchups();
-    setInterval(loadLiveMatchups, 30000);
+    startLivePolling_();
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && activeView === "live") {
+        loadLiveMatchups();
+      }
+    });
+    
+    window.addEventListener("pageshow", () => {
+      if (activeView === "live") {
+        loadLiveMatchups();
+        startLivePolling_();
+      }
+    });
   };
