@@ -3544,39 +3544,6 @@ function initAdminControls_() {
       reg.waiting.postMessage({ type: "SKIP_WAITING" });
     }
   }
-  
-  function initPwaBottomNavSwipeGuard_() {
-    if (!document.documentElement.classList.contains("iosStandalone")) return;
-  
-    const nav = document.querySelector(".navInner");
-    if (!nav) return;
-  
-    let startX = 0;
-    let startY = 0;
-    let isHorizontal = false;
-  
-    nav.addEventListener("touchstart", (e) => {
-      const t = e.touches[0];
-      startX = t.clientX;
-      startY = t.clientY;
-      isHorizontal = false;
-    }, { passive: true });
-  
-    nav.addEventListener("touchmove", (e) => {
-      const t = e.touches[0];
-      const dx = Math.abs(t.clientX - startX);
-      const dy = Math.abs(t.clientY - startY);
-  
-      if (dx > 8 && dx > dy) {
-        isHorizontal = true;
-      }
-  
-      if (isHorizontal) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { passive: false });
-  }
 
   window.onload = async () => {
     await forcePwaUpdate_();
@@ -3584,7 +3551,6 @@ function initAdminControls_() {
     initAdminControls_();
     loadPlayersThenInit();
     persistHScroll(".navInner", "nascar_nav_scroll");
-    initPwaBottomNavSwipeGuard_();
     await loadBuschGirls();
     initBuschLongPress_();
     showKyleTributeOnLoad_();
