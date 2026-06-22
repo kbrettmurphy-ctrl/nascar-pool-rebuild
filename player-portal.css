@@ -1378,7 +1378,7 @@ html.iosStandalone{
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 8px 10px 8px;
+    padding: 20px;
     background: rgba(2,11,18,.92);
     border-top: 1px solid rgba(255,255,255,.10);
     border-radius: 0;
