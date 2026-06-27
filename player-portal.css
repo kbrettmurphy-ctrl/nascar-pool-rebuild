@@ -1313,47 +1313,69 @@
     white-space:pre-wrap;
   }
 
-  .adminSeedWheelBox{
-    border:1px solid var(--line);
-    background:rgba(255,255,255,.06);
-    border-radius:12px;
-    padding:10px;
+  .adminSeedWheelOpenBtn{
+    width:100%;
     margin:0 0 12px 0;
   }
 
-  .adminSeedWheelToggle{
-    width:100%;
+  .adminSeedWheelBackdrop{
+    position:fixed;
+    inset:0;
+    z-index:10001;
     display:flex;
     align-items:center;
     justify-content:center;
+    padding:18px;
+    background:rgba(2,11,18,.78);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
   }
 
-  .adminSeedWheelToggle::after{
-    content:"v";
-    margin-left:8px;
-    font-size:12px;
+  .adminSeedWheelBackdrop[hidden]{
+    display:none !important;
   }
 
-  .adminSeedWheelToggle[aria-expanded="true"]::after{
-    content:"^";
+  .adminSeedWheelModal{
+    width:min(96vw, 1180px);
+    max-height:calc(100dvh - 36px);
+    overflow:auto;
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.04));
+    border-radius:18px;
+    box-shadow:0 24px 80px rgba(0,0,0,.58);
+    padding:14px;
   }
 
-  .adminSeedWheelPanel{
-    margin-top:10px;
+  .adminSeedWheelHeader{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 0 12px 0;
+  }
+
+  .adminSeedWheelTitle{
+    font-size:22px;
+    line-height:1.1;
+    font-weight:900;
+    color:var(--yellow);
+    text-align:center;
   }
 
   .adminSeedWheelLayout{
     display:grid;
-    grid-template-columns:minmax(220px, 360px) minmax(0, 1fr);
-    gap:14px;
-    align-items:start;
+    grid-template-columns:minmax(360px, clamp(360px, 55vw, 720px)) minmax(280px, 1fr);
+    gap:18px;
+    align-items:stretch;
   }
 
   .adminSeedWheelStage{
     position:relative;
-    width:min(100%, 360px);
+    width:clamp(360px, 55vw, 720px);
+    max-width:100%;
     aspect-ratio:1;
     margin:0 auto;
+    align-self:center;
+    justify-self:center;
   }
 
   #adminSeedWheelCanvas{
@@ -1362,8 +1384,14 @@
     display:block;
     border-radius:50%;
     background:rgba(2,11,18,.72);
-    border:2px solid rgba(255,255,255,.2);
-    box-shadow:0 10px 30px rgba(0,0,0,.28);
+    border:3px solid rgba(255,255,255,.22);
+    box-shadow:0 16px 42px rgba(0,0,0,.34);
+    cursor:default;
+    touch-action:manipulation;
+  }
+
+  #adminSeedWheelCanvas.isClickable{
+    cursor:pointer;
   }
 
   .adminSeedWheelPointer{
@@ -1373,84 +1401,115 @@
     transform:translateX(-50%);
     width:0;
     height:0;
-    border-left:13px solid transparent;
-    border-right:13px solid transparent;
-    border-top:28px solid var(--yellow);
-    filter:drop-shadow(0 2px 2px rgba(0,0,0,.55));
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-top:38px solid var(--yellow);
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,.62));
+  }
+
+  .adminSeedWheelHint{
+    position:absolute;
+    left:50%;
+    bottom:18px;
+    transform:translateX(-50%);
+    padding:8px 12px;
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:999px;
+    color:var(--text);
+    background:rgba(2,11,18,.74);
+    font-size:13px;
+    font-weight:900;
+    white-space:nowrap;
+    pointer-events:none;
+  }
+
+  .adminSeedWheelHint[hidden]{
+    display:none !important;
   }
 
   .adminSeedWheelControls{
     min-width:0;
+    display:flex;
+    flex-direction:column;
   }
 
   .adminSeedWheelTarget{
-    font-size:18px;
+    font-size:20px;
+    line-height:1.2;
     font-weight:900;
     color:var(--yellow);
-    margin-bottom:6px;
-  }
-
-  .adminSeedWheelWinner{
-    min-height:28px;
-    font-size:14px;
-    font-weight:900;
-    color:var(--text);
-    border:1px solid rgba(255,214,89,.24);
-    background:rgba(255,214,89,.08);
-    border-radius:10px;
-    padding:7px 9px;
-  }
-
-  .adminSeedWheelWinner.pop{
-    animation:adminSeedWinnerPop .8s ease-out;
-  }
-
-  @keyframes adminSeedWinnerPop{
-    0%{ transform:scale(.96); background:rgba(228,0,43,.3); }
-    45%{ transform:scale(1.03); background:rgba(255,214,89,.24); }
-    100%{ transform:scale(1); background:rgba(255,214,89,.08); }
-  }
-
-  .adminSeedWheelButtons{
-    margin-top:8px;
-  }
-
-  .adminSeedWheelButtons button:last-child{
-    background:rgba(0,122,194,.32);
+    text-align:center;
+    margin:2px 0 12px;
   }
 
   .adminSeedWheelResults{
-    margin:10px 0 0 0;
-    padding:0;
-    list-style:none;
     display:grid;
     grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:6px;
+    gap:8px;
   }
 
-  .adminSeedWheelResults li{
-    display:flex;
-    gap:6px;
+  .adminSeedWheelResult{
+    display:grid;
+    grid-template-columns:44px minmax(0, 1fr);
+    gap:8px;
     align-items:center;
     min-width:0;
     border:1px solid var(--line);
     background:rgba(2,11,18,.34);
     border-radius:8px;
-    padding:6px 8px;
-    font-size:12px;
+    padding:8px;
+    font-size:13px;
   }
 
-  .adminSeedWheelResults span{
-    flex:0 0 auto;
+  .adminSeedWheelResult span{
     color:var(--yellow);
     font-weight:900;
+    text-align:center;
   }
 
-  .adminSeedWheelResults b{
+  .adminSeedWheelResult b{
     min-width:0;
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+  }
+
+  .adminSeedWheelResult.empty b{
+    color:var(--muted);
+    font-weight:700;
+  }
+
+  .adminSeedWheelResult.current{
+    border-color:rgba(255,214,89,.72);
+    box-shadow:0 0 0 1px rgba(255,214,89,.18);
+  }
+
+  .adminSeedWheelResult.newest{
+    border-color:rgba(35,178,109,.86);
+    background:rgba(35,178,109,.2);
+    animation:adminSeedWheelWinnerGlow 1.4s ease-out;
+  }
+
+  @keyframes adminSeedWheelWinnerGlow{
+    0%{ transform:scale(.98); background:rgba(35,178,109,.38); }
+    45%{ transform:scale(1.02); background:rgba(35,178,109,.28); }
+    100%{ transform:scale(1); background:rgba(35,178,109,.2); }
+  }
+
+  .adminSeedWheelActions{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+    margin-top:auto;
+    padding-top:12px;
+  }
+
+  .adminSeedWheelActions button:first-child{
+    background:rgba(0,122,194,.32);
+  }
+
+  .adminSeedWheelActions button:last-child{
+    background:rgba(228,0,43,.28);
   }
 
   .adminSeedsGrid{
@@ -1504,12 +1563,39 @@
     font-size:12px;
   }
 
-  .adminSeedWheelLayout{
-    grid-template-columns:1fr;
+  .adminSeedWheelBackdrop{
+    padding:8px;
+    align-items:flex-start;
   }
 
-  .adminSeedWheelResults{
+  .adminSeedWheelModal{
+    width:100%;
+    max-height:calc(100dvh - 16px);
+    padding:10px;
+  }
+
+  .adminSeedWheelTitle{
+    font-size:18px;
+  }
+
+  .adminSeedWheelLayout{
     grid-template-columns:1fr;
+    gap:12px;
+  }
+
+  .adminSeedWheelStage{
+    width:min(100%, calc(100vw - 36px));
+  }
+
+  .adminSeedWheelTarget{
+    font-size:16px;
+  }
+
+  .adminSeedWheelResult{
+    grid-template-columns:38px minmax(0, 1fr);
+    gap:6px;
+    padding:7px 6px;
+    font-size:12px;
   }
 }
 

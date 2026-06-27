@@ -678,6 +678,18 @@ if (liveCard) {
     return Math.floor(Math.random() * max);
   }
 
+  function adminSeedWheelRandomFloat_() {
+    return adminSeedWheelRandomInt_(1000000) / 1000000;
+  }
+
+  function adminSeedWheelGridOrder_() {
+    const seeds = [];
+    for (let i = 1; i <= 8; i++) {
+      seeds.push(i, 17 - i);
+    }
+    return seeds;
+  }
+
   function shuffleAdminSeedWheelPlayers_(players) {
     const arr = [...players];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -715,6 +727,9 @@ if (liveCard) {
     if (!canvas) return;
 
     stopAdminSeedWheelTicks_();
+    if (_adminSeedWheel?.newestTimer) {
+      clearTimeout(_adminSeedWheel.newestTimer);
+    }
 
     if (clearSeedSelections) {
       document.querySelectorAll(".adminSeedSelect").forEach(sel => {
@@ -734,7 +749,9 @@ if (liveCard) {
       spinning: false,
       tickTimer: null,
       audioCtx: null,
-      highlightPlayerId: null
+      highlightPlayerId: null,
+      newestSeed: null,
+      newestTimer: null
     };
 
     drawAdminSeedWheel_();
@@ -759,26 +776,59 @@ if (liveCard) {
   function renderAdminSeedWheelStatus_() {
     const state = _adminSeedWheel;
     const target = document.getElementById("adminSeedWheelTarget");
-    const winner = document.getElementById("adminSeedWheelWinner");
     const results = document.getElementById("adminSeedWheelResults");
-    const spinBtn = document.getElementById("adminSeedWheelSpinBtn");
+    const hint = document.getElementById("adminSeedWheelHint");
+    const canvas = document.getElementById("adminSeedWheelCanvas");
     if (!state || !target || !results) return;
 
     const nextSeed = nextOpenAdminSeed_();
-    target.textContent = nextSeed ? `Spinning for Seed #${nextSeed}` : "All seeds filled";
-    if (winner && !state.highlightPlayerId && !state.spinning) {
-      winner.textContent = state.remaining.length ? `${state.remaining.length} players on the wheel` : "Wheel complete";
-    }
+    const ready = Boolean(!state.spinning && nextSeed && state.remaining.length);
+    const isTouch = window.matchMedia?.("(pointer: coarse)")?.matches;
+    target.textContent = nextSeed
+      ? `Spinning for Seed #${nextSeed}`
+      : "Seeds are set. Good luck surviving your own stupidity.";
 
-    results.innerHTML = state.results
-      .sort((a, b) => Number(a.seed) - Number(b.seed))
-      .map(row => `<li><span>#${row.seed}</span><b>${escapeHtml(row.player.name)}</b></li>`)
+    const resultBySeed = new Map(state.results.map(row => [Number(row.seed), row.player]));
+    results.innerHTML = adminSeedWheelGridOrder_()
+      .map(seed => {
+        const player = resultBySeed.get(seed);
+        const classes = [
+          "adminSeedWheelResult",
+          player ? "filled" : "empty",
+          seed === nextSeed ? "current" : "",
+          seed === state.newestSeed ? "newest" : ""
+        ].filter(Boolean).join(" ");
+        const name = player ? escapeHtml(player.name) : "Empty";
+        return `
+          <div class="${classes}">
+            <span>#${seed}</span>
+            <b>${name}</b>
+          </div>
+        `;
+      })
       .join("");
 
-    if (spinBtn) {
-      spinBtn.disabled = state.spinning || !nextSeed || state.remaining.length < 1;
-      spinBtn.textContent = state.remaining.length === 1 && nextSeed ? "Auto-fill final seed" : "Spin";
+    if (hint) {
+      hint.hidden = !ready;
+      hint.textContent = state.remaining.length === 1
+        ? `${isTouch ? "Tap" : "Click"} wheel to fill final seed`
+        : `${isTouch ? "Tap" : "Click"} wheel to spin`;
     }
+
+    if (canvas) {
+      canvas.classList.toggle("isClickable", ready);
+    }
+  }
+
+  function fitAdminSeedWheelName_(ctx, name, maxWidth) {
+    const clean = String(name || "").trim();
+    if (ctx.measureText(clean).width <= maxWidth) return clean;
+
+    let shortened = clean;
+    while (shortened.length > 3 && ctx.measureText(`${shortened}...`).width > maxWidth) {
+      shortened = shortened.slice(0, -1);
+    }
+    return `${shortened.trim()}...`;
   }
 
   function drawAdminSeedWheel_() {
@@ -798,53 +848,56 @@ if (liveCard) {
       ctx.beginPath();
       ctx.arc(center, center, radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#f5f7fb";
-      ctx.font = "900 22px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Done", center, center);
-      return;
     }
 
-    const slice = (Math.PI * 2) / players.length;
-    const colors = ["#e4002b", "#007ac2", "#ffd659", "#101820", "#23b26d", "#ffffff"];
+    const slice = players.length ? (Math.PI * 2) / players.length : Math.PI * 2;
+    const colors = ["#e4002b", "#007ac2", "#ffd659", "#ffffff", "#101820", "#0a2d4f"];
+    const winnerColor = "#23b26d";
+    const labelFontSize = Math.max(28, Math.min(44, radius / (players.length > 12 ? 10.5 : players.length > 8 ? 9 : 7)));
 
     players.forEach((player, i) => {
       const start = state.rotation + i * slice;
       const end = start + slice;
       const isWinner = String(player.id) === String(state.highlightPlayerId);
+      const fill = isWinner ? winnerColor : colors[i % colors.length];
 
       ctx.beginPath();
       ctx.moveTo(center, center);
       ctx.arc(center, center, radius, start, end);
       ctx.closePath();
-      ctx.fillStyle = isWinner ? "#ffd659" : colors[i % colors.length];
+      ctx.fillStyle = fill;
       ctx.fill();
       ctx.strokeStyle = "rgba(2,11,18,.72)";
       ctx.lineWidth = 2;
       ctx.stroke();
 
+      const mid = start + slice / 2;
+      const normalizedMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const flip = normalizedMid > Math.PI / 2 && normalizedMid < Math.PI * 1.5;
+
       ctx.save();
       ctx.translate(center, center);
-      ctx.rotate(start + slice / 2);
-      ctx.textAlign = "right";
+      ctx.rotate(mid);
+      if (flip) ctx.rotate(Math.PI);
+      ctx.textAlign = flip ? "left" : "right";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = (i % colors.length) === 2 || (i % colors.length) === 5 || isWinner ? "#020b12" : "#ffffff";
-      ctx.font = `${players.length > 10 ? "700 11px" : "800 13px"} system-ui, sans-serif`;
-      const name = String(player.name || "").slice(0, players.length > 10 ? 16 : 22);
-      ctx.fillText(name, radius - 14, 0);
+      ctx.fillStyle = fill === "#ffd659" || fill === "#ffffff" || isWinner ? "#020b12" : "#ffffff";
+      ctx.font = `900 ${labelFontSize}px system-ui, sans-serif`;
+      const maxWidth = radius * 0.58;
+      const name = fitAdminSeedWheelName_(ctx, player.name, maxWidth);
+      ctx.fillText(name, flip ? -(radius - 28) : radius - 28, 0);
       ctx.restore();
     });
 
     ctx.beginPath();
-    ctx.arc(center, center, 38, 0, Math.PI * 2);
+    ctx.arc(center, center, Math.max(48, radius * 0.13), 0, Math.PI * 2);
     ctx.fillStyle = "#020b12";
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,.55)";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 5;
     ctx.stroke();
     ctx.fillStyle = "#ffd659";
-    ctx.font = "900 14px system-ui, sans-serif";
+    ctx.font = `900 ${Math.max(24, radius * 0.075)}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("SEEDS", center, center);
@@ -891,43 +944,43 @@ if (liveCard) {
     }
 
     if (state.remaining.length < 1) {
-      const winnerEl = document.getElementById("adminSeedWheelWinner");
-      if (winnerEl) winnerEl.textContent = "No players left on the wheel";
       renderAdminSeedWheelStatus_();
       return;
     }
 
     if (state.remaining.length === 1) {
-      finishAdminSeedWheelSpin_(nextSeed, state.remaining[0]);
+      finishAdminSeedWheelSpin_(nextSeed, state.remaining[0], state);
       return;
     }
 
+    const activeState = state;
     const winnerIndex = adminSeedWheelRandomInt_(state.remaining.length);
     const winner = state.remaining[winnerIndex];
     const slice = (Math.PI * 2) / state.remaining.length;
     const pointerAngle = -Math.PI / 2;
-    const winnerCenterAngle = winnerIndex * slice + slice / 2;
+    const landingOffset = 0.04 + adminSeedWheelRandomFloat_() * 0.92;
+    const winnerLandingAngle = winnerIndex * slice + slice * landingOffset;
     const current = state.rotation;
     const normalizedCurrent = ((current % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const desiredRotation = pointerAngle - winnerCenterAngle;
+    const desiredRotation = pointerAngle - winnerLandingAngle;
     const normalizedDesired = ((desiredRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     const delta = ((normalizedDesired - normalizedCurrent) + Math.PI * 2) % (Math.PI * 2);
-    const totalRotation = delta + Math.PI * 2 * (6 + adminSeedWheelRandomInt_(3));
+    const totalRotation = delta + Math.PI * 2 * (7 + adminSeedWheelRandomInt_(4));
     const startRotation = state.rotation;
     const started = performance.now();
     const duration = 6000;
 
     state.spinning = true;
     state.highlightPlayerId = null;
-    const winnerEl = document.getElementById("adminSeedWheelWinner");
-    if (winnerEl) winnerEl.textContent = "";
     renderAdminSeedWheelStatus_();
     stopAdminSeedWheelTicks_();
     state.tickTimer = setInterval(tickAdminSeedWheel_, 92);
 
     function frame(now) {
+      if (_adminSeedWheel !== activeState) return;
+
       const t = Math.min(1, (now - started) / duration);
-      const eased = 1 - Math.pow(1 - t, 4);
+      const eased = 1 - Math.pow(1 - t, 3.4);
       state.rotation = startRotation + totalRotation * eased;
       drawAdminSeedWheel_();
 
@@ -937,29 +990,32 @@ if (liveCard) {
       }
 
       state.rotation = startRotation + totalRotation;
-      finishAdminSeedWheelSpin_(nextSeed, winner);
+      finishAdminSeedWheelSpin_(nextSeed, winner, activeState);
     }
 
     requestAnimationFrame(frame);
   }
 
-  function finishAdminSeedWheelSpin_(seed, winner) {
-    const state = _adminSeedWheel;
-    if (!state || !winner) return;
+  function finishAdminSeedWheelSpin_(seed, winner, expectedState) {
+    const state = expectedState || _adminSeedWheel;
+    if (!state || _adminSeedWheel !== state || !winner) return;
 
     stopAdminSeedWheelTicks_();
     state.spinning = true;
     state.highlightPlayerId = winner.id;
+    state.newestSeed = seed;
     setAdminSeedDropdown_(seed, winner);
     state.results = readAdminSeedWheelResults_();
 
-    const winnerEl = document.getElementById("adminSeedWheelWinner");
-    if (winnerEl) {
-      winnerEl.textContent = `Seed #${seed}: ${winner.name}`;
-      winnerEl.classList.remove("pop");
-      void winnerEl.offsetWidth;
-      winnerEl.classList.add("pop");
+    if (state.newestTimer) {
+      clearTimeout(state.newestTimer);
+      state.newestTimer = null;
     }
+    state.newestTimer = window.setTimeout(() => {
+      if (_adminSeedWheel !== state || state.newestSeed !== seed) return;
+      state.newestSeed = null;
+      renderAdminSeedWheelStatus_();
+    }, 1800);
 
     drawAdminSeedWheel_();
     renderAdminSeedWheelStatus_();
@@ -975,24 +1031,27 @@ if (liveCard) {
 
       const nextSeed = nextOpenAdminSeed_();
       if (nextSeed && state.remaining.length === 1) {
-        window.setTimeout(() => finishAdminSeedWheelSpin_(nextSeed, state.remaining[0]), 500);
+        window.setTimeout(() => finishAdminSeedWheelSpin_(nextSeed, state.remaining[0], state), 500);
       }
     }, 850);
   }
 
-  function toggleAdminSeedWheel_() {
-    const btn = document.getElementById("adminSeedWheelToggle");
-    const panel = document.getElementById("adminSeedWheelPanel");
-    if (!btn || !panel) return;
+  function openAdminSeedWheel_() {
+    const backdrop = document.getElementById("adminSeedWheelBackdrop");
+    if (!backdrop) return;
 
-    const open = panel.hidden;
-    panel.hidden = !open;
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) {
-      initAdminSeedWheel_(false);
-    } else {
-      stopAdminSeedWheelTicks_();
-    }
+    backdrop.hidden = false;
+    initAdminSeedWheel_(false);
+  }
+
+  function closeAdminSeedWheel_() {
+    const backdrop = document.getElementById("adminSeedWheelBackdrop");
+    if (backdrop) backdrop.hidden = true;
+    stopAdminSeedWheelTicks_();
+  }
+
+  function resetAdminSeedWheel_() {
+    initAdminSeedWheel_(true);
   }
   
   async function refreshAfterAdminChange_() {
@@ -3855,20 +3914,32 @@ function initAdminControls_() {
   );
 
   document.getElementById("adminSaveSeedsBtn")?.addEventListener("click", saveAdminSeeds_);
-  const wheelToggleBtn = document.getElementById("adminSeedWheelToggle");
-  const wheelSpinBtn = document.getElementById("adminSeedWheelSpinBtn");
+  const wheelOpenBtn = document.getElementById("adminSeedWheelOpenBtn");
+  const wheelCanvas = document.getElementById("adminSeedWheelCanvas");
   const wheelResetBtn = document.getElementById("adminSeedWheelResetBtn");
-  if (wheelToggleBtn && !wheelToggleBtn.dataset.bound) {
-    wheelToggleBtn.dataset.bound = "1";
-    wheelToggleBtn.addEventListener("click", toggleAdminSeedWheel_);
+  const wheelCloseBtn = document.getElementById("adminSeedWheelCloseBtn");
+  const wheelBackdrop = document.getElementById("adminSeedWheelBackdrop");
+  if (wheelOpenBtn && !wheelOpenBtn.dataset.bound) {
+    wheelOpenBtn.dataset.bound = "1";
+    wheelOpenBtn.addEventListener("click", openAdminSeedWheel_);
   }
-  if (wheelSpinBtn && !wheelSpinBtn.dataset.bound) {
-    wheelSpinBtn.dataset.bound = "1";
-    wheelSpinBtn.addEventListener("click", spinAdminSeedWheel_);
+  if (wheelCanvas && !wheelCanvas.dataset.bound) {
+    wheelCanvas.dataset.bound = "1";
+    wheelCanvas.addEventListener("click", spinAdminSeedWheel_);
   }
   if (wheelResetBtn && !wheelResetBtn.dataset.bound) {
     wheelResetBtn.dataset.bound = "1";
-    wheelResetBtn.addEventListener("click", () => initAdminSeedWheel_(true));
+    wheelResetBtn.addEventListener("click", resetAdminSeedWheel_);
+  }
+  if (wheelCloseBtn && !wheelCloseBtn.dataset.bound) {
+    wheelCloseBtn.dataset.bound = "1";
+    wheelCloseBtn.addEventListener("click", closeAdminSeedWheel_);
+  }
+  if (wheelBackdrop && !wheelBackdrop.dataset.bound) {
+    wheelBackdrop.dataset.bound = "1";
+    wheelBackdrop.addEventListener("click", (e) => {
+      if (e.target === wheelBackdrop) closeAdminSeedWheel_();
+    });
   }
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
   document.getElementById("adminMarkPaidOutBtn")?.addEventListener("click", markPaidOut_);
