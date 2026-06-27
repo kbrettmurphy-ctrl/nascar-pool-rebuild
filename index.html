@@ -196,6 +196,28 @@
 
       <div id="adminTab-seeds" class="adminTabPane">
         <div class="muted" style="margin-bottom:8px;">Round 1 manual seeds for selected tournament</div>
+        <div class="adminSeedWheelBox">
+          <button id="adminSeedWheelToggle" class="primary adminSeedWheelToggle" type="button" aria-expanded="false">
+            Spinney Wheel
+          </button>
+          <div id="adminSeedWheelPanel" class="adminSeedWheelPanel" hidden>
+            <div class="adminSeedWheelLayout">
+              <div class="adminSeedWheelStage">
+                <canvas id="adminSeedWheelCanvas" width="360" height="360" aria-label="Round 1 seed randomizer wheel"></canvas>
+                <div class="adminSeedWheelPointer" aria-hidden="true"></div>
+              </div>
+              <div class="adminSeedWheelControls">
+                <div id="adminSeedWheelTarget" class="adminSeedWheelTarget">Spinning for Seed #1</div>
+                <div id="adminSeedWheelWinner" class="adminSeedWheelWinner" aria-live="polite"></div>
+                <div class="adminRow adminSeedWheelButtons">
+                  <button id="adminSeedWheelSpinBtn" class="primary" type="button">Spin</button>
+                  <button id="adminSeedWheelResetBtn" class="primary" type="button">Reset wheel</button>
+                </div>
+                <ol id="adminSeedWheelResults" class="adminSeedWheelResults"></ol>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="adminSeedsGrid" class="adminSeedsGrid"></div>
         <div class="adminRow" style="margin-top:10px;">
           <button id="adminSaveSeedsBtn" class="primary" type="button">Save Seeds</button>

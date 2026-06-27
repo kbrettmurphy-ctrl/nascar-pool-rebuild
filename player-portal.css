@@ -1313,6 +1313,146 @@
     white-space:pre-wrap;
   }
 
+  .adminSeedWheelBox{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.06);
+    border-radius:12px;
+    padding:10px;
+    margin:0 0 12px 0;
+  }
+
+  .adminSeedWheelToggle{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .adminSeedWheelToggle::after{
+    content:"v";
+    margin-left:8px;
+    font-size:12px;
+  }
+
+  .adminSeedWheelToggle[aria-expanded="true"]::after{
+    content:"^";
+  }
+
+  .adminSeedWheelPanel{
+    margin-top:10px;
+  }
+
+  .adminSeedWheelLayout{
+    display:grid;
+    grid-template-columns:minmax(220px, 360px) minmax(0, 1fr);
+    gap:14px;
+    align-items:start;
+  }
+
+  .adminSeedWheelStage{
+    position:relative;
+    width:min(100%, 360px);
+    aspect-ratio:1;
+    margin:0 auto;
+  }
+
+  #adminSeedWheelCanvas{
+    width:100%;
+    height:100%;
+    display:block;
+    border-radius:50%;
+    background:rgba(2,11,18,.72);
+    border:2px solid rgba(255,255,255,.2);
+    box-shadow:0 10px 30px rgba(0,0,0,.28);
+  }
+
+  .adminSeedWheelPointer{
+    position:absolute;
+    top:-2px;
+    left:50%;
+    transform:translateX(-50%);
+    width:0;
+    height:0;
+    border-left:13px solid transparent;
+    border-right:13px solid transparent;
+    border-top:28px solid var(--yellow);
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.55));
+  }
+
+  .adminSeedWheelControls{
+    min-width:0;
+  }
+
+  .adminSeedWheelTarget{
+    font-size:18px;
+    font-weight:900;
+    color:var(--yellow);
+    margin-bottom:6px;
+  }
+
+  .adminSeedWheelWinner{
+    min-height:28px;
+    font-size:14px;
+    font-weight:900;
+    color:var(--text);
+    border:1px solid rgba(255,214,89,.24);
+    background:rgba(255,214,89,.08);
+    border-radius:10px;
+    padding:7px 9px;
+  }
+
+  .adminSeedWheelWinner.pop{
+    animation:adminSeedWinnerPop .8s ease-out;
+  }
+
+  @keyframes adminSeedWinnerPop{
+    0%{ transform:scale(.96); background:rgba(228,0,43,.3); }
+    45%{ transform:scale(1.03); background:rgba(255,214,89,.24); }
+    100%{ transform:scale(1); background:rgba(255,214,89,.08); }
+  }
+
+  .adminSeedWheelButtons{
+    margin-top:8px;
+  }
+
+  .adminSeedWheelButtons button:last-child{
+    background:rgba(0,122,194,.32);
+  }
+
+  .adminSeedWheelResults{
+    margin:10px 0 0 0;
+    padding:0;
+    list-style:none;
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:6px;
+  }
+
+  .adminSeedWheelResults li{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    min-width:0;
+    border:1px solid var(--line);
+    background:rgba(2,11,18,.34);
+    border-radius:8px;
+    padding:6px 8px;
+    font-size:12px;
+  }
+
+  .adminSeedWheelResults span{
+    flex:0 0 auto;
+    color:var(--yellow);
+    font-weight:900;
+  }
+
+  .adminSeedWheelResults b{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
   .adminSeedsGrid{
     display:grid;
     grid-template-columns:repeat(2, minmax(0,1fr));
@@ -1362,6 +1502,14 @@
     min-width:0;
     width:100%;
     font-size:12px;
+  }
+
+  .adminSeedWheelLayout{
+    grid-template-columns:1fr;
+  }
+
+  .adminSeedWheelResults{
+    grid-template-columns:1fr;
   }
 }
 
