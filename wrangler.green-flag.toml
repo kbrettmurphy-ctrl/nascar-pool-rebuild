@@ -1,0 +1,6 @@
+name = "nascar-pool-green-flag-scheduler"
+main = "workers/green-flag-scheduler.js"
+compatibility_date = "2026-06-28"
+
+[triggers]
+crons = ["* * * * *"]

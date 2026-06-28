@@ -1,134 +1,37 @@
-import { sendAllNotifications } from "./_push";
+import { getCurrentCupLiveContext_ } from "./_green-flag";
+
 export async function onRequestGet(context) {
   try {
     const { env, request } = context;
 
-    const headers = {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
-    };
+    const liveContext = await getCurrentCupLiveContext_(env, {
+      source: "live-matchups"
+    });
 
-    async function getJson(path) {
-      const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
-      const text = await res.text();
-
-      let data;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = text;
-      }
-
-      if (!res.ok) {
-        throw new Error(typeof data === "string" ? data : JSON.stringify(data));
-      }
-
-      return data;
+    if (!liveContext.ok) {
+      return json({
+        ok: false,
+        error: liveContext.reason || "Could not resolve NASCAR live context",
+        debug: {
+          greenFlag: {
+            sideEffect: "disabled",
+            ...liveContext.debug
+          }
+        }
+      }, liveContext.reason === "no_current_db_race" ? 404 : 500);
     }
 
-    const races = await getJson(
-      `/rest/v1/races?select=id,race_number,race_name,season_year&order=race_number.asc`
-    );
-
-    const results = await getJson(`/rest/v1/race_results?select=race_id`);
-
-    const completed = new Set((results || []).map(r => Number(r.race_id)));
-    const currentRace = (races || []).find(r => !completed.has(Number(r.id)));
-
-    if (!currentRace) {
-      return json({ ok: false, error: "No current race found" }, 404);
-    }
-
-    const raceListUrl =
-      `https://cf.nascar.com/cacher/${currentRace.season_year}/race_list_basic.json`;
-
-    const raceListResp = await fetch(raceListUrl, {
-      headers: {
-        Accept: "application/json",
-        Referer: "https://www.nascar.com/",
-        "User-Agent": "Mozilla/5.0"
-      }
-    });
-
-    const raceListJson = await raceListResp.json();
-
-    const cupRaces = Array.isArray(raceListJson?.series_1)
-      ? raceListJson.series_1
-      : [];
-
-    const sorted = cupRaces.slice().sort((a, b) => {
-      const da = Date.parse(a?.race_date || a?.date_scheduled || "") || 0;
-      const db = Date.parse(b?.race_date || b?.date_scheduled || "") || 0;
-      return da - db;
-    });
-
-    const pointsRaces = sorted.filter(r => {
-      const name = String(r?.race_name || "").toLowerCase();
-      if (name.includes("clash")) return false;
-      if (name.includes("duel")) return false;
-      if (name.includes("all-star")) return false;
-      return true;
-    });
-
-    const nascarRace = pointsRaces[currentRace.race_number - 1];
-
-    if (!nascarRace) {
-      return json({ ok: false, error: "Could not resolve NASCAR race" }, 500);
-    }
-
-    const liveResp = await fetch(`https://cf.nascar.com/live/feeds/live-feed.json`, {
-      headers: {
-        Accept: "application/json",
-        Referer: "https://www.nascar.com/",
-        "User-Agent": "Mozilla/5.0"
-      }
-    });
-
-    const liveJson = await liveResp.json();
-
-    const liveSeriesId = Number(liveJson?.series_id ?? 0);
-    const liveRaceId = Number(liveJson?.race_id ?? 0);
-    const expectedNascarRaceId = Number(nascarRace?.race_id ?? 0);
-
-    const liveRaceName = normalizeRaceName_(
-      liveJson?.race_name ||
-      liveJson?.race_title ||
-      ""
-    );
-
-    const expectedRaceName = normalizeRaceName_(
-      currentRace?.race_name ||
-      nascarRace?.race_name ||
-      ""
-    );
-
-    const isCorrectCupRace =
-      liveSeriesId === 1 &&
-      (
-        (liveRaceId && expectedNascarRaceId && liveRaceId === expectedNascarRaceId) ||
-        (
-          liveRaceName &&
-          expectedRaceName &&
-          (
-            liveRaceName.includes(expectedRaceName) ||
-            expectedRaceName.includes(liveRaceName)
-          )
-        )
-      );
-      
-    let greenFlagPush = null;
-
-      if (
-        isCorrectCupRace &&
-        Number(liveJson?.flag_state) === 1
-      ) {
-        greenFlagPush = await maybeSendGreenFlagStartPush_({
-          env,
-          headers,
-          raceId: currentRace.id,
-          raceName: currentRace.race_name
-        });
-      }
+    const {
+      currentRace,
+      nascarRace,
+      liveJson,
+      liveSeriesId,
+      liveRaceId,
+      expectedNascarRaceId,
+      liveRaceName,
+      expectedRaceName,
+      isCorrectCupRace
+    } = liveContext;
 
     const vehicles =
       isCorrectCupRace && Array.isArray(liveJson?.vehicles)
@@ -157,7 +60,9 @@ export async function onRequestGet(context) {
 
     const origin = new URL(request.url).origin;
 
-    const raceDataResp = await fetch(`${origin}/api/player-race-data`);
+    const raceDataResp = await fetch(`${origin}/api/player-race-data`, {
+      cache: "no-store"
+    });
     const raceData = await raceDataResp.json();
 
     const current = raceData?.matchups?.current;
@@ -294,7 +199,16 @@ export async function onRequestGet(context) {
         unresolvedDrivers,
         liveRaceName,
         expectedRaceName,
-        greenFlagPush
+        greenFlag: {
+          sideEffect: "disabled",
+          source: "scheduled_worker_only",
+          dbRaceId: liveContext.debug?.dbRaceId ?? null,
+          expectedNascarRaceId,
+          liveRaceId,
+          flagState: liveContext.debug?.flagState ?? null,
+          lapNumber: liveContext.debug?.lapNumber ?? null,
+          isCorrectCupRace
+        }
       }
     });
 
@@ -359,19 +273,6 @@ function normalizeTvNetwork_(value) {
   if (low.includes("cw")) return "The CW";
 
   return v;
-}
-
-function normalizeRaceName_(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/nascar/g, " ")
-    .replace(/cup series/g, " ")
-    .replace(/craftsman truck series/g, " ")
-    .replace(/xfinity series/g, " ")
-    .replace(/presented by .*/g, " ")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function json(data, status = 200) {
@@ -439,59 +340,4 @@ function resolveDriverPosition(name, driverPositions) {
   }
 
   return null;
-}
-
-async function maybeSendGreenFlagStartPush_({
-  env,
-  headers,
-  raceId,
-  raceName
-}) {
-  const eventType = "green_flag_start";
-
-  const insertRes = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/push_event_log`,
-    {
-      method: "POST",
-      headers: {
-        ...headers,
-        "Content-Type": "application/json",
-        Prefer: "return=representation"
-      },
-      body: JSON.stringify({
-        race_id: Number(raceId),
-        event_type: eventType
-      })
-    }
-  );
-
-  // Unique constraint means this race/event already fired.
-  if (insertRes.status === 409) {
-    return {
-      sent: false,
-      reason: "already_sent"
-    };
-  }
-
-  const insertText = await insertRes.text();
-
-  if (!insertRes.ok) {
-    return {
-      sent: false,
-      reason: "log_insert_failed",
-      status: insertRes.status,
-      details: insertText
-    };
-  }
-
-  const result = await sendAllNotifications(env, {
-    title: "GREEN FLAG!!!",
-    body: "BOOGITY,BOOGITY,BOOGITY! Let's go racin boys!",
-    url: "/"
-  });
-
-  return {
-    sent: true,
-    result
-  };
 }
