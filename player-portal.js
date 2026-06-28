@@ -786,7 +786,7 @@ if (liveCard) {
     const isTouch = window.matchMedia?.("(pointer: coarse)")?.matches;
     target.textContent = nextSeed
       ? `Spinning for Seed #${nextSeed}`
-      : "Seeds are set. Good luck surviving your own stupidity.";
+      : "Let’s go racin’ boys!";
 
     const resultBySeed = new Map(state.results.map(row => [Number(row.seed), row.player]));
     results.innerHTML = adminSeedWheelGridOrder_()
@@ -820,15 +820,17 @@ if (liveCard) {
     }
   }
 
-  function fitAdminSeedWheelName_(ctx, name, maxWidth) {
+  function adminSeedWheelLabelFontSize_(ctx, name, preferredSize, minSize, maxWidth) {
     const clean = String(name || "").trim();
-    if (ctx.measureText(clean).width <= maxWidth) return clean;
+    let size = preferredSize;
 
-    let shortened = clean;
-    while (shortened.length > 3 && ctx.measureText(`${shortened}...`).width > maxWidth) {
-      shortened = shortened.slice(0, -1);
+    while (size > minSize) {
+      ctx.font = `900 ${size}px system-ui, sans-serif`;
+      if (ctx.measureText(clean).width <= maxWidth) return size;
+      size -= 1;
     }
-    return `${shortened.trim()}...`;
+
+    return minSize;
   }
 
   function drawAdminSeedWheel_() {
@@ -851,7 +853,7 @@ if (liveCard) {
     }
 
     const slice = players.length ? (Math.PI * 2) / players.length : Math.PI * 2;
-    const colors = ["#e4002b", "#007ac2", "#ffd659", "#ffffff", "#101820", "#0a2d4f"];
+    const colors = ["#e4002b", "#ffd659", "#007ac2", "#101820", "#ffffff"];
     const winnerColor = "#23b26d";
     const labelFontSize = Math.max(34, Math.min(58, radius / (players.length > 12 ? 8.5 : players.length > 8 ? 7.5 : 6)));
 
@@ -872,20 +874,18 @@ if (liveCard) {
       ctx.stroke();
 
       const mid = start + slice / 2;
-      const normalizedMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-      const flip = normalizedMid > Math.PI / 2 && normalizedMid < Math.PI * 1.5;
 
       ctx.save();
       ctx.translate(center, center);
       ctx.rotate(mid);
-      if (flip) ctx.rotate(Math.PI);
-      ctx.textAlign = flip ? "left" : "right";
+      ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillStyle = fill === "#ffd659" || fill === "#ffffff" || isWinner ? "#020b12" : "#ffffff";
-      ctx.font = `900 ${labelFontSize}px system-ui, sans-serif`;
-      const maxWidth = radius * 0.58;
-      const name = fitAdminSeedWheelName_(ctx, player.name, maxWidth);
-      ctx.fillText(name, flip ? -(radius - 28) : radius - 28, 0);
+      const maxWidth = radius * 0.72;
+      const name = String(player.name || "").trim();
+      const fontSize = adminSeedWheelLabelFontSize_(ctx, name, labelFontSize, 18, maxWidth);
+      ctx.font = `900 ${fontSize}px system-ui, sans-serif`;
+      ctx.fillText(name, radius - 28, 0);
       ctx.restore();
     });
 
