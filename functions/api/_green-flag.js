@@ -1,7 +1,7 @@
 import { sendAllNotifications } from "./_push";
 
 export const GREEN_FLAG_EVENT_TYPE = "green_flag_start";
-const GREEN_FLAG_MAX_START_LAP = 2;
+const GREEN_FLAG_MAX_START_LAP = 5;
 
 const NASCAR_FETCH_HEADERS = {
   Accept: "application/json",
