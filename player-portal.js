@@ -853,7 +853,7 @@ if (liveCard) {
     const slice = players.length ? (Math.PI * 2) / players.length : Math.PI * 2;
     const colors = ["#e4002b", "#007ac2", "#ffd659", "#ffffff", "#101820", "#0a2d4f"];
     const winnerColor = "#23b26d";
-    const labelFontSize = Math.max(28, Math.min(44, radius / (players.length > 12 ? 10.5 : players.length > 8 ? 9 : 7)));
+    const labelFontSize = Math.max(34, Math.min(58, radius / (players.length > 12 ? 8.5 : players.length > 8 ? 7.5 : 6)));
 
     players.forEach((player, i) => {
       const start = state.rotation + i * slice;
@@ -1036,8 +1036,16 @@ if (liveCard) {
     }, 850);
   }
 
-  function openAdminSeedWheel_() {
+  function ensureAdminSeedWheelBackdropInBody_() {
     const backdrop = document.getElementById("adminSeedWheelBackdrop");
+    if (backdrop && backdrop.parentElement !== document.body) {
+      document.body.appendChild(backdrop);
+    }
+    return backdrop;
+  }
+
+  function openAdminSeedWheel_() {
+    const backdrop = ensureAdminSeedWheelBackdropInBody_();
     if (!backdrop) return;
 
     backdrop.hidden = false;
@@ -3918,7 +3926,7 @@ function initAdminControls_() {
   const wheelCanvas = document.getElementById("adminSeedWheelCanvas");
   const wheelResetBtn = document.getElementById("adminSeedWheelResetBtn");
   const wheelCloseBtn = document.getElementById("adminSeedWheelCloseBtn");
-  const wheelBackdrop = document.getElementById("adminSeedWheelBackdrop");
+  const wheelBackdrop = ensureAdminSeedWheelBackdropInBody_();
   if (wheelOpenBtn && !wheelOpenBtn.dataset.bound) {
     wheelOpenBtn.dataset.bound = "1";
     wheelOpenBtn.addEventListener("click", openAdminSeedWheel_);
