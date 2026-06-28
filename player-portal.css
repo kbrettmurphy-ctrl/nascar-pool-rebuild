@@ -1164,6 +1164,7 @@
     width:min(100%, 760px);
     margin:0 auto;
     padding:14px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom) + 40px);
     border:1px solid var(--line);
     background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
     border-radius:20px;
@@ -1274,10 +1275,6 @@
     flex-wrap:wrap;
   }
 
-  .adminSheet button{
-    white-space:nowrap;
-  }
-
   .adminTab{
     background:rgba(255,255,255,.08);
     color:var(--text);
@@ -1295,13 +1292,8 @@
 
   .adminCardGrid{
     display:grid;
-    grid-template-columns:max-content;
-    justify-content:center;
+    grid-template-columns:1fr;
     gap:10px;
-  }
-
-  .adminCardGrid button{
-    width:100%;
   }
 
   .adminRow{
@@ -1322,35 +1314,8 @@
   }
 
   .adminSeedWheelOpenBtn{
-    display:block;
-    width:max-content;
-    max-width:100%;
-    margin:0 auto 12px;
-  }
-
-  .adminSeedActions{
-    display:grid;
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:8px;
-    margin-top:10px;
-  }
-
-  .adminSeedActions button{
-    justify-self:center;
-    width:max-content;
-    max-width:100%;
-  }
-
-  .adminFundsActions{
-    display:grid;
-    grid-template-columns:max-content;
-    justify-content:center;
-    gap:8px;
-    margin-top:10px;
-  }
-
-  .adminFundsActions button{
     width:100%;
+    margin:0 0 12px 0;
   }
 
   .adminSeedWheelBackdrop{
