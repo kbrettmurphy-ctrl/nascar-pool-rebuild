@@ -1,0 +1,42 @@
+name: Deploy Green Flag Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - workers/green-flag-scheduler.js
+      - functions/api/_green-flag.js
+      - wrangler.green-flag.toml
+      - .github/workflows/deploy-green-flag-worker.yml
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy nascar-pool-green-flag-scheduler
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check green flag helper syntax
+        run: node --check functions/api/_green-flag.js
+
+      - name: Check green flag worker syntax
+        run: node --check workers/green-flag-scheduler.js
+
+      - name: Deploy Green Flag Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy -c wrangler.green-flag.toml
