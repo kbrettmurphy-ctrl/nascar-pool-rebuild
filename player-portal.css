@@ -1500,11 +1500,11 @@ select, input{
 .buschVoteRow{
   position:absolute;
   left:50%;
-  bottom:12px;
+  bottom:-38px;
   z-index:2;
   transform:translateX(-50%);
   display:flex;
-  gap:24px;
+  gap:10px;
   justify-content:center;
   margin-top:0;
   padding:0;
@@ -1526,7 +1526,7 @@ select, input{
   align-items:center;
   justify-content:center;
   padding:0;
-  opacity:.62;
+  opacity:1;
   filter:
     drop-shadow(0 1px 1px rgba(255,255,255,.32))
     drop-shadow(0 2px 7px rgba(0,0,0,.82));
@@ -1534,7 +1534,7 @@ select, input{
 .voteBtn.selected{
   background:transparent;
   border-color:transparent;
-  opacity:.96;
+  opacity:1;
   transform:scale(1.08);
 }
 
