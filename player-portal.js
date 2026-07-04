@@ -2354,7 +2354,7 @@ await refreshAfterAdminChange_();
 
   // Venmo handle for one-tap dues payment (no leading @).
   // Leave empty to hide the pay button.
-  const VENMO_HANDLE = "";
+  const VENMO_HANDLE = "@brettmurphyjr";
 
   function duesNagKey_(playerName, raceKey){
     const n = String(playerName || "").trim().toLowerCase();
