@@ -4522,6 +4522,21 @@ function showBuschPhotoMenu_(x, y) {
     if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
   });
 
+  function handlePhotoTap_(clientX, clientY) {
+    if (Date.now() < imageMenuBlockClickUntil || photoMenuHold_.wasFired()) return;
+    if (tapStartedWithMultiTouch) return;
+
+    const dx = Math.abs((clientX || 0) - tapStartX);
+    const dy = Math.abs((clientY || 0) - tapStartY);
+    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) return;
+
+    const rect = popupImg.getBoundingClientRect();
+    const x = (clientX || 0) - rect.left;
+
+    if (x < rect.width / 2) prevBuschImage_();
+    else nextBuschImage_();
+  }
+
   popupImg?.addEventListener("touchstart", (e) => {
     photoMenuTouchActive = true;
     tapStartedWithMultiTouch = e.touches.length > 1;
@@ -4533,9 +4548,7 @@ function showBuschPhotoMenu_(x, y) {
     photoMenuX = tapStartX;
     photoMenuY = tapStartY;
     photoMenuHold_.start(tapStartX, tapStartY);
-
-    if (e.cancelable) e.preventDefault();
-  }, { passive: false });
+  }, { passive: true });
 
   popupImg?.addEventListener("touchmove", (e) => {
     if (e.touches.length > 1) {
@@ -4549,9 +4562,17 @@ function showBuschPhotoMenu_(x, y) {
     }
   }, { passive: true });
 
-  popupImg?.addEventListener("touchend", () => {
-    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
-    else photoMenuHold_.end();
+  popupImg?.addEventListener("touchend", (e) => {
+    const holdFired = photoMenuHold_.wasFired();
+
+    if (!holdFired) {
+      photoMenuHold_.cancel();
+      const t = e.changedTouches[0];
+      if (t) handlePhotoTap_(t.clientX, t.clientY);
+    } else {
+      photoMenuHold_.end();
+    }
+
     setTimeout(() => {
       photoMenuTouchActive = false;
     }, 0);
@@ -4563,30 +4584,10 @@ function showBuschPhotoMenu_(x, y) {
   }, { passive: true });
 
   popupImg?.addEventListener("click", (e) => {
-    if (Date.now() < imageMenuBlockClickUntil || photoMenuHold_.wasFired()) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-
-    if (tapStartedWithMultiTouch) return;
-
-    const dx = Math.abs((e.clientX || 0) - tapStartX);
-    const dy = Math.abs((e.clientY || 0) - tapStartY);
-
-    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) return;
-
+    if (coarsePointer_) return;
     e.preventDefault();
     e.stopPropagation();
-
-    const rect = popupImg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    if (x < rect.width / 2) {
-      prevBuschImage_();
-    } else {
-      nextBuschImage_();
-    }
+    handlePhotoTap_(e.clientX, e.clientY);
   });
 
   function closeIfOutsideCard(e) {
