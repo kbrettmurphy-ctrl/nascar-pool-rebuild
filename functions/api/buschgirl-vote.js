@@ -6,11 +6,11 @@ export async function onRequestPost(context) {
     const { request, env } = context;
 
     const body = await request.json().catch(() => ({}));
-    const photoId = Number(body?.photoId);
+    const photoId = String(body?.photoId || "").trim();
     const playerName = String(body?.playerName || "").trim();
     const vote = Number(body?.vote);
 
-    if (!Number.isInteger(photoId) || photoId <= 0) {
+    if (!photoId || photoId.length > 64) {
       return json({ ok: false, error: "photoId is required" }, 400);
     }
     if (!playerName) {
@@ -77,7 +77,7 @@ export async function onRequestGet(context) {
 
     const tally = new Map();
     for (const v of votes || []) {
-      const id = Number(v.photo_id);
+      const id = String(v.photo_id);
       if (!tally.has(id)) tally.set(id, { likes: 0, dislikes: 0 });
       const t = tally.get(id);
       if (Number(v.vote) === 1) t.likes++;
@@ -85,7 +85,7 @@ export async function onRequestGet(context) {
     }
 
     const rows = (photos || []).map(p => {
-      const t = tally.get(Number(p.id)) || { likes: 0, dislikes: 0 };
+      const t = tally.get(String(p.id)) || { likes: 0, dislikes: 0 };
       return {
         id: p.id,
         folder: p.folder,

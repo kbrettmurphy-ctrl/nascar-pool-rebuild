@@ -62,6 +62,8 @@
     </div>
   </div>
 
+  <div id="gfGlobal"></div>
+
  <div id="view-current" class="card" style="display:none;">
   <div class="raceHeaderRow">
     <div id="currentHeader">Current Race</div>
@@ -88,6 +90,16 @@
   <div id="liveMatchups" style="margin-bottom:6px;"></div>
 </div>
 
+<div id="view-hub" class="card" style="display:none;">
+  <div class="big" id="hubTitle">Race Weekend</div>
+  <div class="muted" id="hubSub"></div>
+  <div id="hubSchedule" class="hubSection"></div>
+  <div class="hubHeading">Starting Lineup</div>
+  <div id="hubLineup" class="hubSection muted">Loading…</div>
+  <div class="hubHeading">NASCAR News</div>
+  <div id="hubNews" class="hubSection muted">Loading…</div>
+</div>
+
 <div id="view-standings" class="card" style="display:none;">
   <div class="big">Stats</div>
   <div class="muted">Who sucks and who doesn't</div>
@@ -96,7 +108,6 @@
 
 <div id="view-bracket" class="card" style="display:none;">
   <div class="raceHeaderRow">
-    <div class="big">Bracket</div>
     <div id="bracketHeaderSelect"></div>
   </div>
   <div class="muted" id="bracketSub">I'm slow...</div>
@@ -133,6 +144,9 @@
     </button>
     <button class="navBtn" id="nav-bracket" onclick="showView('bracket')">
       <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5a0 0 0 0 0 0 0c0 3 1.5 4.5 3 4.8M17 6h2.5c0 3-1.5 4.5-3 4.8"/><path d="M12 14v4M8.5 20h7M10 18h4"/></svg></div><div>Bracket</div>
+    </button>
+    <button class="navBtn" id="nav-hub" onclick="showView('hub')">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16M8.5 14h3M8.5 17h5"/></svg></div><div>Hub</div>
     </button>
     <button class="navBtn" id="nav-me" onclick="showView('mymatchup')">
       <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-3.5 3.8-5 7-5s6 1.5 7 5"/></svg></div><div>Me</div>

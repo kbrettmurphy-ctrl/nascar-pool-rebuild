@@ -10,14 +10,14 @@ export async function onRequestPost(context) {
     if (!ok) return json({ ok: false, error: "Unauthorized" }, 401);
 
     const body = await request.json().catch(() => ({}));
-    const photoId = Number(body?.photoId);
+    const photoId = String(body?.photoId || "").trim();
 
-    if (!Number.isInteger(photoId) || photoId <= 0) {
+    if (!photoId || photoId.length > 64) {
       return json({ ok: false, error: "photoId is required" }, 400);
     }
 
     const res = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${photoId}`,
+      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${encodeURIComponent(photoId)}`,
       {
         method: "PATCH",
         headers: {

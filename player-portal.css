@@ -51,6 +51,11 @@ html{
   --navH:62px;
 
   --wmShift:0px;
+
+  /* Global scale — everything renders at 92%, like browser zoom-out.
+     env() safe-area values are real device px, so anywhere they're
+     used inside the zoomed body they get divided by this. */
+  --appZoom:0.92;
 }
 
 /* ==========================================================
@@ -196,6 +201,7 @@ html{
 *{ box-sizing:border-box; }
 
 body{
+  zoom: var(--appZoom);
   font-size: var(--body);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
   line-height:1.4;
@@ -204,7 +210,7 @@ body{
   margin: 0 auto;
   background: var(--bg);
   color: var(--text);
-  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + var(--vvb));
+  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
   position: relative;
   overflow-x: hidden;
   transition: background-color .25s ease, color .25s ease;
@@ -215,8 +221,9 @@ h2{ margin:0 0 6px 0; font-size: var(--h2); font-weight:800; letter-spacing:-0.4
 
 /* NASCAR tri-stripe pinned to the very top of the screen.
    The bar extends up through the notch/Dynamic-Island safe area
-   (filled with the page bg) so content never scrolls above it. */
-body::after{
+   (filled with the page bg) so content never scrolls above it.
+   Lives on html so the body zoom can't shrink the safe-area fill. */
+html::after{
   content:"";
   position: fixed;
   top:0; left:0; right:0;
@@ -259,18 +266,18 @@ body::before{
   flex-wrap:wrap;
 }
 
-/* Standard control height: pills, switches, and icon buttons all 34px */
+/* Standard control height: pills and switches 28px, icon buttons 30px */
 .pill{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  height:34px;
-  padding:0 12px;
+  height:28px;
+  padding:0 10px;
   border-radius:999px;
   background: var(--yellowChipBg);
   border:1px solid var(--yellowChipBorder);
   color: var(--yellowText);
-  font-size:12px;
+  font-size:11px;
   font-weight:700;
   letter-spacing:.2px;
 }
@@ -419,8 +426,8 @@ select, input{
 }
 
 .iconBtn{
-  width:34px;
-  height:34px;
+  width:30px;
+  height:30px;
   padding:0;
   display:inline-flex;
   align-items:center;
@@ -443,8 +450,8 @@ select, input{
   display:inline-flex;
   align-items:center;
   gap:6px;
-  padding:6px 10px;
-  height:34px;
+  padding:3px 9px;
+  height:28px;
   border-radius:999px;
   background: var(--spoilerOffBg);
   border:1px solid var(--chipBorder);
@@ -454,7 +461,7 @@ select, input{
 
 .spoilerToggle .label{
   font-weight:700;
-  font-size:12px;
+  font-size:11px;
 }
 
 .spoilerToggle .track{
@@ -627,20 +634,12 @@ select, input{
   margin-top:0;
 }
 
-#bracketHeaderSelect select{
-  background: var(--chip);
-  border:1px solid var(--chipBorder);
-  font-size:13px;
-  font-weight:600;
-  padding:5px 8px;
-  border-radius:10px;
-}
-
-/* The race dropdown IS the card title (Apple-style inline picker);
-   the duplicate text header is hidden. */
+/* The race/tournament dropdown IS the card title (Apple-style inline
+   picker); the duplicate text headers are hidden. */
 #currentHeader{ display:none; }
 
-#raceSelect{
+#raceSelect,
+#bracketTournamentPick{
   appearance:none;
   -webkit-appearance:none;
   border:none;
@@ -654,7 +653,8 @@ select, input{
   color: var(--text);
   border-radius:8px;
 }
-:root[data-theme="light"] #raceSelect{
+:root[data-theme="light"] #raceSelect,
+:root[data-theme="light"] #bracketTournamentPick{
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230c1a26' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 #currentHeader{ font-size: var(--big); font-weight:800; letter-spacing:-0.3px; margin-bottom:0; }
@@ -790,19 +790,6 @@ select, input{
   .pMeta{ white-space:normal; }
 }
 
-#bracketTournamentPick{
-  width:auto;
-  min-width:140px;
-  max-width:140px;
-  flex:0 0 auto;
-}
-
-@media (max-width:700px){
-  #bracketTournamentPick{
-    min-width:140px;
-    max-width:140px;
-  }
-}
 
 /* ==========================================================
    Bracket view
@@ -1078,13 +1065,13 @@ select, input{
 .microBox{
   border:1px solid var(--lineSoft);
   border-radius:12px;
-  padding: 8px;
-  background: var(--glassBlue10);
+  padding: 10px;
+  background: transparent;
 }
 
 .youBox{
-  border:2px solid var(--winnerGreen);
-  background: var(--glassBlue10);
+  border-color: transparent;
+  background: var(--glassBlue14);
 }
 
 .microTitle{
@@ -1118,7 +1105,7 @@ select, input{
 .bottomNav{
   position: fixed;
   left:0; right:0; bottom:0;
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom) / var(--appZoom));
   background: var(--navBg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1181,9 +1168,23 @@ select, input{
    Live View
    ========================================================== */
 
+/* Live matchups: same hairline list treatment as the Matchup tab */
+#liveMatchups .liveMatchupCard{
+  border:none;
+  background:transparent;
+  border-radius:0;
+  padding:10px 4px;
+  border-bottom:1px solid var(--lineSoft);
+  margin-bottom:0 !important;
+}
+#liveMatchups .liveMatchupCard:last-child{ border-bottom:none; }
+
 #liveMatchups .liveMatchupCard.youRow{
-  background: var(--glassBlue20);
-  border: 2px solid var(--glassBlue55);
+  background: var(--glassBlue14);
+  border:none;
+  border-bottom:none;
+  border-radius:12px;
+  padding:10px;
 }
 
 /* ==========================================================
@@ -1367,12 +1368,28 @@ select, input{
    New feature components
    ========================================================== */
 
+#gfGlobal{
+  position:relative;
+  z-index:3;
+}
+
 .gfCountdown{
-  display:block;
-  margin-top:4px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:8px;
   font-weight:700;
-  font-size:13px;
+  font-size:12px;
   color: var(--greenText);
+}
+
+.gfDot{
+  width:7px;
+  height:7px;
+  border-radius:999px;
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--greentrans);
+  flex:0 0 auto;
 }
 
 .leadBar{
@@ -1442,6 +1459,75 @@ select, input{
 .voteBtn.selected{
   background: var(--glassBlue42);
   border-color: var(--glassBlue55);
+}
+
+/* Race Hub */
+.hubHeading{
+  font-size: var(--big);
+  font-weight:800;
+  letter-spacing:-0.3px;
+  margin-top:18px;
+}
+
+.hubSection{ margin-top:8px; }
+
+.hubRow{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  padding:7px 2px;
+  border-bottom:1px solid var(--lineSoft);
+  min-width:0;
+}
+.hubRow:last-child{ border-bottom:none; }
+.hubRow.past{ opacity:.45; }
+
+.hubWhen{
+  flex:0 0 92px;
+  font-size:12px;
+  font-weight:700;
+  color: var(--blueText);
+  font-variant-numeric: tabular-nums;
+}
+
+.hubWhat{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:13px;
+  font-weight:600;
+}
+
+.lineupRow{ align-items:center; }
+.lineupPos{
+  flex:0 0 26px;
+  font-size:12px;
+  font-weight:700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align:right;
+}
+.carNo{ color: var(--muted); font-weight:700; }
+.lineupOwner{
+  flex:0 0 auto;
+  font-size:11px;
+  font-weight:700;
+  color: var(--yellowText);
+  background: var(--yellowChipBg);
+  border:1px solid var(--yellowChipBorder);
+  border-radius:999px;
+  padding:2px 8px;
+}
+
+a.newsRow{
+  text-decoration:none;
+  color: var(--text);
+  display:flex;
+}
+.newsRow .hubWhat{ font-weight:600; line-height:1.35; }
+.newsWhen{
+  flex:0 0 auto;
+  font-size:11px;
+  color: var(--muted);
 }
 
 .buschRatingsList{ margin-top:10px; }
@@ -2053,27 +2139,27 @@ html.iosStandalone{
 }
 
 html.iosStandalone body{
-  padding-top: calc(var(--pad) + env(safe-area-inset-top));
-  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom));
+  padding-top: calc(var(--pad) + env(safe-area-inset-top) / var(--appZoom));
+  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom));
 }
 
 html.iosStandalone .bottomNav{
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom) / var(--appZoom));
   background: var(--navBg);
   border-top: 1px solid var(--lineSoft);
   border-radius: 0;
 }
 
 html.iosStandalone .sponsor-container{
-  bottom: calc(var(--navH) + env(safe-area-inset-bottom));
+  bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom));
 }
 
 html.iosStandalone .adminOverlay{
   padding:
-    calc(14px + env(safe-area-inset-top))
+    calc(14px + env(safe-area-inset-top) / var(--appZoom))
     14px
-    calc(14px + env(safe-area-inset-bottom) + 90px);
+    calc(14px + env(safe-area-inset-bottom) / var(--appZoom) + 90px);
 }

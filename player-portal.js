@@ -15,7 +15,7 @@
   };
 
   const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
-  const views = ["current","live","mymatchup","standings","dues","bracket"];
+  const views = ["current","live","mymatchup","standings","dues","bracket","hub"];
   const ADMIN_PIN_LENGTH = 6;
   let _adminUnlockInFlight = false;
   let activeView = "current";
@@ -1473,6 +1473,11 @@ await refreshAfterAdminChange_();
       loadStandings();
     }
 
+    if (which === "hub" && !_hubLoaded) {
+      _hubLoaded = true;
+      loadHub_();
+    }
+
     if (which === "mymatchup" && !_myMatchupLoaded) {
       _myMatchupLoaded = true;
       loadMyMatchup();
@@ -1500,6 +1505,14 @@ await refreshAfterAdminChange_();
     _duesLoaded = false;
     _myMatchupLoaded = false;
     _bracketLoaded = false;
+    _hubLoaded = false;
+    _gfStartMs = null;
+    renderGreenFlagCountdown_();
+
+    if (activeView === "hub") {
+      _hubLoaded = true;
+      loadHub_();
+    }
 
     if (activeView === "current") {
       _currentLoaded = true;
@@ -1836,8 +1849,6 @@ await refreshAfterAdminChange_();
       ALL_MATCHUPS?.current &&
       norm(ALL_MATCHUPS.current.race) === norm(data.race) &&
       String(ALL_MATCHUPS.current.tournament || "").trim() === String(data.tournament || "").trim();
-
-    renderGreenFlagCountdown_(sub, isCurrentRace);
 
     if (!spoilersOn && isCurrentRace){
       area.innerHTML = `
@@ -3248,7 +3259,7 @@ function initPushNotifications_() {
     const tournamentOptions = Array.isArray(data.tournamentOptions) ? data.tournamentOptions : [];
     const selectorHtml = tournamentOptions.length
       ? `
-        <select id="bracketTournamentPick" style="width:130px; min-width:130px;">
+        <select id="bracketTournamentPick">
           ${tournamentOptions.map(opt => `
             <option value="${escapeAttr(opt.tournament)}" ${String(opt.tournament) === String(_selectedBracketTournament || tour) ? "selected" : ""}>
               Tournament ${escapeHtml(opt.tournament)}
@@ -3394,10 +3405,12 @@ const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
 let _gfTimer = null;
 let _gfStartMs = null;
+let _hubLoaded = false;
 
-async function renderGreenFlagCountdown_(subEl, isCurrent) {
-  if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
-  if (!subEl || !isCurrent) return;
+// Global countdown pinned under the header, visible on every tab.
+async function renderGreenFlagCountdown_() {
+  const host = document.getElementById("gfGlobal");
+  if (!host) return;
 
   try {
     if (_gfStartMs === null) {
@@ -3414,20 +3427,12 @@ async function renderGreenFlagCountdown_(subEl, isCurrent) {
     if (!_gfStartMs) return;
 
     const paint = () => {
-      let el = document.getElementById("greenFlagCountdown");
       const diff = _gfStartMs - Date.now();
 
       if (diff <= 0) {
-        if (el) el.remove();
+        host.innerHTML = "";
         if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
         return;
-      }
-
-      if (!el) {
-        el = document.createElement("div");
-        el.id = "greenFlagCountdown";
-        el.className = "gfCountdown";
-        subEl.appendChild(el);
       }
 
       const mins = Math.floor(diff / 60000);
@@ -3435,14 +3440,111 @@ async function renderGreenFlagCountdown_(subEl, isCurrent) {
       const hrs = Math.floor((mins % 1440) / 60);
       const m = mins % 60;
       const when = days ? `${days}d ${hrs}h` : (hrs ? `${hrs}h ${m}m` : `${m}m`);
-      el.textContent = `🟢 Green flag in ${when}`;
+      host.innerHTML = `<div class="gfCountdown"><span class="gfDot"></span>Green flag in ${when}</div>`;
     };
 
     paint();
-    _gfTimer = setInterval(paint, 30000);
+    if (!_gfTimer) _gfTimer = setInterval(paint, 30000);
   } catch (e) {
-    // countdown is decorative; never block the matchup render
+    // countdown is decorative
   }
+}
+
+/* ==========================================================
+   Race Hub: weekend schedule, starting lineup, news
+   ========================================================== */
+
+async function loadHub_() {
+  const sub = document.getElementById("hubSub");
+  const schedBox = document.getElementById("hubSchedule");
+  const lineupBox = document.getElementById("hubLineup");
+  const newsBox = document.getElementById("hubNews");
+  if (!schedBox || !lineupBox || !newsBox) return;
+
+  schedBox.innerHTML = `<div class="muted">Loading schedule…</div>`;
+
+  const fmtDay = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
+  const fmtTime = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  // Who has which driver this week (for lineup annotations)
+  let driverOwner = new Map();
+  try {
+    const blob = await getPlayerRaceData_();
+    const cur = blob?.matchups?.current;
+    const raceBlob = cur ? blob?.matchups?.races?.[`${cur.tournament}||${cur.race}`] : null;
+    for (const m of (raceBlob?.matchups || [])) {
+      (m.p1Drivers || []).forEach(d => { if (d) driverOwner.set(normKey_(d), String(m.p1 || "")); });
+      (m.p2Drivers || []).forEach(d => { if (d) driverOwner.set(normKey_(d), String(m.p2 || "")); });
+    }
+  } catch (e) { /* annotations optional */ }
+
+  try {
+    const res = await fetch("/api/weekend-hub", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || "weekend-hub failed");
+
+    if (sub && data.race) {
+      const bits = [data.race.fullName || data.race.name, data.race.track].filter(Boolean);
+      sub.textContent = bits.join(" · ");
+    }
+
+    const sched = Array.isArray(data.schedule) ? data.schedule : [];
+    schedBox.innerHTML = sched.length
+      ? sched.map(ev => {
+          const d = new Date(ev.startUtc);
+          const bad = Number.isNaN(d.getTime());
+          const past = !bad && d.getTime() < Date.now();
+          return `
+            <div class="hubRow ${past ? "past" : ""}">
+              <div class="hubWhen">${bad ? "" : `${fmtDay(d)} ${fmtTime(d)}`}</div>
+              <div class="hubWhat">${escapeHtml(ev.name)}</div>
+            </div>`;
+        }).join("")
+      : `<div class="muted">No weekend schedule posted yet.</div>`;
+
+    const lineup = Array.isArray(data.lineup) ? data.lineup : [];
+    lineupBox.classList.remove("muted");
+    lineupBox.innerHTML = lineup.length
+      ? lineup.map(r => {
+          const owner = driverOwner.get(normKey_(r.driver)) || "";
+          return `
+            <div class="hubRow lineupRow">
+              <div class="lineupPos">${r.pos}</div>
+              <div class="hubWhat">${r.car ? `<span class="carNo">#${escapeHtml(r.car)}</span> ` : ""}${escapeHtml(r.driver)}</div>
+              ${owner ? `<div class="lineupOwner">${escapeHtml(owner)}</div>` : ""}
+            </div>`;
+        }).join("")
+      : `<div class="muted">Lineup drops after qualifying.</div>`;
+  } catch (e) {
+    schedBox.innerHTML = `<div class="muted">Schedule unavailable.</div>`;
+    lineupBox.innerHTML = `<div class="muted">Lineup unavailable.</div>`;
+  }
+
+  try {
+    const res = await fetch("/api/nascar-news", { cache: "no-store" });
+    const data = await res.json();
+    const items = (data?.ok && Array.isArray(data.items)) ? data.items : [];
+    newsBox.classList.remove("muted");
+    newsBox.innerHTML = items.length
+      ? items.map(it => {
+          const d = new Date(it.pubDate || "");
+          const when = Number.isNaN(d.getTime())
+            ? ""
+            : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          return `
+            <a class="hubRow newsRow" href="${escapeAttr(it.link)}" target="_blank" rel="noopener">
+              <div class="hubWhat">${escapeHtml(it.title)}</div>
+              ${when ? `<div class="newsWhen">${when}</div>` : ""}
+            </a>`;
+        }).join("")
+      : `<div class="muted">No headlines right now.</div>`;
+  } catch (e) {
+    newsBox.innerHTML = `<div class="muted">News unavailable.</div>`;
+  }
+}
+
+function normKey_(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 /* ==========================================================
@@ -3634,7 +3736,7 @@ async function loadBuschRatings_() {
     box.querySelectorAll(".bgRemoveBtn").forEach(btn => {
       btn.addEventListener("click", async () => {
         const row = btn.closest(".bgRateRow");
-        const photoId = Number(row?.dataset?.id);
+        const photoId = String(row?.dataset?.id || "");
         if (!photoId) return;
         if (!confirm("Remove this photo from the rotation?")) return;
 
@@ -3679,7 +3781,7 @@ async function loadBuschGirls() {
 
     buschGirls = (data.photos || [])
       .map(p => ({
-        id: Number(p.id) || 0,
+        id: String(p.id || ""),
         url: String(p.url || "").trim(),
         folder: String(p.folder || "").trim().toLowerCase(),
         uploadedAt: String(p.uploaded_at || "").trim()
@@ -4303,6 +4405,7 @@ function initAdminControls_() {
     await loadBuschGirls();
     initBuschLongPress_();
     initBuschVotes_();
+    renderGreenFlagCountdown_();
     showKyleTributeOnLoad_();
 
     startLivePolling_();
