@@ -4025,6 +4025,8 @@ function initBuschLongPress_() {
   let photoMenuStartY = 0;
   let imageMenuBlockClickUntil = 0;
   let buschPhotoMenuEl = null;
+  let photoMenuTouchActive = false;
+  const PHOTO_MENU_HOLD_MS = 650;
 
 function buschPhotoInfoFromSrc_(src) {
   const cleanSrc = String(src || "").split("?")[0];
@@ -4226,23 +4228,32 @@ function clearPhotoMenuTimer_() {
   photoMenuPointerId = null;
 }
 
-popupImg?.addEventListener("pointerdown", (e) => {
+function schedulePhotoMenu_(x, y, pointerId = null) {
   closePhotoMenu_();
   clearPhotoMenuTimer_();
 
-  if (e.pointerType === "mouse" && e.button !== 0) return;
-
-  photoMenuPointerId = e.pointerId;
-  photoMenuStartX = e.clientX || 0;
-  photoMenuStartY = e.clientY || 0;
+  photoMenuPointerId = pointerId;
+  photoMenuStartX = x || 0;
+  photoMenuStartY = y || 0;
 
   photoMenuTimer = setTimeout(() => {
     photoMenuTimer = null;
+    imageMenuBlockClickUntil = Date.now() + 900;
+    if (navigator.vibrate) navigator.vibrate(8);
     showBuschPhotoMenu_(photoMenuStartX, photoMenuStartY);
-  }, 850);
+  }, PHOTO_MENU_HOLD_MS);
+}
+
+popupImg?.addEventListener("pointerdown", (e) => {
+  if (photoMenuTouchActive && e.pointerType === "touch") return;
+
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+
+  schedulePhotoMenu_(e.clientX || 0, e.clientY || 0, e.pointerId);
 });
 
 popupImg?.addEventListener("pointermove", (e) => {
+  if (photoMenuTouchActive && e.pointerType === "touch") return;
   if (photoMenuPointerId !== e.pointerId || !photoMenuTimer) return;
 
   if (
@@ -4256,6 +4267,41 @@ popupImg?.addEventListener("pointermove", (e) => {
 popupImg?.addEventListener("pointerup", clearPhotoMenuTimer_);
 popupImg?.addEventListener("pointercancel", clearPhotoMenuTimer_);
 popupImg?.addEventListener("pointerleave", clearPhotoMenuTimer_);
+
+popupImg?.addEventListener("touchstart", (e) => {
+  photoMenuTouchActive = true;
+  if (e.touches.length !== 1) return;
+
+  const t = e.touches[0];
+  schedulePhotoMenu_(t.clientX || 0, t.clientY || 0);
+}, { passive: true });
+
+popupImg?.addEventListener("touchmove", (e) => {
+  if (!photoMenuTimer || e.touches.length !== 1) {
+    clearPhotoMenuTimer_();
+    return;
+  }
+
+  const t = e.touches[0];
+  if (
+    Math.abs((t.clientX || 0) - photoMenuStartX) > MOVE_THRESHOLD ||
+    Math.abs((t.clientY || 0) - photoMenuStartY) > MOVE_THRESHOLD
+  ) {
+    clearPhotoMenuTimer_();
+  }
+}, { passive: true });
+
+popupImg?.addEventListener("touchend", () => {
+  clearPhotoMenuTimer_();
+  setTimeout(() => {
+    photoMenuTouchActive = false;
+  }, 0);
+}, { passive: true });
+
+popupImg?.addEventListener("touchcancel", () => {
+  clearPhotoMenuTimer_();
+  photoMenuTouchActive = false;
+}, { passive: true });
 
   let pressTimer = null;
   let startX = 0;

@@ -537,22 +537,27 @@ select, input{
   top:50%;
   left:50%;
   transform:translate(-50%, -50%);
-  width:min(92vw, 520px);
+  width:auto;
+  max-width:min(92vw, 520px);
   max-height:88vh;
-  padding:12px;
-  border-radius:18px;
-  background:var(--cardSolid);
-  border:1px solid var(--line);
-  box-shadow:var(--popShadow);
+  padding:0;
+  border-radius:16px;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  overflow:visible;
 }
 
 .buschPopupImg{
   display:block;
-  width:100%;
+  width:auto;
+  max-width:min(92vw, 520px);
   height:auto;
-  max-height:78vh;
+  max-height:86vh;
   object-fit:contain;
-  border-radius:12px;
+  border-radius:16px;
+  box-shadow:0 18px 52px rgba(0,0,0,.42);
+  touch-action:manipulation;
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
@@ -1491,26 +1496,39 @@ select, input{
 }
 
 .buschVoteRow{
+  position:absolute;
+  left:50%;
+  bottom:10px;
+  z-index:2;
+  transform:translateX(-50%);
   display:flex;
-  gap:10px;
+  gap:8px;
   justify-content:center;
-  margin-top:10px;
+  margin-top:0;
+  padding:5px;
+  border-radius:999px;
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 10px 26px rgba(0,0,0,.22);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
 }
 .voteBtn{
-  width:56px;
-  height:40px;
-  font-size:20px;
-  border-radius:12px;
-  background: var(--chip);
-  border:1px solid var(--chipBorder);
+  width:42px;
+  height:34px;
+  font-size:17px;
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.22);
+  color:#fff;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   padding:0;
 }
 .voteBtn.selected{
-  background: var(--glassBlue42);
-  border-color: var(--glassBlue55);
+  background:rgba(0,140,255,.58);
+  border-color:rgba(255,255,255,.45);
 }
 
 /* Race Hub */
