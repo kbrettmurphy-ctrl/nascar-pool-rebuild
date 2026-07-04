@@ -37,19 +37,16 @@
 
 <body>
   <div class="titleRow">
-    <h2>NASCAR '26</h2>
-    <div id="welcomeName"></div>
-  </div>
-
-  <div class="sub subRow">
-    <span class="pill" id="playerPortalPill">Player Portal</span>
-    <div class="subRowRight">
-      <select id="globalPlayer"></select>
+    <div class="titleBlock">
+      <h2>NASCAR '26</h2>
+      <div id="welcomeName"></div>
     </div>
+    <select id="globalPlayer"></select>
   </div>
 
-  <div class="topBar">
-    <button id="spoilerToggle" class="spoilerToggle topactions" type="button" role="switch" aria-checked="true">
+  <div class="headerRow2">
+    <span class="pill" id="playerPortalPill">Player Portal</span>
+    <button id="spoilerToggle" class="spoilerToggle" type="button" role="switch" aria-checked="true">
       <span class="label">Spoilers</span>
       <span id="spoilerTrack" class="track">
         <span id="spoilerState" class="state">ON</span>
@@ -57,13 +54,11 @@
       </span>
     </button>
 
-    <div class="topBarRight">
+    <div class="headerActions">
       <!-- <button class="topactions" onclick="clearSavedAndReset()">🚫 Forget me</button> -->
-      <button class="topactions" id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
-      <button class="topactions" onclick="refreshActiveView()">🔄 Refresh</button>
-      <button class="topactions" id="enableNotificationsBtn" type="button">
-  🔔 Notify Me
-</button>
+      <button class="iconBtn" id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
+      <button class="iconBtn" onclick="refreshActiveView()" type="button" aria-label="Refresh">🔄</button>
+      <button class="iconBtn" id="enableNotificationsBtn" type="button" aria-label="Enable notifications">🔔</button>
     </div>
   </div>
 

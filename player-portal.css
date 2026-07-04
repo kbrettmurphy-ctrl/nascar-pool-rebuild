@@ -48,7 +48,7 @@ html{
   --mmHeaderGap:4px;
 
   --vvb:0px;
-  --navH:75px;
+  --navH:62px;
 
   --wmShift:0px;
 }
@@ -358,65 +358,78 @@ select, input{
 
 .titleRow{
   display:flex;
-  align-items:baseline;
+  align-items:center;
   justify-content:space-between;
-  gap:8px;
+  gap:10px;
   position:relative;
   z-index:3;
   padding-top:4px;
 }
 
+.titleBlock{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+}
+
 .titleRow h2{ margin:0; }
 
 #welcomeName{
-  text-align:right;
-  font-weight:700;
+  font-weight:600;
   color: var(--muted);
-  font-size:13px;
+  font-size:12px;
+  line-height:1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 52%;
+}
+#welcomeName:empty{ display:none; }
+
+#globalPlayer{
+  flex:0 1 auto;
+  max-width:55%;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
-.subRow{
+.headerRow2{
+  display:flex;
+  align-items:center;
+  gap:8px;
   position:relative;
   z-index:3;
-  margin-top:2px;
+  margin-top:8px;
 }
 
-.subRowRight{
+.headerActions{
   margin-left:auto;
   display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.topBar{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  flex-wrap:wrap;
-  position:relative;
-  z-index:3;
-  margin-top:4px;
-}
-
-.topBarRight{
-  margin-left:auto;
-  display:flex;
-  gap:8px;
+  gap:6px;
   align-items:center;
 }
 
-/* Theme toggle */
-#themeToggleBtn{
-  min-width:34px;
+.iconBtn{
+  width:34px;
+  height:34px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
   justify-content:center;
-  font-size:14px;
+  border-radius:999px;
+  font-size:15px;
   line-height:1;
+  background: var(--chip);
+  border:1px solid var(--chipBorder);
+  color: var(--text);
+  flex:0 0 auto;
+}
+.iconBtn:hover{ background: var(--chipHover); }
+
+@media (max-width:380px){
+  .spoilerToggle .label{ display:none; }
 }
 
 .spoilerToggle{
@@ -424,8 +437,8 @@ select, input{
   align-items:center;
   gap:6px;
   padding:6px 10px;
-  height:30px;
-  border-radius:12px;
+  height:34px;
+  border-radius:999px;
   background: var(--spoilerOffBg);
   border:1px solid var(--chipBorder);
   color: var(--text);
@@ -433,7 +446,8 @@ select, input{
 }
 
 .spoilerToggle .label{
-  font-weight:800;
+  font-weight:700;
+  font-size:12px;
 }
 
 .spoilerToggle .track{
@@ -605,6 +619,15 @@ select, input{
   line-height:1;
   margin-top:0;
 }
+
+.raceHeaderRow select{
+  background: var(--chip);
+  border:1px solid var(--chipBorder);
+  font-size:13px;
+  font-weight:600;
+  padding:5px 8px;
+  border-radius:10px;
+}
 #currentHeader{ font-size: var(--big); font-weight:800; letter-spacing:-0.3px; margin-bottom:0; }
 #currentSub{ font-size:13px; color: var(--muted); margin-top:2px; line-height:1.3; }
 
@@ -717,12 +740,10 @@ select, input{
   margin:0;
 }
 
-@media (min-width:700px){
-  .side.right .nameWrap .winPill{
-    left:auto;
-    right:100%;
-    transform: translate(-6px, -50%);
-  }
+.side.right .nameWrap .winPill{
+  left:auto;
+  right:100%;
+  transform: translate(-6px, -50%);
 }
 
 /* ==========================================================
@@ -730,11 +751,8 @@ select, input{
    ========================================================== */
 
 @media (max-width:700px){
-  .matchupRow{ grid-template-columns:1fr; gap:6px; text-align:center; }
-  .side.right{ text-align:center; align-items:center; }
-  .vsBadge{ margin:2px auto; }
+  .matchupRow{ gap:8px; }
   .pMeta{ white-space:normal; }
-  #welcomeName{ max-width: 100%; }
 }
 
 #bracketTournamentPick{
@@ -1065,7 +1083,7 @@ select, input{
 .bottomNav{
   position: fixed;
   left:0; right:0; bottom:0;
-  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
   background: var(--navBg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1075,36 +1093,28 @@ select, input{
 }
 
 .navInner{
-  max-width: 920px;
+  max-width: 560px;
   margin:0 auto;
   display:flex;
-  gap:8px;
-  align-items:center;
-  overflow-x:auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x;
-}
-
-.navInner::before,
-.navInner::after{
-  content:"";
-  flex: 1 0 auto;
+  gap:2px;
+  align-items:stretch;
 }
 
 .navBtn{
-  flex:0 0 auto;
-  min-width:98px;
+  flex:1 1 0;
+  min-width:0;
   background: transparent;
   color:var(--muted);
-  border:1px solid transparent;
-  border-radius:18px;
-  padding:7px 8px;
-  font-weight:700;
-  font-size:12px;
+  border:none;
+  border-radius:12px;
+  padding:4px 2px;
+  font-weight:600;
+  font-size:10px;
+  letter-spacing:.1px;
   cursor:pointer;
   display:flex;
-  gap:6px;
+  flex-direction:column;
+  gap:2px;
   align-items:center;
   justify-content:center;
   text-align:center;
@@ -1114,12 +1124,18 @@ select, input{
 .navBtn:hover{ background: var(--chip); }
 
 .navBtn.active{
-  background: var(--glassBlue22);
-  border-color: var(--glassBlue55);
-  color: var(--text);
+  background: transparent;
+  color: var(--blueText);
+  font-weight:700;
 }
 
-.navBtn .ico{ font-size:15px; }
+.navBtn .ico{
+  font-size:20px;
+  line-height:1.1;
+}
+.navBtn.active .ico{
+  transform: translateY(-1px);
+}
 
 /* ==========================================================
    Live View
@@ -1876,7 +1892,7 @@ select, input{
    ========================================================== */
 
 html.iosStandalone{
-  --navH: 76px;
+  --navH: 64px;
 }
 
 html.iosStandalone body{
@@ -1888,7 +1904,7 @@ html.iosStandalone .bottomNav{
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 15px;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
   background: var(--navBg);
   border-top: 1px solid var(--lineSoft);
   border-radius: 0;
