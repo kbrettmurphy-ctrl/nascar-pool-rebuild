@@ -91,13 +91,22 @@
 </div>
 
 <div id="view-hub" class="card" style="display:none;">
-  <div class="big" id="hubTitle">Race Weekend</div>
+  <div class="big" id="hubTitle">Race Hub</div>
   <div class="muted" id="hubSub"></div>
-  <div id="hubSchedule" class="hubSection"></div>
-  <div class="hubHeading">Starting Lineup</div>
-  <div id="hubLineup" class="hubSection muted">Loading…</div>
-  <div class="hubHeading">NASCAR News</div>
-  <div id="hubNews" class="hubSection muted">Loading…</div>
+  <div class="segCtl" id="hubSeg">
+    <button class="segBtn active" data-hub-pane="schedule" type="button">Weekend</button>
+    <button class="segBtn" data-hub-pane="lineup" type="button">Lineup</button>
+    <button class="segBtn" data-hub-pane="news" type="button">News</button>
+  </div>
+  <div id="hubPane-schedule" class="hubPane active">
+    <div id="hubSchedule" class="hubSection"></div>
+  </div>
+  <div id="hubPane-lineup" class="hubPane">
+    <div id="hubLineup" class="hubSection muted">Loading…</div>
+  </div>
+  <div id="hubPane-news" class="hubPane">
+    <div id="hubNews" class="hubSection muted">Loading…</div>
+  </div>
 </div>
 
 <div id="view-standings" class="card" style="display:none;">

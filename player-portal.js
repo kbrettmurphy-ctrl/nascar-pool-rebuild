@@ -1416,7 +1416,8 @@ await refreshAfterAdminChange_();
       mymatchup: "nav-me",
       standings: "nav-stats",
       dues: "nav-dues",
-      bracket: "nav-bracket"
+      bracket: "nav-bracket",
+      hub: "nav-hub"
     };
 
     Object.values(map).forEach(id => {
@@ -3461,6 +3462,15 @@ async function loadHub_() {
   const newsBox = document.getElementById("hubNews");
   if (!schedBox || !lineupBox || !newsBox) return;
 
+  document.querySelectorAll("#hubSeg .segBtn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#hubSeg .segBtn").forEach(x =>
+        x.classList.toggle("active", x === b));
+      document.querySelectorAll(".hubPane").forEach(p =>
+        p.classList.toggle("active", p.id === "hubPane-" + b.dataset.hubPane));
+    };
+  });
+
   schedBox.innerHTML = `<div class="muted">Loading schedule…</div>`;
 
   const fmtDay = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
@@ -3491,7 +3501,11 @@ async function loadHub_() {
     const sched = Array.isArray(data.schedule) ? data.schedule : [];
     schedBox.innerHTML = sched.length
       ? sched.map(ev => {
-          const d = new Date(ev.startUtc);
+          // start_time_utc comes without a Z suffix; force UTC so
+          // toLocale* renders in the viewer's local time zone
+          let ts = String(ev.startUtc || "").trim();
+          if (ts && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(ts)) ts += "Z";
+          const d = new Date(ts);
           const bad = Number.isNaN(d.getTime());
           const past = !bad && d.getTime() < Date.now();
           return `

@@ -108,6 +108,9 @@ html{
   --spoilerOnBg:rgba(228,0,43,.40);
   --spoilerOffBg:rgba(0,122,194,.18);
 
+  --segActive:rgba(255,255,255,.14);
+  --segShadow:none;
+
   --vsBg:#e5e7eb;
   --vsText:#111111;
 
@@ -176,6 +179,9 @@ html{
 
   --spoilerOnBg:rgba(228,0,43,.16);
   --spoilerOffBg:rgba(0,122,194,.12);
+
+  --segActive:#ffffff;
+  --segShadow:0 1px 3px rgba(10,30,50,.18);
 
   --vsBg:#16303f;
   --vsText:#ffffff;
@@ -1462,12 +1468,38 @@ select, input{
 }
 
 /* Race Hub */
-.hubHeading{
-  font-size: var(--big);
-  font-weight:800;
-  letter-spacing:-0.3px;
-  margin-top:18px;
+.segCtl{
+  display:flex;
+  gap:2px;
+  background: var(--chip);
+  border:1px solid var(--lineSoft);
+  border-radius:12px;
+  padding:3px;
+  margin-top:10px;
 }
+
+.segBtn{
+  flex:1 1 0;
+  min-width:0;
+  border:none;
+  background:transparent;
+  border-radius:9px;
+  padding:6px 0;
+  font-size:12px;
+  font-weight:600;
+  color: var(--muted);
+}
+.segBtn:hover{ background:transparent; }
+
+.segBtn.active{
+  background: var(--segActive);
+  box-shadow: var(--segShadow);
+  color: var(--text);
+  font-weight:700;
+}
+
+.hubPane{ display:none; }
+.hubPane.active{ display:block; }
 
 .hubSection{ margin-top:8px; }
 
