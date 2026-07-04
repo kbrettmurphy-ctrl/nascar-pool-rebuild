@@ -4220,6 +4220,25 @@ function showBuschPhotoSaveSheet_(info) {
 async function saveBuschPhotoImage_(info) {
   if (!info?.url) return;
 
+  if (!coarsePointer_) {
+    try {
+      const file = await fetchBuschPhotoFile_(info);
+      const blobUrl = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = info.file || "busch-photo.jpg";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+      return;
+    } catch {
+      downloadBuschPhoto_(info);
+      return;
+    }
+  }
+
   try {
     const file = await fetchBuschPhotoFile_(info);
     if (navigator.canShare?.({ files: [file] })) {
@@ -4326,10 +4345,10 @@ function showBuschPhotoMenu_(x, y) {
   menu.className = "buschPhotoMenu";
   menu.innerHTML = `
     <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
+      <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
       <button type="button" role="menuitem" data-action="save">Save Image</button>
-      <button type="button" role="menuitem" data-action="copy">Copy Link</button>
-      <button type="button" role="menuitem" data-action="info">Photo Info</button>
-      <button type="button" role="menuitem" data-action="download">Download</button>
+      <button type="button" role="menuitem" data-action="info">Get Info</button>
+      <button type="button" role="menuitem" data-action="download">Download Photo</button>
       <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
     </div>
   `;
@@ -4358,8 +4377,8 @@ function showBuschPhotoMenu_(x, y) {
       const action = btn.dataset.action;
       closePhotoMenu_();
 
-      if (action === "save") await saveBuschPhotoImage_(info);
-      else if (action === "copy") await copyBuschPhotoLink_(info);
+      if (action === "view") window.open(info.url, "_blank", "noopener");
+      else if (action === "save") await saveBuschPhotoImage_(info);
       else if (action === "info") showBuschPhotoInfo_();
       else if (action === "download") downloadBuschPhoto_(info);
       else if (action === "delete") await deleteBuschPhoto_(info);
@@ -4465,14 +4484,17 @@ function showBuschPhotoMenu_(x, y) {
   let tapStartX = 0;
   let tapStartY = 0;
   let tapStartedWithMultiTouch = false;
+  let photoMenuTouchActive = false;
 
   popupImg?.addEventListener("contextmenu", (e) => {
+    if (coarsePointer_) return;
     e.preventDefault();
     e.stopPropagation();
     triggerPhotoMenu_(e.clientX || 0, e.clientY || 0);
   });
 
   popupImg?.addEventListener("pointerdown", (e) => {
+    if (photoMenuTouchActive && e.pointerType === "touch") return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.isPrimary === false) return;
 
@@ -4482,38 +4504,62 @@ function showBuschPhotoMenu_(x, y) {
 
     photoMenuX = tapStartX;
     photoMenuY = tapStartY;
-
-    // Touch long-press is handled by contextmenu on Safari/PWA; keep the
-    // interval hold path for mouse / fine-pointer desktop only.
-    if (!(coarsePointer_ && e.pointerType === "touch")) {
-      photoMenuHold_.start(tapStartX, tapStartY);
-    }
-
-    if (e.pointerType === "touch" && e.cancelable) {
-      e.preventDefault();
-    }
+    photoMenuHold_.start(tapStartX, tapStartY);
   });
 
   popupImg?.addEventListener("pointermove", (e) => {
+    if (photoMenuTouchActive && e.pointerType === "touch") return;
     photoMenuHold_.move(e.clientX || 0, e.clientY || 0);
   });
 
-  popupImg?.addEventListener("pointerup", () => {
-    photoMenuHold_.end();
+  popupImg?.addEventListener("pointerup", (e) => {
+    if (photoMenuTouchActive && e.pointerType === "touch") return;
+    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
+    else photoMenuHold_.end();
   });
 
   popupImg?.addEventListener("pointercancel", () => {
-    photoMenuHold_.cancel();
+    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
   });
 
   popupImg?.addEventListener("touchstart", (e) => {
+    photoMenuTouchActive = true;
     tapStartedWithMultiTouch = e.touches.length > 1;
-  }, { passive: true });
+    if (e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    tapStartX = t.clientX || 0;
+    tapStartY = t.clientY || 0;
+    photoMenuX = tapStartX;
+    photoMenuY = tapStartY;
+    photoMenuHold_.start(tapStartX, tapStartY);
+
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
 
   popupImg?.addEventListener("touchmove", (e) => {
     if (e.touches.length > 1) {
       tapStartedWithMultiTouch = true;
+      if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
+      return;
     }
+    if (!photoMenuHold_.wasFired()) {
+      const t = e.touches[0];
+      photoMenuHold_.move(t.clientX || 0, t.clientY || 0);
+    }
+  }, { passive: true });
+
+  popupImg?.addEventListener("touchend", () => {
+    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
+    else photoMenuHold_.end();
+    setTimeout(() => {
+      photoMenuTouchActive = false;
+    }, 0);
+  }, { passive: true });
+
+  popupImg?.addEventListener("touchcancel", () => {
+    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
+    photoMenuTouchActive = false;
   }, { passive: true });
 
   popupImg?.addEventListener("click", (e) => {
