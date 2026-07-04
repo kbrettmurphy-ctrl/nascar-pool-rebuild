@@ -11,6 +11,8 @@
 
 html{
   scrollbar-gutter: stable;
+  min-height: 100%;
+  min-height: 100dvh;
 }
 @supports not (scrollbar-gutter: stable){
   html{ overflow-y: scroll; }
@@ -49,7 +51,8 @@ html{
 
   --vvb:0px;
   --navH:62px;
-  --pageBottomPad: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
+  --sponsorH:102px;
+  --pageBottomPad: calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom));
 
   --wmShift:0px;
 
@@ -219,6 +222,7 @@ body{
   color: var(--text);
   padding-bottom: var(--pageBottomPad);
   scroll-padding-bottom: var(--pageBottomPad);
+  min-height: calc(100dvh + 1px);
   overscroll-behavior-y: contain;
   position: relative;
   overflow-x: hidden;
@@ -2362,7 +2366,7 @@ html.iosStandalone{
 
 html.iosStandalone body{
   padding-top: calc(var(--pad) + env(safe-area-inset-top) / var(--appZoom));
-  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom));
+  padding-bottom: var(--pageBottomPad);
 }
 
 html.iosStandalone .bottomNav{

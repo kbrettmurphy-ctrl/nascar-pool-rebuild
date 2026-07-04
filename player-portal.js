@@ -147,23 +147,11 @@
 
   function updatePageBottomPadding_() {
     const root = document.documentElement;
-    const active = document.getElementById("view-" + activeView);
-    const nav = document.querySelector(".bottomNav");
-    const viewportH = window.innerHeight || root.clientHeight || 0;
-    const navH = nav?.offsetHeight || 0;
-    const fullPad = `calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb))`;
-
-    if (!active || !viewportH) {
-      root.style.setProperty("--pageBottomPad", fullPad);
-      return;
-    }
-
-    // Measure content height only — never use scroll position, which caused
-    // padding to flip at the bottom and required a second scroll to settle.
-    const contentH = active.offsetHeight;
-    const needsBottomPad = contentH > (viewportH - navH - 24);
-
-    root.style.setProperty("--pageBottomPad", needsBottomPad ? fullPad : "0px");
+    // Keep bottom inset stable: nav + sponsor + safe area only.
+    // Dynamic --vvb and toggling 0/full pad caused layout shifts while the
+    // mobile browser chrome collapsed, which felt like a required second scroll.
+    const fullPad = `calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom))`;
+    root.style.setProperty("--pageBottomPad", fullPad);
   }
 
   function schedulePageBottomPadding_() {
@@ -2708,6 +2696,7 @@ await refreshAfterAdminChange_();
         const box = document.getElementById("statsPanel");
         _statsMode = "drivers";
         await renderDrivers_(box);
+        schedulePageBottomPadding_();
         return;
       }
 
@@ -2731,6 +2720,7 @@ await refreshAfterAdminChange_();
       });
 
       setStatsMode_("overall");
+      schedulePageBottomPadding_();
     }catch(e){
       area.innerHTML = "Error: " + (e && e.message ? e.message : e);
     }
@@ -3425,6 +3415,8 @@ function initPushNotifications_() {
         };
       });
     }
+
+    schedulePageBottomPadding_();
   } catch(e){
     if (headerSelect) headerSelect.innerHTML = "";
     sub.textContent = "Bracket failed to load.";
@@ -4054,42 +4046,41 @@ function initBuschLongPress_() {
   logo?.addEventListener("dragstart", suppressNativePress);
   logo?.addEventListener("selectstart", suppressNativePress);
 
-  trigger.addEventListener("contextmenu", suppressNativePress);
   trigger.addEventListener("dragstart", suppressNativePress);
   trigger.addEventListener("selectstart", suppressNativePress);
-
-  popupImg?.addEventListener("contextmenu", suppressNativePress);
 
   let imageMenuBlockClickUntil = 0;
   let buschPhotoMenuEl = null;
   let buschSaveSheetEl = null;
+  let lastPhotoMenuAt = 0;
+  let lastLogoPopupAt = 0;
   const PHOTO_MENU_HOLD_MS = 650;
   const HOLD_MOVE_THRESHOLD = 10;
+  const coarsePointer_ = window.matchMedia("(pointer: coarse)").matches;
 
   function createHoldDetector_(holdMs, onTrigger) {
-    let rafId = null;
+    let intervalId = null;
     let holdStart = 0;
     let startX = 0;
     let startY = 0;
     let fired = false;
 
     function clearPending_() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
+      if (intervalId) clearInterval(intervalId);
+      intervalId = null;
       holdStart = 0;
       fired = false;
     }
 
     function tick_() {
-      if (!holdStart) return;
-      if (!fired && Date.now() - holdStart >= holdMs) {
+      if (!holdStart || fired) return;
+      if (Date.now() - holdStart >= holdMs) {
         fired = true;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
+        if (intervalId) clearInterval(intervalId);
+        intervalId = null;
         onTrigger();
-        return;
+        void document.body.offsetHeight;
       }
-      rafId = requestAnimationFrame(tick_);
     }
 
     return {
@@ -4099,7 +4090,7 @@ function initBuschLongPress_() {
         startX = x || 0;
         startY = y || 0;
         fired = false;
-        rafId = requestAnimationFrame(tick_);
+        intervalId = setInterval(tick_, 32);
       },
       move(x, y) {
         if (!holdStart || fired) return;
@@ -4111,13 +4102,30 @@ function initBuschLongPress_() {
         }
       },
       end() {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
+        if (intervalId) clearInterval(intervalId);
+        intervalId = null;
         holdStart = 0;
       },
       cancel: clearPending_,
       wasFired() { return fired; }
     };
+  }
+
+  function triggerPhotoMenu_(x, y) {
+    if (Date.now() - lastPhotoMenuAt < 400) return;
+    lastPhotoMenuAt = Date.now();
+    photoMenuHold_.cancel();
+    imageMenuBlockClickUntil = Date.now() + 900;
+    if (navigator.vibrate) navigator.vibrate(8);
+    showBuschPhotoMenu_(x || 0, y || 0);
+  }
+
+  function triggerLogoPopup_() {
+    if (Date.now() - lastLogoPopupAt < 400) return;
+    lastLogoPopupAt = Date.now();
+    logoHold_.cancel();
+    longPressTriggered = true;
+    openPopup();
   }
 
 function buschPhotoInfoFromSrc_(src) {
@@ -4360,20 +4368,18 @@ function showBuschPhotoMenu_(x, y) {
 
   buschPhotoMenuEl = menu;
   imageMenuBlockClickUntil = Date.now() + 650;
+  void menu.offsetWidth;
 }
 
   let photoMenuX = 0;
   let photoMenuY = 0;
 
   const photoMenuHold_ = createHoldDetector_(PHOTO_MENU_HOLD_MS, () => {
-    imageMenuBlockClickUntil = Date.now() + 900;
-    if (navigator.vibrate) navigator.vibrate(8);
-    showBuschPhotoMenu_(photoMenuX, photoMenuY);
+    triggerPhotoMenu_(photoMenuX, photoMenuY);
   });
 
   const logoHold_ = createHoldDetector_(1000, () => {
-    longPressTriggered = true;
-    openPopup();
+    triggerLogoPopup_();
   });
 
   const TAP_MOVE_THRESHOLD = 8;
@@ -4388,6 +4394,7 @@ function showBuschPhotoMenu_(x, y) {
     popup.hidden = false;
     document.body.style.overflow = "hidden";
     document.body.classList.add("noSelect");
+    void popup.offsetWidth;
   }
 
   function closePopup() {
@@ -4436,6 +4443,16 @@ function showBuschPhotoMenu_(x, y) {
     }, 0);
   }
 
+  if (coarsePointer_) {
+    trigger.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerLogoPopup_();
+    });
+  } else {
+    trigger.addEventListener("contextmenu", suppressNativePress);
+  }
+
   trigger.addEventListener("mousedown", startLogoPress_);
   trigger.addEventListener("mouseup", endLogoPress_);
   trigger.addEventListener("mouseleave", () => logoHold_.cancel());
@@ -4449,6 +4466,12 @@ function showBuschPhotoMenu_(x, y) {
   let tapStartY = 0;
   let tapStartedWithMultiTouch = false;
 
+  popupImg?.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerPhotoMenu_(e.clientX || 0, e.clientY || 0);
+  });
+
   popupImg?.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.isPrimary === false) return;
@@ -4459,7 +4482,12 @@ function showBuschPhotoMenu_(x, y) {
 
     photoMenuX = tapStartX;
     photoMenuY = tapStartY;
-    photoMenuHold_.start(tapStartX, tapStartY);
+
+    // Touch long-press is handled by contextmenu on Safari/PWA; keep the
+    // interval hold path for mouse / fine-pointer desktop only.
+    if (!(coarsePointer_ && e.pointerType === "touch")) {
+      photoMenuHold_.start(tapStartX, tapStartY);
+    }
 
     if (e.pointerType === "touch" && e.cancelable) {
       e.preventDefault();
