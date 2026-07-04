@@ -126,19 +126,19 @@
   <div class="bottomNav">
   <div class="navInner">
     <button class="navBtn" id="nav-race" onclick="showView('current')">
-      <div class="ico">🏁</div><div>Matchup</div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4c3-1.5 6 1.5 9 0s5-1 5-1v10s-2-.5-5 1-6-1.5-9 0"/><path d="M9 4.5v9.2M14 4.7v9.2M5 8h14M5 11.5h14" stroke-width="1"/></svg></div><div>Matchup</div>
     </button>
     <button class="navBtn" id="nav-live" onclick="showView('live')">
-      <div class="ico">📡</div><div>Live</div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5.7 18.3a9 9 0 0 1 0-12.6M18.3 5.7a9 9 0 0 1 0 12.6"/></svg></div><div>Live</div>
     </button>
     <button class="navBtn" id="nav-bracket" onclick="showView('bracket')">
-      <div class="ico">🏆</div><div>Bracket</div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5a0 0 0 0 0 0 0c0 3 1.5 4.5 3 4.8M17 6h2.5c0 3-1.5 4.5-3 4.8"/><path d="M12 14v4M8.5 20h7M10 18h4"/></svg></div><div>Bracket</div>
     </button>
     <button class="navBtn" id="nav-me" onclick="showView('mymatchup')">
-      <div class="ico">🧍</div><div>Me</div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-3.5 3.8-5 7-5s6 1.5 7 5"/></svg></div><div>Me</div>
     </button>
     <button class="navBtn" id="nav-stats" onclick="showView('standings')">
-      <div class="ico">📊</div><div>Stats</div>
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V13M10 20V6M15 20v-9M20 20V9"/></svg></div><div>Stats</div>
     </button>
   </div>
 </div>
@@ -280,6 +280,11 @@
         <button id="buschUploadBtn" class="primary" type="button">Upload Photos</button>
 
         <div id="buschUploadStatus" class="adminStatus"></div>
+
+        <div class="adminRow">
+          <button id="buschRatingsBtn" class="primary" type="button">📊 Photo Ratings</button>
+        </div>
+        <div id="buschRatingsList" class="buschRatingsList"></div>
       </div>
     </div>
   </div>
@@ -288,6 +293,10 @@
     <div class="buschPopupCard">
       <button id="buschPopupClose" class="buschPopupClose" type="button">×</button>
       <img id="buschPopupImg" src="" alt="Busch Light Girls!" class="buschPopupImg">
+      <div class="buschVoteRow">
+        <button id="buschDislikeBtn" class="voteBtn" type="button" aria-label="Dislike">👎</button>
+        <button id="buschLikeBtn" class="voteBtn" type="button" aria-label="Like">👍</button>
+      </div>
     </div>
   </div>
     <script>

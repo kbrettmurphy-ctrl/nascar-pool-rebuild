@@ -679,9 +679,11 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
               ? ` Round ${nextRoundNumber} is against ${nextOpponentName}.`
               : "";
 
+          const roast = won ? pickRoast_(WIN_LINES_) : pickRoast_(LOSS_LINES_);
+
           const push = await sendPlayerNotification(env, playerName, {
             title: "Results Posted",
-            body: `${winnerText}You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.${nextText}`,
+            body: `${winnerText}You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}. ${roast}${nextText}`,
             url: "/"
           });
 
@@ -733,6 +735,32 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
   }*/
 
   return pushResults;
+}
+
+const WIN_LINES_ = [
+  "Go rub it in.",
+  "Somebody's gotta carry this pool.",
+  "Talk your shit, you earned it.",
+  "Textbook. Frame it.",
+  "The spreadsheet gods smile on you.",
+  "Even a blind squirrel, but still.",
+  "Victory lap approved.",
+  "Don't let it go to your helmet."
+];
+
+const LOSS_LINES_ = [
+  "Rough. Real rough.",
+  "Maybe try picking drivers that finish.",
+  "The Big One found you personally.",
+  "Your lineup hit the wall on lap 1.",
+  "Thoughts and prayers to your bracket.",
+  "Blame the crew chief. Always works.",
+  "That one's gonna sting till Sunday.",
+  "Park it and think about what you did."
+];
+
+function pickRoast_(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function ordinal_(n) {

@@ -335,6 +335,13 @@ if (liveCard) {
           ? `${m.leader === "Tie" ? "Leader:" : `Leader: ${escapeHtml(m.leader)}`}`
           : `Leader: -`;
 
+      const a1n = Number(m.p1Avg);
+      const a2n = Number(m.p2Avg);
+      const leadBar =
+        (Number.isFinite(a1n) && Number.isFinite(a2n) && a1n > 0 && a2n > 0)
+          ? `<div class="leadBar"><span style="width:${Math.max(8, Math.min(92, Math.round((a2n / (a1n + a2n)) * 100)))}%"></span></div>`
+          : "";
+
       return `
         <div class="microBox liveMatchupCard"
              data-p1="${escapeAttr(String(m.p1 || "").trim().toLowerCase())}"
@@ -365,6 +372,7 @@ if (liveCard) {
             </div>
           </div>
 
+          ${leadBar}
           <div class="microMeta" style="margin-top:8px;font-weight:700;">
             ${leaderLine}
           </div>
@@ -1829,6 +1837,8 @@ await refreshAfterAdminChange_();
       norm(ALL_MATCHUPS.current.race) === norm(data.race) &&
       String(ALL_MATCHUPS.current.tournament || "").trim() === String(data.tournament || "").trim();
 
+    renderGreenFlagCountdown_(sub, isCurrentRace);
+
     if (!spoilersOn && isCurrentRace){
       area.innerHTML = `
         <div class="microBox" style="margin-top:10px;">
@@ -2239,6 +2249,8 @@ await refreshAfterAdminChange_();
         return;
       }
 
+      const h2h = await h2hLineHtml_(data.you, data.opponent);
+
       out.innerHTML = `
         <div class="mmHeader">
           Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
@@ -2252,6 +2264,7 @@ await refreshAfterAdminChange_();
           <div class="microTitle">${escapeHtml(data.opponent)}</div>
           ${oppMeta ? `<div class="microMeta">${escapeHtml(oppMeta)}</div>` : ``}
         </div>
+        ${h2h}
       `;
     }catch(e){
       out.textContent = "Error: " + (e && e.message ? e.message : e);
@@ -2306,11 +2319,18 @@ await refreshAfterAdminChange_();
           ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
           : `Balance Due: $${balance.toFixed(2)}`;
 
+      const venmoBtn = (balance > 0 && VENMO_HANDLE)
+        ? `<a class="venmoPayBtn" target="_blank" rel="noopener"
+             href="https://account.venmo.com/pay?recipients=${encodeURIComponent(VENMO_HANDLE)}&amount=${balance.toFixed(2)}&note=${encodeURIComponent("NASCAR Pool dues - " + name)}">
+             Pay $${balance.toFixed(2)} on Venmo</a>`
+        : "";
+
       out.innerHTML =
         `<div class="microBox">
           <div>${paidLine}</div>
           <div>Winnings: $${winnings.toFixed(2)}</div>
           <div>${balanceLine}</div>
+          ${venmoBtn}
         </div>`;
 
     } catch (e) {
@@ -2319,6 +2339,10 @@ await refreshAfterAdminChange_();
   }
 
   const DUES_PER_RACE = 5;
+
+  // Venmo handle for one-tap dues payment (no leading @).
+  // Leave empty to hide the pay button.
+  const VENMO_HANDLE = "";
 
   function duesNagKey_(playerName, raceKey){
     const n = String(playerName || "").trim().toLowerCase();
@@ -2691,6 +2715,14 @@ await refreshAfterAdminChange_();
     const rankKey = headers.find(h => /rank/i.test(h)) || headers[0];
     const you = loadPlayerName().trim().toLowerCase();
 
+    // Movement vs last completed race; recompute once race data arrives.
+    const deltas = overallRankDeltas_();
+    if (!deltas && !_playerRaceData) {
+      getPlayerRaceData_().then(() => {
+        if (_statsMode === "overall") renderOverall_(box);
+      }).catch(() => {});
+    }
+
     let html = `<div class="big">Overall</div>`;
     rows.forEach(r => {
       const rank = r[rankKey] ?? "";
@@ -2719,10 +2751,15 @@ await refreshAfterAdminChange_();
         })
       ].filter(Boolean).join("");
 
+      const dv = deltas ? deltas.get(String(name).trim().toLowerCase()) : null;
+      const move = (dv == null || dv === 0)
+        ? ""
+        : `<span class="moveArrow ${dv > 0 ? "up" : "down"}">${dv > 0 ? "▲" : "▼"}${Math.abs(dv)}</span>`;
+
       html += `
         <div class="statsRow overallRow ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(rank || "—")}</div>
-          <div class="statsName">${escapeHtml(name)}</div>
+          <div class="statsName">${escapeHtml(name)}${move}</div>
           <div class="statsBadges">${badges}</div>
         </div>
       `;
@@ -3351,6 +3388,279 @@ const BUSCH_WARMUP_COUNT = 2;
 const SHOW_KYLE_TRIBUTE = false;
 const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
+/* ==========================================================
+   Green flag countdown (Matchup tab, current race only)
+   ========================================================== */
+
+let _gfTimer = null;
+let _gfStartMs = null;
+
+async function renderGreenFlagCountdown_(subEl, isCurrent) {
+  if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
+  if (!subEl || !isCurrent) return;
+
+  try {
+    if (_gfStartMs === null) {
+      const res = await fetch("/api/live-matchups", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      let v = String(data?.race?.startTime || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) && !/[zZ]|[+-]\d{2}:\d{2}$/.test(v)) {
+        v += "-04:00";
+      }
+      const d = new Date(v);
+      _gfStartMs = Number.isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+
+    if (!_gfStartMs) return;
+
+    const paint = () => {
+      let el = document.getElementById("greenFlagCountdown");
+      const diff = _gfStartMs - Date.now();
+
+      if (diff <= 0) {
+        if (el) el.remove();
+        if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
+        return;
+      }
+
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "greenFlagCountdown";
+        el.className = "gfCountdown";
+        subEl.appendChild(el);
+      }
+
+      const mins = Math.floor(diff / 60000);
+      const days = Math.floor(mins / 1440);
+      const hrs = Math.floor((mins % 1440) / 60);
+      const m = mins % 60;
+      const when = days ? `${days}d ${hrs}h` : (hrs ? `${hrs}h ${m}m` : `${m}m`);
+      el.textContent = `🟢 Green flag in ${when}`;
+    };
+
+    paint();
+    _gfTimer = setInterval(paint, 30000);
+  } catch (e) {
+    // countdown is decorative; never block the matchup render
+  }
+}
+
+/* ==========================================================
+   Head-to-head record (My Matchup)
+   ========================================================== */
+
+async function h2hLineHtml_(you, opp) {
+  try {
+    const blob = await getPlayerRaceData_();
+    const races = blob?.matchups?.races || {};
+    const ny = String(you || "").trim().toLowerCase();
+    const no = String(opp || "").trim().toLowerCase();
+    if (!ny || !no) return "";
+
+    let yw = 0, ow = 0;
+
+    for (const k of Object.keys(races)) {
+      for (const m of (races[k]?.matchups || [])) {
+        const p1 = String(m.p1 || "").trim().toLowerCase();
+        const p2 = String(m.p2 || "").trim().toLowerCase();
+        const w  = String(m.winner || "").trim().toLowerCase();
+        if (!w) continue;
+        if ((p1 === ny && p2 === no) || (p1 === no && p2 === ny)) {
+          if (w === ny) yw++;
+          else if (w === no) ow++;
+        }
+      }
+    }
+
+    if (!yw && !ow) return "";
+
+    const txt =
+      yw === ow ? `All-time: tied ${yw}–${ow}` :
+      yw > ow   ? `All-time: you lead ${yw}–${ow}` :
+                  `All-time: ${escapeHtml(opp)} leads ${ow}–${yw}`;
+
+    return `<div class="h2hLine">${txt}</div>`;
+  } catch (e) {
+    return "";
+  }
+}
+
+/* ==========================================================
+   Overall standings movement (vs last completed race)
+   ========================================================== */
+
+function overallRankDeltas_() {
+  const races = _playerRaceData?.matchups?.races;
+  if (!races) return null;
+
+  const raceList = Object.values(races)
+    .map(r => ({
+      t: Number(r.tournament) || 0,
+      rnd: Number(r.round) || 0,
+      ms: (r.matchups || []).filter(m => String(m.winner || "").trim())
+    }))
+    .filter(r => r.ms.length);
+
+  if (raceList.length < 2) return null;
+
+  raceList.sort((a, b) => a.t - b.t || a.rnd - b.rnd);
+
+  function ranksThrough(count) {
+    const rec = new Map();
+    for (let i = 0; i < count; i++) {
+      for (const m of raceList[i].ms) {
+        const p1 = String(m.p1 || "").trim().toLowerCase();
+        const p2 = String(m.p2 || "").trim().toLowerCase();
+        const w  = String(m.winner || "").trim().toLowerCase();
+        if (!p1 || !p2 || !w) continue;
+        if (!rec.has(p1)) rec.set(p1, { w: 0, l: 0 });
+        if (!rec.has(p2)) rec.set(p2, { w: 0, l: 0 });
+        const loser = w === p1 ? p2 : (w === p2 ? p1 : "");
+        if (!loser) continue;
+        rec.get(w).w++;
+        rec.get(loser).l++;
+      }
+    }
+    const sorted = [...rec.entries()]
+      .sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l || (a[0] < b[0] ? -1 : 1));
+    const out = new Map();
+    sorted.forEach(([k], i) => out.set(k, i + 1));
+    return out;
+  }
+
+  const prev = ranksThrough(raceList.length - 1);
+  const cur  = ranksThrough(raceList.length);
+
+  const deltas = new Map();
+  for (const [k, r] of cur) {
+    const p = prev.get(k);
+    if (p) deltas.set(k, p - r);
+  }
+  return deltas;
+}
+
+/* ==========================================================
+   Busch girls voting
+   ========================================================== */
+
+const BUSCH_VOTE_KEY = "nascar_bg_votes";
+
+function bgVotes_() {
+  try { return JSON.parse(localStorage.getItem(BUSCH_VOTE_KEY) || "{}"); }
+  catch { return {}; }
+}
+
+function initBuschVotes_() {
+  const likeBtn = document.getElementById("buschLikeBtn");
+  const dislikeBtn = document.getElementById("buschDislikeBtn");
+  const img = document.getElementById("buschPopupImg");
+  if (!likeBtn || !dislikeBtn || !img) return;
+
+  function currentPhoto_() {
+    const cleanSrc = String(img.src || "").split("?")[0];
+    return buschGirls.find(p => String(p.url || "").split("?")[0] === cleanSrc) || null;
+  }
+
+  function paint_() {
+    const p = currentPhoto_();
+    const v = p ? Number(bgVotes_()[p.id] || 0) : 0;
+    likeBtn.classList.toggle("selected", v === 1);
+    dislikeBtn.classList.toggle("selected", v === -1);
+  }
+
+  async function vote_(v) {
+    const p = currentPhoto_();
+    if (!p || !p.id) return;
+
+    const name = loadPlayerName().trim();
+    if (!name) {
+      alert("Pick your name first so your vote counts.");
+      return;
+    }
+
+    const votes = bgVotes_();
+    votes[p.id] = v;
+    try { localStorage.setItem(BUSCH_VOTE_KEY, JSON.stringify(votes)); } catch {}
+    paint_();
+
+    try {
+      await fetch("/api/buschgirl-vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoId: p.id, playerName: name, vote: v })
+      });
+    } catch (e) {
+      // vote stays reflected locally; server catches up next tap
+    }
+  }
+
+  likeBtn.addEventListener("click", () => vote_(1));
+  dislikeBtn.addEventListener("click", () => vote_(-1));
+  new MutationObserver(paint_).observe(img, { attributes: true, attributeFilter: ["src"] });
+}
+
+/* ==========================================================
+   Admin: Busch girls photo ratings + removal
+   ========================================================== */
+
+async function loadBuschRatings_() {
+  const box = document.getElementById("buschRatingsList");
+  if (!box) return;
+
+  box.innerHTML = `<div class="muted">Loading ratings…</div>`;
+
+  try {
+    const data = await adminFetch_("/api/buschgirl-vote", { cache: "no-store" });
+    const rows = Array.isArray(data?.photos) ? data.photos : [];
+
+    if (!rows.length) {
+      box.innerHTML = `<div class="muted">No photos found.</div>`;
+      return;
+    }
+
+    box.innerHTML =
+      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} photos</div>` +
+      rows.map(p => `
+        <div class="bgRateRow" data-id="${escapeAttr(String(p.id))}">
+          <img src="${escapeAttr(p.url)}" loading="lazy" alt="">
+          <div class="bgRateInfo">
+            <div class="bgRateName">${escapeHtml(p.folder)}/${escapeHtml(p.filename)}</div>
+            <div class="bgRateVotes">👍 ${Number(p.likes) || 0} · 👎 ${Number(p.dislikes) || 0} · net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</div>
+          </div>
+          <button class="bgRemoveBtn" type="button">Remove</button>
+        </div>
+      `).join("");
+
+    box.querySelectorAll(".bgRemoveBtn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest(".bgRateRow");
+        const photoId = Number(row?.dataset?.id);
+        if (!photoId) return;
+        if (!confirm("Remove this photo from the rotation?")) return;
+
+        btn.disabled = true;
+        try {
+          const res = await adminFetch_("/api/remove-buschgirl", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ photoId })
+          });
+          if (res?.ok) row.remove();
+          else {
+            alert(res?.error || "Remove failed");
+            btn.disabled = false;
+          }
+        } catch (e) {
+          alert(e.message || String(e));
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="muted">Error: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
 function preloadBuschImage_(src) {
   if (!src) return;
 
@@ -3369,6 +3679,7 @@ async function loadBuschGirls() {
 
     buschGirls = (data.photos || [])
       .map(p => ({
+        id: Number(p.id) || 0,
         url: String(p.url || "").trim(),
         folder: String(p.folder || "").trim().toLowerCase(),
         uploadedAt: String(p.uploaded_at || "").trim()
@@ -3955,6 +4266,7 @@ function initAdminControls_() {
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
+  document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
   document.getElementById("adminTestPushBtn")?.addEventListener("click", sendTestPush_);
 }
 
@@ -3990,6 +4302,7 @@ function initAdminControls_() {
     persistHScroll(".navInner", "nascar_nav_scroll");
     await loadBuschGirls();
     initBuschLongPress_();
+    initBuschVotes_();
     showKyleTributeOnLoad_();
 
     startLivePolling_();

@@ -213,16 +213,21 @@ body{
 
 h2{ margin:0 0 6px 0; font-size: var(--h2); font-weight:800; letter-spacing:-0.4px; }
 
-/* NASCAR tri-stripe across the very top of the page */
+/* NASCAR tri-stripe pinned to the very top of the screen.
+   The bar extends up through the notch/Dynamic-Island safe area
+   (filled with the page bg) so content never scrolls above it. */
 body::after{
   content:"";
   position: fixed;
   top:0; left:0; right:0;
-  height:4px;
-  background: linear-gradient(90deg,
-    var(--yellow) 0%, var(--yellow) 33.3%,
-    var(--red) 33.3%, var(--red) 66.6%,
-    var(--blue) 66.6%, var(--blue) 100%);
+  height: calc(env(safe-area-inset-top, 0px) + 4px);
+  background:
+    linear-gradient(90deg,
+      var(--yellow) 0%, var(--yellow) 33.3%,
+      var(--red) 33.3%, var(--red) 66.6%,
+      var(--blue) 66.6%, var(--blue) 100%)
+    bottom / 100% 4px no-repeat,
+    var(--bg);
   z-index: 10000;
   pointer-events:none;
 }
@@ -254,17 +259,19 @@ body::before{
   flex-wrap:wrap;
 }
 
+/* Standard control height: pills, switches, and icon buttons all 34px */
 .pill{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:5px 10px;
+  height:34px;
+  padding:0 12px;
   border-radius:999px;
   background: var(--yellowChipBg);
   border:1px solid var(--yellowChipBorder);
   color: var(--yellowText);
   font-size:12px;
-  font-weight:800;
+  font-weight:700;
   letter-spacing:.2px;
 }
 
@@ -620,7 +627,7 @@ select, input{
   margin-top:0;
 }
 
-.raceHeaderRow select{
+#bracketHeaderSelect select{
   background: var(--chip);
   border:1px solid var(--chipBorder);
   font-size:13px;
@@ -628,20 +635,48 @@ select, input{
   padding:5px 8px;
   border-radius:10px;
 }
+
+/* The race dropdown IS the card title (Apple-style inline picker);
+   the duplicate text header is hidden. */
+#currentHeader{ display:none; }
+
+#raceSelect{
+  appearance:none;
+  -webkit-appearance:none;
+  border:none;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 2px center / 12px 8px;
+  padding:0 22px 0 0;
+  font-size: var(--big);
+  font-weight:800;
+  letter-spacing:-0.3px;
+  color: var(--text);
+  border-radius:8px;
+}
+:root[data-theme="light"] #raceSelect{
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230c1a26' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
 #currentHeader{ font-size: var(--big); font-weight:800; letter-spacing:-0.3px; margin-bottom:0; }
 #currentSub{ font-size:13px; color: var(--muted); margin-top:2px; line-height:1.3; }
 
+/* Matchups render as a hairline-separated list, not stacked cards */
 .matchupCard{
-  border:1px solid var(--lineSoft);
-  border-radius: var(--radius2);
-  background: var(--glassBlue10);
-  padding: 10px;
-  margin-top: 8px;
+  border:none;
+  border-radius:0;
+  background: transparent;
+  padding: 10px 4px;
+  margin-top: 0;
+  border-bottom:1px solid var(--lineSoft);
 }
+.matchupCard:last-child{ border-bottom:none; }
 
 .matchupCard.youRow{
-  background: var(--glassBlue20);
-  border: 2px solid var(--glassBlue55);
+  background: var(--glassBlue14);
+  border:none;
+  border-bottom:none;
+  border-radius: 12px;
+  padding: 10px;
 }
 
 .matchupRow{
@@ -1133,6 +1168,11 @@ select, input{
   font-size:20px;
   line-height:1.1;
 }
+.navBtn .ico svg{
+  width:22px;
+  height:22px;
+  display:block;
+}
 .navBtn.active .ico{
   transform: translateY(-1px);
 }
@@ -1185,16 +1225,19 @@ select, input{
 
 .statsPanel{ margin-top:6px; }
 
+/* Stats render as a hairline-separated list */
 .statsRow{
   display:flex;
   align-items:center;
   gap:10px;
-  padding:6px 8px;
-  border-radius:12px;
-  border:1px solid var(--lineSoft);
-  background: var(--glassBlue10);
-  margin-top:4px;
+  padding:8px 4px;
+  border-radius:0;
+  border:none;
+  border-bottom:1px solid var(--lineSoft);
+  background: transparent;
+  margin-top:0;
 }
+.statsRow:last-child{ border-bottom:none; }
 
 .statsLeft{
   flex:0 0 auto;
@@ -1311,12 +1354,126 @@ select, input{
   .statsModes{ flex-wrap: nowrap !important; overflow-x:auto !important; }
 }
 
-.statsRow.paidRow{ border:1px solid var(--greenfade); }
+.statsRow.paidRow{ box-shadow: inset 3px 0 0 var(--greenfade); }
 .statsRow.youRow{
-  background: var(--glassBlue20);
+  background: var(--glassBlue14);
+  border-radius: 10px;
+  border-bottom-color: transparent;
+  padding-left:8px;
+  padding-right:8px;
+}
+
+/* ==========================================================
+   New feature components
+   ========================================================== */
+
+.gfCountdown{
+  display:block;
+  margin-top:4px;
+  font-weight:700;
+  font-size:13px;
+  color: var(--greenText);
+}
+
+.leadBar{
+  position:relative;
+  height:4px;
+  border-radius:999px;
+  background: rgba(228,0,43,.45);
+  margin-top:8px;
+  overflow:hidden;
+}
+.leadBar span{
+  position:absolute;
+  top:0; bottom:0; left:0;
+  background: var(--blue);
+  border-radius:999px;
+}
+
+.h2hLine{
+  margin-top:8px;
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+  color: var(--muted);
+}
+
+.moveArrow{
+  font-size:10px;
+  font-weight:800;
+  margin-left:6px;
+  vertical-align:1px;
+}
+.moveArrow.up{ color: var(--greenText); }
+.moveArrow.down{ color: var(--redText); }
+
+.venmoPayBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:10px;
+  padding:8px 14px;
+  border-radius:12px;
+  background:#008CFF;
+  color:#ffffff;
+  font-weight:700;
+  font-size:13px;
+  text-decoration:none;
+}
+
+.buschVoteRow{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin-top:10px;
+}
+.voteBtn{
+  width:56px;
+  height:40px;
+  font-size:20px;
+  border-radius:12px;
+  background: var(--chip);
+  border:1px solid var(--chipBorder);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+.voteBtn.selected{
+  background: var(--glassBlue42);
   border-color: var(--glassBlue55);
 }
-.statsRow.paidRow.youRow{ border:1px solid var(--greenfade); }
+
+.buschRatingsList{ margin-top:10px; }
+.bgRateRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:6px 0;
+  border-bottom:1px solid var(--lineSoft);
+}
+.bgRateRow img{
+  width:44px;
+  height:44px;
+  object-fit:cover;
+  border-radius:8px;
+  flex:0 0 auto;
+}
+.bgRateInfo{ min-width:0; flex:1 1 auto; }
+.bgRateName{
+  font-size:12px;
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.bgRateVotes{ font-size:12px; color: var(--muted); }
+.bgRemoveBtn{
+  flex:0 0 auto;
+  background: rgba(228,0,43,.16);
+  border:1px solid rgba(228,0,43,.40);
+  color: var(--redText);
+}
 
 /* ==========================================================
    Sponsor footer
