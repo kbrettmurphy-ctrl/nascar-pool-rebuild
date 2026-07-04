@@ -143,6 +143,44 @@
     }
   })();
 
+  let _pageScrollLockTimer = null;
+
+  function updatePageScrollLock_() {
+    const root = document.documentElement;
+    const active = document.getElementById("view-" + activeView);
+    const nav = document.querySelector(".bottomNav");
+    const viewportH = window.innerHeight || window.visualViewport?.height || root.clientHeight || 0;
+    const navH = nav?.getBoundingClientRect().height || 0;
+
+    if (!active || !viewportH) {
+      root.classList.remove("noPageScroll");
+      return;
+    }
+
+    const activeBottom = active.getBoundingClientRect().bottom + window.scrollY;
+    const contentFits = activeBottom + navH + 10 <= viewportH;
+
+    root.classList.toggle("noPageScroll", contentFits);
+    if (contentFits && window.scrollY > 0) {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function schedulePageScrollLock_() {
+    if (_pageScrollLockTimer) clearTimeout(_pageScrollLockTimer);
+    _pageScrollLockTimer = setTimeout(() => {
+      _pageScrollLockTimer = null;
+      updatePageScrollLock_();
+    }, 80);
+  }
+
+  window.addEventListener("resize", schedulePageScrollLock_);
+  window.addEventListener("orientationchange", schedulePageScrollLock_);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", schedulePageScrollLock_);
+    window.visualViewport.addEventListener("scroll", schedulePageScrollLock_);
+  }
+
   /* ==========================================================
    Data fetchers
    ========================================================== */
@@ -1494,6 +1532,8 @@ await refreshAfterAdminChange_();
       loadLiveMatchups();
       startLivePolling_();
     }
+
+    schedulePageScrollLock_();
   }
 
   function refreshActiveView() {
@@ -1531,6 +1571,8 @@ await refreshAfterAdminChange_();
     } else if (activeView === "live") {
       loadLiveMatchups();
     }
+
+    schedulePageScrollLock_();
   }
 
   function savePlayerName(name) {
@@ -4685,6 +4727,11 @@ function initAdminControls_() {
     initBuschVotes_();
     renderGreenFlagCountdown_();
     showKyleTributeOnLoad_();
+    new MutationObserver(schedulePageScrollLock_).observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    schedulePageScrollLock_();
 
     startLivePolling_();
 

@@ -12,6 +12,11 @@
 html{
   scrollbar-gutter: stable;
 }
+html.noPageScroll,
+html.noPageScroll body{
+  height:100%;
+  overflow:hidden;
+}
 @supports not (scrollbar-gutter: stable){
   html{ overflow-y: scroll; }
 }
@@ -1520,7 +1525,7 @@ select, input{
   border-radius:12px;
   background:transparent;
   border:0;
-  color:var(--muted);
+  color:rgba(255,255,255,.88);
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -1532,19 +1537,26 @@ select, input{
   background:var(--chip);
 }
 .voteBtn svg{
-  width:24px;
-  height:24px;
+  width:28px;
+  height:28px;
   display:block;
   fill:currentColor;
-  stroke:currentColor;
-  stroke-width:1.5;
+  stroke:rgba(0,0,0,.48);
+  stroke-width:.9;
   stroke-linejoin:round;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
 }
 .voteBtn.selected{
   background:transparent;
   color:var(--blueText);
   font-weight:700;
   transform:translateY(-1px);
+}
+.voteBtn.selected svg{
+  stroke:rgba(255,255,255,.72);
+  filter:
+    drop-shadow(0 0 5px var(--glassBlue55))
+    drop-shadow(0 2px 5px rgba(0,0,0,.45));
 }
 
 /* Race Hub */
