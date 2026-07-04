@@ -565,7 +565,7 @@ select, input{
   border-radius:16px;
   box-shadow:0 18px 52px rgba(0,0,0,.42);
   touch-action:none;
-  -webkit-touch-callout:none;
+  -webkit-touch-callout:default;
   -webkit-user-select:none;
   user-select:none;
 }

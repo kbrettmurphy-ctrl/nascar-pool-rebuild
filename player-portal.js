@@ -4501,31 +4501,25 @@ function showBuschPhotoMenu_(x, y) {
   let photoTouchStartAt = 0;
   const PHOTO_TAP_MAX_MS = PHOTO_MENU_HOLD_MS - 80;
 
-  function maybeTriggerPhotoMenuHold_() {
-    if (photoMenuShownThisTouch || photoMenuHold_.wasFired()) return;
-    if (Date.now() - photoTouchStartAt >= PHOTO_MENU_HOLD_MS) {
-      triggerPhotoMenu_(photoMenuX, photoMenuY);
-    }
-  }
-
   function wasPhotoLongPress_() {
-    return photoMenuShownThisTouch
-      || photoMenuHold_.wasFired()
-      || (Date.now() - photoTouchStartAt) >= PHOTO_TAP_MAX_MS;
+    if (photoMenuShownThisTouch || photoMenuHold_.wasFired()) return true;
+    if (!photoTouchStartAt) return false;
+    return (Date.now() - photoTouchStartAt) >= PHOTO_TAP_MAX_MS;
   }
 
   popupImg?.addEventListener("contextmenu", (e) => {
-    if (coarsePointer_) return;
     e.preventDefault();
     e.stopPropagation();
     triggerPhotoMenu_(e.clientX || 0, e.clientY || 0);
   });
 
   popupImg?.addEventListener("pointerdown", (e) => {
-    if (photoMenuTouchActive && e.pointerType === "touch") return;
+    if (e.pointerType === "touch") return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.isPrimary === false) return;
 
+    photoTouchStartAt = Date.now();
+    photoMenuShownThisTouch = false;
     tapStartX = e.clientX || 0;
     tapStartY = e.clientY || 0;
     tapStartedWithMultiTouch = false;
@@ -4536,12 +4530,12 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   popupImg?.addEventListener("pointermove", (e) => {
-    if (photoMenuTouchActive && e.pointerType === "touch") return;
+    if (e.pointerType === "touch") return;
     photoMenuHold_.move(e.clientX || 0, e.clientY || 0);
   });
 
   popupImg?.addEventListener("pointerup", (e) => {
-    if (photoMenuTouchActive && e.pointerType === "touch") return;
+    if (e.pointerType === "touch") return;
     if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
     else photoMenuHold_.end();
   });
@@ -4578,21 +4572,10 @@ function showBuschPhotoMenu_(x, y) {
     tapStartY = t.clientY || 0;
     photoMenuX = tapStartX;
     photoMenuY = tapStartY;
-    photoMenuHold_.start(tapStartX, tapStartY);
   }, { passive: true });
 
   popupImg?.addEventListener("touchmove", (e) => {
-    if (e.touches.length > 1) {
-      tapStartedWithMultiTouch = true;
-      if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
-      return;
-    }
-    maybeTriggerPhotoMenuHold_();
-    if (!photoMenuHold_.wasFired()) {
-      const t = e.touches[0];
-      photoMenuHold_.move(t.clientX || 0, t.clientY || 0);
-      maybeTriggerPhotoMenuHold_();
-    }
+    if (e.touches.length > 1) tapStartedWithMultiTouch = true;
   }, { passive: true });
 
   popupImg?.addEventListener("touchend", (e) => {
@@ -4600,9 +4583,7 @@ function showBuschPhotoMenu_(x, y) {
       if (!photoMenuShownThisTouch) {
         triggerPhotoMenu_(photoMenuX, photoMenuY);
       }
-      photoMenuHold_.end();
     } else {
-      photoMenuHold_.cancel();
       const t = e.changedTouches[0];
       if (t) handlePhotoTap_(t.clientX, t.clientY);
     }
@@ -4610,16 +4591,18 @@ function showBuschPhotoMenu_(x, y) {
     setTimeout(() => {
       photoMenuTouchActive = false;
       photoMenuShownThisTouch = false;
+      photoTouchStartAt = 0;
     }, 0);
   }, { passive: true });
 
   popupImg?.addEventListener("touchcancel", () => {
-    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
     photoMenuTouchActive = false;
+    photoMenuShownThisTouch = false;
+    photoTouchStartAt = 0;
   }, { passive: true });
 
   popupImg?.addEventListener("click", (e) => {
-    if (coarsePointer_) return;
+    if (e.pointerType && e.pointerType !== "mouse") return;
     e.preventDefault();
     e.stopPropagation();
     handlePhotoTap_(e.clientX, e.clientY);
