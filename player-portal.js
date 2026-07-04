@@ -4072,6 +4072,12 @@ function initBuschLongPress_() {
       fired = false;
     }
 
+    function stopInterval_() {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = null;
+      holdStart = 0;
+    }
+
     function tick_() {
       if (!holdStart || fired) return;
       if (Date.now() - holdStart >= holdMs) {
@@ -4102,11 +4108,16 @@ function initBuschLongPress_() {
         }
       },
       end() {
-        if (intervalId) clearInterval(intervalId);
-        intervalId = null;
-        holdStart = 0;
+        stopInterval_();
       },
       cancel: clearPending_,
+      confirmFire() {
+        fired = true;
+        stopInterval_();
+      },
+      holdElapsed() {
+        return holdStart ? Date.now() - holdStart : 0;
+      },
       wasFired() { return fired; }
     };
   }
@@ -4114,7 +4125,8 @@ function initBuschLongPress_() {
   function triggerPhotoMenu_(x, y) {
     if (Date.now() - lastPhotoMenuAt < 400) return;
     lastPhotoMenuAt = Date.now();
-    photoMenuHold_.cancel();
+    photoMenuShownThisTouch = true;
+    photoMenuHold_.confirmFire();
     imageMenuBlockClickUntil = Date.now() + 900;
     if (navigator.vibrate) navigator.vibrate(8);
     showBuschPhotoMenu_(x || 0, y || 0);
@@ -4485,6 +4497,22 @@ function showBuschPhotoMenu_(x, y) {
   let tapStartY = 0;
   let tapStartedWithMultiTouch = false;
   let photoMenuTouchActive = false;
+  let photoMenuShownThisTouch = false;
+  let photoTouchStartAt = 0;
+  const PHOTO_TAP_MAX_MS = PHOTO_MENU_HOLD_MS - 80;
+
+  function maybeTriggerPhotoMenuHold_() {
+    if (photoMenuShownThisTouch || photoMenuHold_.wasFired()) return;
+    if (Date.now() - photoTouchStartAt >= PHOTO_MENU_HOLD_MS) {
+      triggerPhotoMenu_(photoMenuX, photoMenuY);
+    }
+  }
+
+  function wasPhotoLongPress_() {
+    return photoMenuShownThisTouch
+      || photoMenuHold_.wasFired()
+      || (Date.now() - photoTouchStartAt) >= PHOTO_TAP_MAX_MS;
+  }
 
   popupImg?.addEventListener("contextmenu", (e) => {
     if (coarsePointer_) return;
@@ -4523,7 +4551,8 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   function handlePhotoTap_(clientX, clientY) {
-    if (Date.now() < imageMenuBlockClickUntil || photoMenuHold_.wasFired()) return;
+    if (wasPhotoLongPress_()) return;
+    if (Date.now() < imageMenuBlockClickUntil) return;
     if (tapStartedWithMultiTouch) return;
 
     const dx = Math.abs((clientX || 0) - tapStartX);
@@ -4539,6 +4568,8 @@ function showBuschPhotoMenu_(x, y) {
 
   popupImg?.addEventListener("touchstart", (e) => {
     photoMenuTouchActive = true;
+    photoMenuShownThisTouch = false;
+    photoTouchStartAt = Date.now();
     tapStartedWithMultiTouch = e.touches.length > 1;
     if (e.touches.length !== 1) return;
 
@@ -4556,25 +4587,29 @@ function showBuschPhotoMenu_(x, y) {
       if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
       return;
     }
+    maybeTriggerPhotoMenuHold_();
     if (!photoMenuHold_.wasFired()) {
       const t = e.touches[0];
       photoMenuHold_.move(t.clientX || 0, t.clientY || 0);
+      maybeTriggerPhotoMenuHold_();
     }
   }, { passive: true });
 
   popupImg?.addEventListener("touchend", (e) => {
-    const holdFired = photoMenuHold_.wasFired();
-
-    if (!holdFired) {
+    if (wasPhotoLongPress_()) {
+      if (!photoMenuShownThisTouch) {
+        triggerPhotoMenu_(photoMenuX, photoMenuY);
+      }
+      photoMenuHold_.end();
+    } else {
       photoMenuHold_.cancel();
       const t = e.changedTouches[0];
       if (t) handlePhotoTap_(t.clientX, t.clientY);
-    } else {
-      photoMenuHold_.end();
     }
 
     setTimeout(() => {
       photoMenuTouchActive = false;
+      photoMenuShownThisTouch = false;
     }, 0);
   }, { passive: true });
 
