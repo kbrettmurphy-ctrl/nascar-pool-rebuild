@@ -218,6 +218,7 @@ body{
   background: var(--bg);
   color: var(--text);
   padding-bottom: var(--pageBottomPad);
+  scroll-padding-bottom: var(--pageBottomPad);
   overscroll-behavior-y: contain;
   position: relative;
   overflow-x: hidden;
@@ -559,7 +560,7 @@ select, input{
   object-fit:contain;
   border-radius:16px;
   box-shadow:0 18px 52px rgba(0,0,0,.42);
-  touch-action:manipulation;
+  touch-action:none;
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
@@ -629,6 +630,61 @@ select, input{
 .buschPhotoMenuPanel button.danger{
   color:#d70015;
   font-weight:650;
+}
+
+.buschSaveSheet{
+  position:fixed;
+  inset:0;
+  z-index:10030;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+  background:rgba(0,0,0,.88);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.buschSaveSheet[hidden]{
+  display:none !important;
+}
+
+.buschSaveSheetHint{
+  color:rgba(255,255,255,.82);
+  font-size:14px;
+  font-weight:600;
+  text-align:center;
+  max-width:min(92vw, 360px);
+  line-height:1.35;
+}
+
+.buschSaveSheetImg{
+  display:block;
+  width:auto;
+  max-width:min(94vw, 560px);
+  height:auto;
+  max-height:calc(72vh - 80px);
+  object-fit:contain;
+  border-radius:12px;
+  box-shadow:0 18px 52px rgba(0,0,0,.42);
+  -webkit-touch-callout:default !important;
+  -webkit-user-select:auto !important;
+  user-select:auto !important;
+  touch-action:manipulation;
+}
+
+.buschSaveSheetDone{
+  min-width:120px;
+  min-height:40px;
+  padding:0 22px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  font-size:15px;
+  font-weight:700;
 }
 
 .buschLogoWrap{

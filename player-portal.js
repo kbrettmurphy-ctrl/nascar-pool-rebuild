@@ -150,7 +150,7 @@
     const active = document.getElementById("view-" + activeView);
     const nav = document.querySelector(".bottomNav");
     const viewportH = window.innerHeight || root.clientHeight || 0;
-    const navH = nav?.getBoundingClientRect().height || 0;
+    const navH = nav?.offsetHeight || 0;
     const fullPad = `calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb))`;
 
     if (!active || !viewportH) {
@@ -158,8 +158,10 @@
       return;
     }
 
-    const activeBottom = active.getBoundingClientRect().bottom + window.scrollY;
-    const needsBottomPad = activeBottom > (viewportH - navH - 10);
+    // Measure content height only — never use scroll position, which caused
+    // padding to flip at the bottom and required a second scroll to settle.
+    const contentH = active.offsetHeight;
+    const needsBottomPad = contentH > (viewportH - navH - 24);
 
     root.style.setProperty("--pageBottomPad", needsBottomPad ? fullPad : "0px");
   }
@@ -176,7 +178,6 @@
   window.addEventListener("orientationchange", schedulePageBottomPadding_);
   if (window.visualViewport) {
     window.visualViewport.addEventListener("resize", schedulePageBottomPadding_);
-    window.visualViewport.addEventListener("scroll", schedulePageBottomPadding_);
   }
 
   /* ==========================================================
@@ -4059,14 +4060,65 @@ function initBuschLongPress_() {
 
   popupImg?.addEventListener("contextmenu", suppressNativePress);
 
-  let photoMenuTimer = null;
-  let photoMenuPointerId = null;
-  let photoMenuStartX = 0;
-  let photoMenuStartY = 0;
   let imageMenuBlockClickUntil = 0;
   let buschPhotoMenuEl = null;
-  let photoMenuTouchActive = false;
+  let buschSaveSheetEl = null;
   const PHOTO_MENU_HOLD_MS = 650;
+  const HOLD_MOVE_THRESHOLD = 10;
+
+  function createHoldDetector_(holdMs, onTrigger) {
+    let rafId = null;
+    let holdStart = 0;
+    let startX = 0;
+    let startY = 0;
+    let fired = false;
+
+    function clearPending_() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      holdStart = 0;
+      fired = false;
+    }
+
+    function tick_() {
+      if (!holdStart) return;
+      if (!fired && Date.now() - holdStart >= holdMs) {
+        fired = true;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        onTrigger();
+        return;
+      }
+      rafId = requestAnimationFrame(tick_);
+    }
+
+    return {
+      start(x, y) {
+        clearPending_();
+        holdStart = Date.now();
+        startX = x || 0;
+        startY = y || 0;
+        fired = false;
+        rafId = requestAnimationFrame(tick_);
+      },
+      move(x, y) {
+        if (!holdStart || fired) return;
+        if (
+          Math.abs((x || 0) - startX) > HOLD_MOVE_THRESHOLD ||
+          Math.abs((y || 0) - startY) > HOLD_MOVE_THRESHOLD
+        ) {
+          clearPending_();
+        }
+      },
+      end() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        holdStart = 0;
+      },
+      cancel: clearPending_,
+      wasFired() { return fired; }
+    };
+  }
 
 function buschPhotoInfoFromSrc_(src) {
   const cleanSrc = String(src || "").split("?")[0];
@@ -4105,6 +4157,13 @@ function closePhotoMenu_() {
   }
 }
 
+function closeBuschSaveSheet_() {
+  if (buschSaveSheetEl) {
+    buschSaveSheetEl.remove();
+    buschSaveSheetEl = null;
+  }
+}
+
 function downloadBuschPhoto_(info) {
   if (!info?.url) return;
 
@@ -4117,20 +4176,60 @@ function downloadBuschPhoto_(info) {
   a.remove();
 }
 
-async function saveBuschPhoto_(info) {
+async function fetchBuschPhotoFile_(info) {
+  const res = await fetch(info.url, { cache: "no-store" });
+  if (!res.ok) throw new Error("Could not load photo.");
+  const blob = await res.blob();
+  const ext = String(info.file || "").split(".").pop() || "jpg";
+  const type = blob.type || `image/${ext}`;
+  const file = new File([blob], info.file || `busch-photo.${ext}`, { type });
+  return file;
+}
+
+function showBuschPhotoSaveSheet_(info) {
   if (!info?.url) return;
 
-  if (navigator.share) {
-    try {
+  closeBuschSaveSheet_();
+  closePhotoMenu_();
+
+  const sheet = document.createElement("div");
+  sheet.className = "buschSaveSheet";
+  sheet.innerHTML = `
+    <div class="buschSaveSheetHint">Press and hold the image for Save Image / Add to Photos</div>
+    <img class="buschSaveSheetImg" src="${escapeAttr(info.url)}" alt="${escapeAttr(info.file || "Busch photo")}">
+    <button type="button" class="buschSaveSheetDone">Done</button>
+  `;
+
+  sheet.querySelector(".buschSaveSheetDone")?.addEventListener("click", closeBuschSaveSheet_);
+  sheet.addEventListener("click", (e) => {
+    if (e.target === sheet) closeBuschSaveSheet_();
+  });
+
+  document.body.appendChild(sheet);
+  buschSaveSheetEl = sheet;
+}
+
+async function saveBuschPhotoImage_(info) {
+  if (!info?.url) return;
+
+  try {
+    const file = await fetchBuschPhotoFile_(info);
+    if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
-        title: info.file || "Busch photo",
-        url: info.url
+        files: [file],
+        title: info.file || "Busch photo"
       });
       return;
-    } catch (err) {
-      if (err?.name === "AbortError") return;
     }
+  } catch (err) {
+    if (err?.name === "AbortError") return;
   }
+
+  showBuschPhotoSaveSheet_(info);
+}
+
+async function copyBuschPhotoLink_(info) {
+  if (!info?.url) return;
 
   if (navigator.clipboard?.writeText) {
     try {
@@ -4140,7 +4239,7 @@ async function saveBuschPhoto_(info) {
     } catch {}
   }
 
-  downloadBuschPhoto_(info);
+  window.prompt("Copy photo link:", info.url);
 }
 
 async function unlockAdminForPhotoDelete_() {
@@ -4219,10 +4318,10 @@ function showBuschPhotoMenu_(x, y) {
   menu.className = "buschPhotoMenu";
   menu.innerHTML = `
     <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
-      <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
-      <button type="button" role="menuitem" data-action="info">Get Info</button>
-      <button type="button" role="menuitem" data-action="save">Save Options</button>
-      <button type="button" role="menuitem" data-action="download">Download Photo</button>
+      <button type="button" role="menuitem" data-action="save">Save Image</button>
+      <button type="button" role="menuitem" data-action="copy">Copy Link</button>
+      <button type="button" role="menuitem" data-action="info">Photo Info</button>
+      <button type="button" role="menuitem" data-action="download">Download</button>
       <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
     </div>
   `;
@@ -4251,9 +4350,9 @@ function showBuschPhotoMenu_(x, y) {
       const action = btn.dataset.action;
       closePhotoMenu_();
 
-      if (action === "view") window.open(info.url, "_blank", "noopener");
+      if (action === "save") await saveBuschPhotoImage_(info);
+      else if (action === "copy") await copyBuschPhotoLink_(info);
       else if (action === "info") showBuschPhotoInfo_();
-      else if (action === "save") await saveBuschPhoto_(info);
       else if (action === "download") downloadBuschPhoto_(info);
       else if (action === "delete") await deleteBuschPhoto_(info);
     });
@@ -4263,95 +4362,22 @@ function showBuschPhotoMenu_(x, y) {
   imageMenuBlockClickUntil = Date.now() + 650;
 }
 
-function clearPhotoMenuTimer_() {
-  if (photoMenuTimer) clearTimeout(photoMenuTimer);
-  photoMenuTimer = null;
-  photoMenuPointerId = null;
-}
+  let photoMenuX = 0;
+  let photoMenuY = 0;
 
-function schedulePhotoMenu_(x, y, pointerId = null) {
-  closePhotoMenu_();
-  clearPhotoMenuTimer_();
-
-  photoMenuPointerId = pointerId;
-  photoMenuStartX = x || 0;
-  photoMenuStartY = y || 0;
-
-  photoMenuTimer = setTimeout(() => {
-    photoMenuTimer = null;
+  const photoMenuHold_ = createHoldDetector_(PHOTO_MENU_HOLD_MS, () => {
     imageMenuBlockClickUntil = Date.now() + 900;
     if (navigator.vibrate) navigator.vibrate(8);
-    showBuschPhotoMenu_(photoMenuStartX, photoMenuStartY);
-  }, PHOTO_MENU_HOLD_MS);
-}
+    showBuschPhotoMenu_(photoMenuX, photoMenuY);
+  });
 
-popupImg?.addEventListener("pointerdown", (e) => {
-  if (photoMenuTouchActive && e.pointerType === "touch") return;
+  const logoHold_ = createHoldDetector_(1000, () => {
+    longPressTriggered = true;
+    openPopup();
+  });
 
-  if (e.pointerType === "mouse" && e.button !== 0) return;
-
-  schedulePhotoMenu_(e.clientX || 0, e.clientY || 0, e.pointerId);
-});
-
-popupImg?.addEventListener("pointermove", (e) => {
-  if (photoMenuTouchActive && e.pointerType === "touch") return;
-  if (photoMenuPointerId !== e.pointerId || !photoMenuTimer) return;
-
-  if (
-    Math.abs((e.clientX || 0) - photoMenuStartX) > MOVE_THRESHOLD ||
-    Math.abs((e.clientY || 0) - photoMenuStartY) > MOVE_THRESHOLD
-  ) {
-    clearPhotoMenuTimer_();
-  }
-});
-
-popupImg?.addEventListener("pointerup", clearPhotoMenuTimer_);
-popupImg?.addEventListener("pointercancel", clearPhotoMenuTimer_);
-popupImg?.addEventListener("pointerleave", clearPhotoMenuTimer_);
-
-popupImg?.addEventListener("touchstart", (e) => {
-  photoMenuTouchActive = true;
-  if (e.touches.length !== 1) return;
-
-  const t = e.touches[0];
-  schedulePhotoMenu_(t.clientX || 0, t.clientY || 0);
-}, { passive: true });
-
-popupImg?.addEventListener("touchmove", (e) => {
-  if (!photoMenuTimer || e.touches.length !== 1) {
-    clearPhotoMenuTimer_();
-    return;
-  }
-
-  const t = e.touches[0];
-  if (
-    Math.abs((t.clientX || 0) - photoMenuStartX) > MOVE_THRESHOLD ||
-    Math.abs((t.clientY || 0) - photoMenuStartY) > MOVE_THRESHOLD
-  ) {
-    clearPhotoMenuTimer_();
-  }
-}, { passive: true });
-
-popupImg?.addEventListener("touchend", () => {
-  clearPhotoMenuTimer_();
-  setTimeout(() => {
-    photoMenuTouchActive = false;
-  }, 0);
-}, { passive: true });
-
-popupImg?.addEventListener("touchcancel", () => {
-  clearPhotoMenuTimer_();
-  photoMenuTouchActive = false;
-}, { passive: true });
-
-  let pressTimer = null;
-  let startX = 0;
-  let startY = 0;
-  let longPressTriggered = false;
-
-  const MOVE_THRESHOLD = 10;
-  const HOLD_TIME = 1000;
   const TAP_MOVE_THRESHOLD = 8;
+  let longPressTriggered = false;
 
   function openPopup() {
     nextBuschImage_();
@@ -4366,82 +4392,90 @@ popupImg?.addEventListener("touchcancel", () => {
 
   function closePopup() {
     closePhotoMenu_();
-    clearPhotoMenuTimer_();
+    closeBuschSaveSheet_();
+    photoMenuHold_.cancel();
+    logoHold_.cancel();
     popup.hidden = true;
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
   }
 
-  function cancelPress() {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-    document.body.classList.remove("noSelect");
-  }
-
-  function startPress(e) {
-    cancelPress();
+  function startLogoPress_(e) {
     longPressTriggered = false;
-
     if (e.cancelable) e.preventDefault();
 
+    let x = 0;
+    let y = 0;
     if (e.type === "touchstart") {
       const t = e.touches[0];
-      startX = t.clientX;
-      startY = t.clientY;
+      x = t?.clientX || 0;
+      y = t?.clientY || 0;
     } else {
-      startX = e.clientX || 0;
-      startY = e.clientY || 0;
+      x = e.clientX || 0;
+      y = e.clientY || 0;
     }
 
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      longPressTriggered = true;
-      openPopup();
-    }, HOLD_TIME);
+    logoHold_.start(x, y);
   }
 
-  function handleTouchMove(e) {
-    if (!pressTimer) return;
-    const t = e.touches[0];
-    if (!t) return;
-
-    if (
-      Math.abs(t.clientX - startX) > MOVE_THRESHOLD ||
-      Math.abs(t.clientY - startY) > MOVE_THRESHOLD
-    ) {
-      cancelPress();
-    }
+  function moveLogoPress_(e) {
+    const t = e.touches?.[0];
+    const x = t ? t.clientX : (e.clientX || 0);
+    const y = t ? t.clientY : (e.clientY || 0);
+    logoHold_.move(x, y);
   }
 
-  function endPress(e) {
+  function endLogoPress_(e) {
     if (longPressTriggered && e?.cancelable) {
       e.preventDefault();
       e.stopPropagation();
     }
-    cancelPress();
+    logoHold_.end();
     setTimeout(() => {
       longPressTriggered = false;
     }, 0);
   }
 
-  // Attach listeners
-  trigger.addEventListener("mousedown", startPress);
-  trigger.addEventListener("mouseup", endPress);
-  trigger.addEventListener("mouseleave", endPress);
+  trigger.addEventListener("mousedown", startLogoPress_);
+  trigger.addEventListener("mouseup", endLogoPress_);
+  trigger.addEventListener("mouseleave", () => logoHold_.cancel());
 
-  trigger.addEventListener("touchstart", startPress, { passive: false });
-  trigger.addEventListener("touchmove", handleTouchMove, { passive: false });
-  trigger.addEventListener("touchend", endPress, { passive: false });
-  trigger.addEventListener("touchcancel", endPress, { passive: false });
+  trigger.addEventListener("touchstart", startLogoPress_, { passive: false });
+  trigger.addEventListener("touchmove", moveLogoPress_, { passive: false });
+  trigger.addEventListener("touchend", endLogoPress_, { passive: false });
+  trigger.addEventListener("touchcancel", () => logoHold_.cancel(), { passive: false });
 
   let tapStartX = 0;
   let tapStartY = 0;
   let tapStartedWithMultiTouch = false;
 
   popupImg?.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (e.isPrimary === false) return;
+
     tapStartX = e.clientX || 0;
     tapStartY = e.clientY || 0;
     tapStartedWithMultiTouch = false;
+
+    photoMenuX = tapStartX;
+    photoMenuY = tapStartY;
+    photoMenuHold_.start(tapStartX, tapStartY);
+
+    if (e.pointerType === "touch" && e.cancelable) {
+      e.preventDefault();
+    }
+  });
+
+  popupImg?.addEventListener("pointermove", (e) => {
+    photoMenuHold_.move(e.clientX || 0, e.clientY || 0);
+  });
+
+  popupImg?.addEventListener("pointerup", () => {
+    photoMenuHold_.end();
+  });
+
+  popupImg?.addEventListener("pointercancel", () => {
+    photoMenuHold_.cancel();
   });
 
   popupImg?.addEventListener("touchstart", (e) => {
@@ -4455,7 +4489,7 @@ popupImg?.addEventListener("touchcancel", () => {
   }, { passive: true });
 
   popupImg?.addEventListener("click", (e) => {
-    if (Date.now() < imageMenuBlockClickUntil) {
+    if (Date.now() < imageMenuBlockClickUntil || photoMenuHold_.wasFired()) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -4492,6 +4526,11 @@ popupImg?.addEventListener("touchcancel", () => {
   popup.addEventListener("pointerdown", closeIfOutsideCard);
 
   document.addEventListener("keydown", e => {
+    if (buschSaveSheetEl && e.key === "Escape") {
+      closeBuschSaveSheet_();
+      return;
+    }
+
     if (popup.hidden) return;
 
     if (e.key === "Escape") closePopup();
