@@ -12,11 +12,6 @@
 html{
   scrollbar-gutter: stable;
 }
-html.noPageScroll,
-html.noPageScroll body{
-  height:100%;
-  overflow:hidden;
-}
 @supports not (scrollbar-gutter: stable){
   html{ overflow-y: scroll; }
 }
@@ -54,6 +49,7 @@ html.noPageScroll body{
 
   --vvb:0px;
   --navH:62px;
+  --pageBottomPad: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
 
   --wmShift:0px;
 
@@ -221,7 +217,8 @@ body{
   margin: 0 auto;
   background: var(--bg);
   color: var(--text);
-  padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
+  padding-bottom: var(--pageBottomPad);
+  overscroll-behavior-y: contain;
   position: relative;
   overflow-x: hidden;
   transition: background-color .25s ease, color .25s ease;

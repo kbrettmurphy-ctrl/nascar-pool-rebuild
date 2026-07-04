@@ -143,42 +143,40 @@
     }
   })();
 
-  let _pageScrollLockTimer = null;
+  let _pageBottomPaddingTimer = null;
 
-  function updatePageScrollLock_() {
+  function updatePageBottomPadding_() {
     const root = document.documentElement;
     const active = document.getElementById("view-" + activeView);
     const nav = document.querySelector(".bottomNav");
-    const viewportH = window.innerHeight || window.visualViewport?.height || root.clientHeight || 0;
+    const viewportH = window.innerHeight || root.clientHeight || 0;
     const navH = nav?.getBoundingClientRect().height || 0;
+    const fullPad = `calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb))`;
 
     if (!active || !viewportH) {
-      root.classList.remove("noPageScroll");
+      root.style.setProperty("--pageBottomPad", fullPad);
       return;
     }
 
     const activeBottom = active.getBoundingClientRect().bottom + window.scrollY;
-    const contentFits = activeBottom + navH + 10 <= viewportH;
+    const needsBottomPad = activeBottom > (viewportH - navH - 10);
 
-    root.classList.toggle("noPageScroll", contentFits);
-    if (contentFits && window.scrollY > 0) {
-      window.scrollTo(0, 0);
-    }
+    root.style.setProperty("--pageBottomPad", needsBottomPad ? fullPad : "0px");
   }
 
-  function schedulePageScrollLock_() {
-    if (_pageScrollLockTimer) clearTimeout(_pageScrollLockTimer);
-    _pageScrollLockTimer = setTimeout(() => {
-      _pageScrollLockTimer = null;
-      updatePageScrollLock_();
+  function schedulePageBottomPadding_() {
+    if (_pageBottomPaddingTimer) clearTimeout(_pageBottomPaddingTimer);
+    _pageBottomPaddingTimer = setTimeout(() => {
+      _pageBottomPaddingTimer = null;
+      updatePageBottomPadding_();
     }, 80);
   }
 
-  window.addEventListener("resize", schedulePageScrollLock_);
-  window.addEventListener("orientationchange", schedulePageScrollLock_);
+  window.addEventListener("resize", schedulePageBottomPadding_);
+  window.addEventListener("orientationchange", schedulePageBottomPadding_);
   if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", schedulePageScrollLock_);
-    window.visualViewport.addEventListener("scroll", schedulePageScrollLock_);
+    window.visualViewport.addEventListener("resize", schedulePageBottomPadding_);
+    window.visualViewport.addEventListener("scroll", schedulePageBottomPadding_);
   }
 
   /* ==========================================================
@@ -1533,7 +1531,7 @@ await refreshAfterAdminChange_();
       startLivePolling_();
     }
 
-    schedulePageScrollLock_();
+    schedulePageBottomPadding_();
   }
 
   function refreshActiveView() {
@@ -1572,7 +1570,7 @@ await refreshAfterAdminChange_();
       loadLiveMatchups();
     }
 
-    schedulePageScrollLock_();
+    schedulePageBottomPadding_();
   }
 
   function savePlayerName(name) {
@@ -4727,11 +4725,11 @@ function initAdminControls_() {
     initBuschVotes_();
     renderGreenFlagCountdown_();
     showKyleTributeOnLoad_();
-    new MutationObserver(schedulePageScrollLock_).observe(document.body, {
+    new MutationObserver(schedulePageBottomPadding_).observe(document.body, {
       childList: true,
       subtree: true
     });
-    schedulePageScrollLock_();
+    schedulePageBottomPadding_();
 
     startLivePolling_();
 
