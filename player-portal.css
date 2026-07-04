@@ -1518,7 +1518,7 @@ select, input{
   width:44px;
   height:40px;
   font-size:23px;
-  border-radius:0;
+  border-radius:999px;
   background:transparent;
   border:0;
   color:#fff;
@@ -1532,10 +1532,13 @@ select, input{
     drop-shadow(0 2px 7px rgba(0,0,0,.82));
 }
 .voteBtn.selected{
-  background:transparent;
-  border-color:transparent;
+  background:rgba(0,140,255,.84);
+  border:1px solid rgba(255,255,255,.72);
+  box-shadow:
+    0 0 0 2px rgba(0,140,255,.24),
+    0 5px 16px rgba(0,0,0,.38);
   opacity:1;
-  transform:scale(1.08);
+  transform:scale(1.12);
 }
 
 /* Race Hub */
