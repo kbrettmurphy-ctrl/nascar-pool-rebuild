@@ -80,7 +80,7 @@
     state.textContent = on ? "ON" : "OFF";
     thumb.style.transform = on ? "translateX(32px)" : "translateX(0px)";
     thumb.style.background = on ? "var(--red)" : "var(--blue)";
-    btn.style.background = on ? "rgba(228, 0, 43, .4)" : "rgba(0,122,194,.18)";
+    btn.style.background = on ? "var(--spoilerOnBg)" : "var(--spoilerOffBg)";
     btn.title = on ? "Spoilers ON (shows winners)" : "Spoilers OFF (hides winners)";
   }
 
@@ -2192,7 +2192,7 @@ await refreshAfterAdminChange_();
         out.innerHTML = `
           <div class="microBox" style="margin-top:6px;">
             <div class="pill" style="margin-bottom:8px;">⏳ Not started yet</div>
-            <div class="microMeta" style="font-weight:400; color: rgba(255,255,255,.9);">
+            <div class="microMeta" style="font-weight:400; color: var(--textStrong);">
               ${escapeHtml(getEarlyMessage())}
             </div>
             ${youListText ? `
@@ -2210,7 +2210,7 @@ await refreshAfterAdminChange_();
         out.innerHTML = `
           <div class="microBox" style="margin-top:6px;">
             <div class="microTitle">Matchups not published yet</div>
-            <div class="microMeta" style="font-weight:400; color: rgba(255,255,255,.9);">
+            <div class="microMeta" style="font-weight:400; color: var(--textStrong);">
               ${escapeHtml(data.you || name)}, Calm your shit, amigo.<br><br>
               It’ll show up when it exists.
             </div>

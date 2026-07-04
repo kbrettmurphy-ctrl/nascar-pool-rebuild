@@ -10,6 +10,18 @@
   <meta name="mobile-web-app-capable" content="yes">
 
   <meta name="theme-color" content="#020b12">
+  <script>
+    (function(){
+      var t = null;
+      try { t = localStorage.getItem("npTheme"); } catch(e){}
+      if (t !== "light" && t !== "dark") {
+        t = (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute("content", t === "light" ? "#eef2f5" : "#020b12");
+    })();
+  </script>
   <meta name="apple-mobile-web-app-title" content="NASCAR Pool">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -47,6 +59,7 @@
 
     <div class="topBarRight">
       <!-- <button class="topactions" onclick="clearSavedAndReset()">🚫 Forget me</button> -->
+      <button class="topactions" id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
       <button class="topactions" onclick="refreshActiveView()">🔄 Refresh</button>
       <button class="topactions" id="enableNotificationsBtn" type="button">
   🔔 Notify Me
@@ -282,6 +295,31 @@
       <img id="buschPopupImg" src="" alt="Busch Light Girls!" class="buschPopupImg">
     </div>
   </div>
+    <script>
+      (function(){
+        var btn = document.getElementById("themeToggleBtn");
+        if (!btn) return;
+
+        function current(){
+          return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+        }
+
+        function paint(){
+          btn.textContent = current() === "light" ? "🌙" : "☀️";
+        }
+
+        btn.addEventListener("click", function(){
+          var next = current() === "light" ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", next);
+          try { localStorage.setItem("npTheme", next); } catch(e){}
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute("content", next === "light" ? "#eef2f5" : "#020b12");
+          paint();
+        });
+
+        paint();
+      })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/ios-haptics@latest/dist/ios-haptics.min.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
