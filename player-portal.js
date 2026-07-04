@@ -4179,11 +4179,11 @@ function showBuschPhotoMenu_(x, y) {
   menu.className = "buschPhotoMenu";
   menu.innerHTML = `
     <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
-      <button type="button" data-action="view">View full res photo</button>
-      <button type="button" data-action="info">Get info</button>
-      <button type="button" data-action="save">Save options</button>
-      <button type="button" data-action="download">Download photo</button>
-      <button type="button" data-action="delete" class="danger">Delete photo</button>
+      <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
+      <button type="button" role="menuitem" data-action="info">Get Info</button>
+      <button type="button" role="menuitem" data-action="save">Save Options</button>
+      <button type="button" role="menuitem" data-action="download">Download Photo</button>
+      <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
     </div>
   `;
 
@@ -4191,9 +4191,10 @@ function showBuschPhotoMenu_(x, y) {
 
   const panel = menu.querySelector(".buschPhotoMenuPanel");
   const rect = panel.getBoundingClientRect();
-  const pad = 12;
+  const pad = 14;
   const left = Math.min(Math.max(x - rect.width / 2, pad), window.innerWidth - rect.width - pad);
-  const top = Math.min(Math.max(y - 12, pad), window.innerHeight - rect.height - pad);
+  const preferredTop = y < window.innerHeight * 0.55 ? y + 18 : y - rect.height - 18;
+  const top = Math.min(Math.max(preferredTop, pad), window.innerHeight - rect.height - pad);
 
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
