@@ -576,6 +576,52 @@ select, input{
   cursor:pointer;
 }
 
+.buschPhotoMenu{
+  position:fixed;
+  inset:0;
+  z-index:10020;
+}
+
+.buschPhotoMenuPanel{
+  position:fixed;
+  min-width:230px;
+  overflow:hidden;
+  border-radius:14px;
+  background:rgba(248,248,248,.94);
+  border:1px solid rgba(0,0,0,.10);
+  box-shadow:0 18px 50px rgba(0,0,0,.32);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+.buschPhotoMenuPanel button{
+  display:block;
+  width:100%;
+  min-height:46px;
+  padding:0 18px;
+  border:0;
+  border-bottom:1px solid rgba(0,0,0,.10);
+  border-radius:0;
+  background:transparent;
+  color:#111827;
+  text-align:left;
+  font-size:16px;
+  font-weight:500;
+}
+
+.buschPhotoMenuPanel button:last-child{
+  border-bottom:0;
+}
+
+.buschPhotoMenuPanel button:active{
+  background:rgba(0,0,0,.08);
+}
+
+.buschPhotoMenuPanel button.danger{
+  color:#d70015;
+  font-weight:650;
+}
+
 .buschLogoWrap{
   position:relative;
   display:inline-block;
@@ -1585,7 +1631,52 @@ a.newsRow{
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.bgRateVotes{ font-size:12px; color: var(--muted); }
+.bgRateVotes{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:3px;
+  font-size:12px;
+  color: var(--muted);
+}
+.bgVoteChip{
+  min-height:24px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:var(--chip);
+  border:1px solid var(--chipBorder);
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+}
+.bgVoteChip.active{
+  background:var(--glassBlue42);
+  border-color:var(--glassBlue55);
+}
+.bgVoterList{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:6px;
+}
+.bgVoterList[hidden]{
+  display:none;
+}
+.bgVoterList span{
+  max-width:100%;
+  padding:2px 7px;
+  border-radius:999px;
+  background:var(--chip);
+  border:1px solid var(--lineSoft);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:650;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 .bgRemoveBtn{
   flex:0 0 auto;
   background: rgba(228,0,43,.16);

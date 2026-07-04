@@ -3735,17 +3735,50 @@ async function loadBuschRatings_() {
     }
 
     box.innerHTML =
-      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} photos</div>` +
+      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} voted photo${rows.length === 1 ? "" : "s"}</div>` +
       rows.map(p => `
         <div class="bgRateRow" data-id="${escapeAttr(String(p.id))}">
           <img src="${escapeAttr(p.url)}" loading="lazy" alt="">
           <div class="bgRateInfo">
             <div class="bgRateName">${escapeHtml(p.folder)}/${escapeHtml(p.filename)}</div>
-            <div class="bgRateVotes">👍 ${Number(p.likes) || 0} · 👎 ${Number(p.dislikes) || 0} · net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</div>
+            <div class="bgRateVotes">
+              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.likedBy || []).join("|"))}" aria-label="Show likes">👍 ${Number(p.likes) || 0}</button>
+              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.dislikedBy || []).join("|"))}" aria-label="Show dislikes">👎 ${Number(p.dislikes) || 0}</button>
+              <span>net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</span>
+            </div>
+            <div class="bgVoterList" hidden></div>
           </div>
           <button class="bgRemoveBtn" type="button">Remove</button>
         </div>
       `).join("");
+
+    box.querySelectorAll(".bgVoteChip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".bgRateRow");
+        const list = row?.querySelector(".bgVoterList");
+        if (!list) return;
+
+        const voters = String(btn.dataset.voters || "")
+          .split("|")
+          .map(v => v.trim())
+          .filter(Boolean);
+
+        const wasOpen = !list.hidden && btn.classList.contains("active");
+
+        row.querySelectorAll(".bgVoteChip").forEach(chip => chip.classList.remove("active"));
+        if (wasOpen) {
+          list.hidden = true;
+          list.innerHTML = "";
+          return;
+        }
+
+        btn.classList.add("active");
+        list.hidden = false;
+        list.innerHTML = voters.length
+          ? voters.map(v => `<span>${escapeHtml(v)}</span>`).join("")
+          : `<span class="muted">No votes yet</span>`;
+      });
+    });
 
     box.querySelectorAll(".bgRemoveBtn").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -3798,6 +3831,7 @@ async function loadBuschGirls() {
         id: String(p.id || ""),
         url: String(p.url || "").trim(),
         folder: String(p.folder || "").trim().toLowerCase(),
+        filename: String(p.filename || "").trim(),
         uploadedAt: String(p.uploaded_at || "").trim()
       }))
       .filter(p => p.url && p.folder);
@@ -3985,7 +4019,12 @@ function initBuschLongPress_() {
 
   popupImg?.addEventListener("contextmenu", suppressNativePress);
 
-  let photoInfoTimer = null;
+  let photoMenuTimer = null;
+  let photoMenuPointerId = null;
+  let photoMenuStartX = 0;
+  let photoMenuStartY = 0;
+  let imageMenuBlockClickUntil = 0;
+  let buschPhotoMenuEl = null;
 
 function buschPhotoInfoFromSrc_(src) {
   const cleanSrc = String(src || "").split("?")[0];
@@ -3996,16 +4035,20 @@ function buschPhotoInfoFromSrc_(src) {
 
   const url = found?.url || cleanSrc;
   const parts = url.split("/");
-  const file = decodeURIComponent(parts.pop() || "");
+  const file = found?.filename || decodeURIComponent(parts.pop() || "");
   const folder = found?.folder || decodeURIComponent(parts.pop() || "");
 
-  return { folder, file, url };
+  return { id: found?.id || "", folder, file, url };
+}
+
+function currentBuschPhotoInfo_() {
+  if (!popupImg?.src) return;
+  return buschPhotoInfoFromSrc_(popupImg.src);
 }
 
 function showBuschPhotoInfo_() {
-  if (!popupImg?.src) return;
-
-  const info = buschPhotoInfoFromSrc_(popupImg.src);
+  const info = currentBuschPhotoInfo_();
+  if (!info) return;
 
   alert(
     `Folder: ${info.folder || "(unknown)"}\n` +
@@ -4013,40 +4056,206 @@ function showBuschPhotoInfo_() {
   );
 }
 
-popupImg?.addEventListener("touchstart", (e) => {
-  clearTimeout(photoInfoTimer);
-
-  if (e.touches.length !== 1) return;
-
-  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
-}, { passive: true });
-
-popupImg?.addEventListener("touchmove", (e) => {
-  if (e.touches.length !== 1) {
-    clearTimeout(photoInfoTimer);
+function closePhotoMenu_() {
+  if (buschPhotoMenuEl) {
+    buschPhotoMenuEl.remove();
+    buschPhotoMenuEl = null;
   }
-}, { passive: true });
+}
 
-popupImg?.addEventListener("touchend", () => {
-  clearTimeout(photoInfoTimer);
-}, { passive: true });
+function downloadBuschPhoto_(info) {
+  if (!info?.url) return;
 
-popupImg?.addEventListener("touchcancel", () => {
-  clearTimeout(photoInfoTimer);
-}, { passive: true });
+  const a = document.createElement("a");
+  a.href = info.url;
+  a.download = info.file || "busch-photo";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
-popupImg?.addEventListener("mousedown", () => {
-  clearTimeout(photoInfoTimer);
-  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
+async function saveBuschPhoto_(info) {
+  if (!info?.url) return;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: info.file || "Busch photo",
+        url: info.url
+      });
+      return;
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+    }
+  }
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(info.url);
+      alert("Photo link copied.");
+      return;
+    } catch {}
+  }
+
+  downloadBuschPhoto_(info);
+}
+
+async function unlockAdminForPhotoDelete_() {
+  if (getAdminToken_()) return true;
+
+  const pin = prompt("Admin PIN to delete this photo:");
+  if (pin === null) return false;
+
+  const cleanPin = String(pin || "").trim();
+  if (!cleanPin) return false;
+
+  const res = await fetch("/api/admin-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin: cleanPin })
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data?.ok || !data?.token) {
+    throw new Error(data?.error || "Invalid PIN");
+  }
+
+  setAdminToken_(data.token);
+  return true;
+}
+
+async function deleteBuschPhoto_(info, allowRetry = true) {
+  if (!info?.id) {
+    alert("Could not find this photo in the active gallery.");
+    return;
+  }
+
+  let unlocked = false;
+  try {
+    unlocked = await unlockAdminForPhotoDelete_();
+  } catch (err) {
+    alert(err.message || String(err));
+    return;
+  }
+  if (!unlocked) return;
+
+  if (!confirm(`Delete this photo from the rotation?\n\n${info.file || info.id}`)) return;
+
+  try {
+    await adminFetch_("/api/remove-buschgirl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId: info.id })
+    });
+
+    buschGirls = buschGirls.filter(p => p.id !== info.id);
+    buschQueue = buschQueue.filter(p => p.id !== info.id);
+    buschSeenUrls.delete(info.url);
+    buschHistory = buschHistory.filter(src => String(src || "").split("?")[0] !== String(info.url || "").split("?")[0]);
+    buschHistoryIndex = Math.min(buschHistoryIndex, buschHistory.length - 1);
+
+    if (buschGirls.length) nextBuschImage_();
+    else closePopup();
+  } catch (err) {
+    if (allowRetry && /unauthorized|expired/i.test(err.message || "")) {
+      clearAdminToken_();
+      await deleteBuschPhoto_(info, false);
+      return;
+    }
+    alert(err.message || String(err));
+  }
+}
+
+function showBuschPhotoMenu_(x, y) {
+  const info = currentBuschPhotoInfo_();
+  if (!info) return;
+
+  closePhotoMenu_();
+
+  const menu = document.createElement("div");
+  menu.className = "buschPhotoMenu";
+  menu.innerHTML = `
+    <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
+      <button type="button" data-action="view">View full res photo</button>
+      <button type="button" data-action="info">Get info</button>
+      <button type="button" data-action="save">Save options</button>
+      <button type="button" data-action="download">Download photo</button>
+      <button type="button" data-action="delete" class="danger">Delete photo</button>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  const panel = menu.querySelector(".buschPhotoMenuPanel");
+  const rect = panel.getBoundingClientRect();
+  const pad = 12;
+  const left = Math.min(Math.max(x - rect.width / 2, pad), window.innerWidth - rect.width - pad);
+  const top = Math.min(Math.max(y - 12, pad), window.innerHeight - rect.height - pad);
+
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+
+  menu.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".buschPhotoMenuPanel")) closePhotoMenu_();
+  });
+
+  menu.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const action = btn.dataset.action;
+      closePhotoMenu_();
+
+      if (action === "view") window.open(info.url, "_blank", "noopener");
+      else if (action === "info") showBuschPhotoInfo_();
+      else if (action === "save") await saveBuschPhoto_(info);
+      else if (action === "download") downloadBuschPhoto_(info);
+      else if (action === "delete") await deleteBuschPhoto_(info);
+    });
+  });
+
+  buschPhotoMenuEl = menu;
+  imageMenuBlockClickUntil = Date.now() + 650;
+}
+
+function clearPhotoMenuTimer_() {
+  if (photoMenuTimer) clearTimeout(photoMenuTimer);
+  photoMenuTimer = null;
+  photoMenuPointerId = null;
+}
+
+popupImg?.addEventListener("pointerdown", (e) => {
+  closePhotoMenu_();
+  clearPhotoMenuTimer_();
+
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+
+  photoMenuPointerId = e.pointerId;
+  photoMenuStartX = e.clientX || 0;
+  photoMenuStartY = e.clientY || 0;
+
+  photoMenuTimer = setTimeout(() => {
+    photoMenuTimer = null;
+    showBuschPhotoMenu_(photoMenuStartX, photoMenuStartY);
+  }, 850);
 });
 
-popupImg?.addEventListener("mouseup", () => {
-  clearTimeout(photoInfoTimer);
+popupImg?.addEventListener("pointermove", (e) => {
+  if (photoMenuPointerId !== e.pointerId || !photoMenuTimer) return;
+
+  if (
+    Math.abs((e.clientX || 0) - photoMenuStartX) > MOVE_THRESHOLD ||
+    Math.abs((e.clientY || 0) - photoMenuStartY) > MOVE_THRESHOLD
+  ) {
+    clearPhotoMenuTimer_();
+  }
 });
 
-popupImg?.addEventListener("mouseleave", () => {
-  clearTimeout(photoInfoTimer);
-});
+popupImg?.addEventListener("pointerup", clearPhotoMenuTimer_);
+popupImg?.addEventListener("pointercancel", clearPhotoMenuTimer_);
+popupImg?.addEventListener("pointerleave", clearPhotoMenuTimer_);
 
   let pressTimer = null;
   let startX = 0;
@@ -4069,6 +4278,8 @@ popupImg?.addEventListener("mouseleave", () => {
   }
 
   function closePopup() {
+    closePhotoMenu_();
+    clearPhotoMenuTimer_();
     popup.hidden = true;
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
@@ -4157,6 +4368,12 @@ popupImg?.addEventListener("mouseleave", () => {
   }, { passive: true });
 
   popupImg?.addEventListener("click", (e) => {
+    if (Date.now() < imageMenuBlockClickUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     if (tapStartedWithMultiTouch) return;
 
     const dx = Math.abs((e.clientX || 0) - tapStartX);
