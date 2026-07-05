@@ -213,6 +213,12 @@ body{
   background: var(--bg);
   color: var(--text);
   padding-bottom: var(--pageBottomPad);
+  /* Keep the document minimally scrollable: iOS standalone anchors
+     position:fixed to a viewport that EXCLUDES the bottom safe area
+     while the page can't scroll, which floats the bottom nav ~34px
+     above the screen edge on short pages. One extra pixel flips
+     WebKit to the full-screen viewport; bounce feel is unchanged. */
+  min-height: calc(100dvh + 1px);
   position: relative;
   overflow-x: hidden;
   transition: background-color .25s ease, color .25s ease;
