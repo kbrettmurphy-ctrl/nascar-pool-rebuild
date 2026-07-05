@@ -2206,11 +2206,16 @@ await refreshAfterAdminChange_();
 
       // rank history for the sparkline
       const ranks = [];
+      const tourneyStarts = [];
       for (let i = 1; i <= raceList.length; i++) {
         const r = rankFromRecords_(swissRecords_(raceList, i), me);
         if (r) ranks.push(r);
+        if (i > 1 && raceList[i - 1].t !== raceList[i - 2].t) tourneyStarts.push(i - 1);
       }
-      const spark = rankSparkline_(ranks, totalPlayers);
+      const spark = rankSparkline_(ranks, totalPlayers, tourneyStarts);
+      const sparkNote = tourneyStarts.length
+        ? "Overall standing after each race \u00b7 dashed lines mark new tournaments"
+        : "Overall standing after each race, all tournaments combined";
 
       // what-if for this week's published matchup (respects spoilers)
       let whatIf = "";
@@ -2317,7 +2322,7 @@ await refreshAfterAdminChange_();
           <div class="tile"><div class="tLabel">Win %</div><div class="tVal">${winPct}</div></div>
         </div>
         ${form ? `<div class="formRow"><span class="tLabel">Last 5</span>${form}</div>` : ""}
-        ${ranks.length >= 2 ? `<div class="meSection"><div class="meSectionTitle">Rank by round</div>${spark}</div>` : ""}
+        ${ranks.length >= 2 ? `<div class="meSection"><div class="meSectionTitle">Season rank</div><div class="muted" style="margin:-2px 0 6px;">${sparkNote}</div>${spark}</div>` : ""}
         ${whatIf}
         ${rivalHtml}
         ${badges ? `<div class="meSection"><div class="meSectionTitle">Badges</div><div class="badgeWall">${badges}</div></div>` : ""}
@@ -3776,9 +3781,10 @@ function meGames_(blob, me) {
   return games;
 }
 
-// Single-series micro line: rank 1 renders at the top, labels wear
-// muted text ink, values carried in the aria-label.
-function rankSparkline_(ranks, totalPlayers) {
+// Single-series micro line of OVERALL season rank after each race.
+// Rank 1 renders at the top; faint hairlines mark where a new
+// tournament starts; values carried in the aria-label.
+function rankSparkline_(ranks, totalPlayers, boundaries) {
   if (ranks.length < 2) return "";
   const w = 280, h = 44, pad = 5;
   const worst = Math.max(totalPlayers || 1, ...ranks);
@@ -3786,14 +3792,22 @@ function rankSparkline_(ranks, totalPlayers) {
   const y = r => pad + (h - 2 * pad) * (r - 1) / Math.max(1, worst - 1);
   const pts = ranks.map((r, i) => `${x(i).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
   const last = ranks[ranks.length - 1];
+
+  const ticks = (boundaries || [])
+    .filter(i => i > 0 && i < ranks.length)
+    .map(i => `<line x1="${x(i).toFixed(1)}" y1="2" x2="${x(i).toFixed(1)}" y2="${h - 2}"
+        stroke="var(--line)" stroke-width="1" stroke-dasharray="2 3"/>`)
+    .join("");
+
   return `
-    <div class="meSparkWrap" role="img" aria-label="Rank by round: ${ranks.join(", ")}">
+    <div class="meSparkWrap" role="img" aria-label="Overall season rank after each race: ${ranks.join(", ")}">
       <svg class="meSpark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+        ${ticks}
         <polyline points="${pts}" fill="none" stroke="var(--blueText)" stroke-width="2"
           stroke-linejoin="round" stroke-linecap="round"/>
         <circle cx="${x(ranks.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="var(--blueText)"/>
       </svg>
-      <div class="meSparkLabels"><span>Rnd 1 \u00b7 #${ranks[0]}</span><span>Now \u00b7 #${last}</span></div>
+      <div class="meSparkLabels"><span>Race 1 \u00b7 #${ranks[0]}</span><span>Race ${ranks.length} (now) \u00b7 #${last}</span></div>
     </div>`;
 }
 
