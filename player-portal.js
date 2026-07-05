@@ -3172,15 +3172,55 @@ async function enablePushNotifications_() {
       throw new Error("Pick your name from the dropdown first so we know who to notify.");
     }
 
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+
+    // Already subscribed on this device: the same button manages
+    // pausing/resuming instead of blindly re-subscribing.
+    if (existing) {
+      let status = { found: false, paused: false };
+      try {
+        const sRes = await fetch(
+          `/api/push-prefs?endpoint=${encodeURIComponent(existing.endpoint)}`,
+          { cache: "no-store" }
+        );
+        const sData = await sRes.json().catch(() => ({}));
+        if (sData?.ok) status = sData;
+      } catch (e) {}
+
+      if (status.found) {
+        const turningOff = !status.paused;
+        const q = turningOff
+          ? "Notifications are ON for this device. Pause them?"
+          : "Notifications are paused. Turn them back on?";
+        if (!confirm(q)) return;
+
+        const res = await fetch("/api/push-prefs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: existing.endpoint, paused: turningOff })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          throw new Error(data?.error || "Failed updating notification settings.");
+        }
+
+        paintPushButton_(!turningOff);
+        alert(turningOff
+          ? "Notifications paused. Tap the bell any time to turn them back on."
+          : "Notifications are back on.");
+        return;
+      }
+      // Subscribed in the browser but unknown to the server:
+      // fall through and (re)register it.
+    }
+
     const permission = await Notification.requestPermission();
 
     if (permission !== "granted") {
       throw new Error("Notifications were not allowed.");
     }
 
-    const reg = await navigator.serviceWorker.ready;
-
-    const existing = await reg.pushManager.getSubscription();
     const subscription = existing || await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY)
@@ -3201,12 +3241,52 @@ async function enablePushNotifications_() {
       throw new Error(data?.error || "Failed saving notification subscription.");
     }
 
-    alert("Notifications enabled.");
+    paintPushButton_(true);
+    alert("Notifications enabled. Tap the bell again any time to pause them.");
   } catch (err) {
     alert(err.message || String(err));
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+async function adminSetPushPaused_(paused) {
+  const sel = document.getElementById("adminFundsPlayer");
+  const name = sel ? String(sel.value || "").trim() : "";
+
+  if (!name) {
+    setAdminStatus_("adminFundsStatus", "Pick a player first.", true);
+    return;
+  }
+
+  setAdminStatus_("adminFundsStatus", `${paused ? "Pausing" : "Resuming"} push for ${name}…`);
+
+  try {
+    const data = await adminFetch_("/api/push-prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName: name, paused })
+    });
+
+    const n = Number(data?.updated) || 0;
+    setAdminStatus_(
+      "adminFundsStatus",
+      n === 0
+        ? `${name} has no push subscriptions.`
+        : `${paused ? "Paused" : "Resumed"} push for ${name} (${n} device${n === 1 ? "" : "s"}).`
+    );
+  } catch (err) {
+    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+  }
+}
+
+function paintPushButton_(active) {
+  const btn = document.getElementById("enableNotificationsBtn");
+  if (!btn) return;
+  btn.textContent = active ? "🔔" : "🔕";
+  btn.setAttribute("aria-label", active
+    ? "Notifications on - tap to pause"
+    : "Enable notifications");
 }
 
 function initPushNotifications_() {
@@ -3216,6 +3296,22 @@ function initPushNotifications_() {
   // Keep the button visible even where push isn't supported (iOS
   // Safari tab) - the click handler explains how to enable it.
   btn.addEventListener("click", enablePushNotifications_);
+
+  // Reflect this device's current state on the bell icon.
+  (async () => {
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) return;
+      const res = await fetch(
+        `/api/push-prefs?endpoint=${encodeURIComponent(sub.endpoint)}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (data?.ok && data.found) paintPushButton_(!data.paused);
+    } catch (e) {}
+  })();
 }
 
   /* ==========================================================
@@ -4828,6 +4924,8 @@ function initAdminControls_() {
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
   document.getElementById("adminMarkPaidOutBtn")?.addEventListener("click", markPaidOut_);
   document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
+  document.getElementById("adminPausePushBtn")?.addEventListener("click", () => adminSetPushPaused_(true));
+  document.getElementById("adminResumePushBtn")?.addEventListener("click", () => adminSetPushPaused_(false));
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);

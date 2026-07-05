@@ -17,6 +17,7 @@ export async function onRequestPost(context) {
       endpoint: subscription.endpoint,
       subscription,
       user_agent: userAgent,
+      paused: false, // (re)subscribing always turns notifications on
       updated_at: new Date().toISOString()
     };
 
