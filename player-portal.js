@@ -2245,6 +2245,7 @@ await refreshAfterAdminChange_();
             whatIf = `<div class="meSection">
               <div class="meSectionTitle">This week</div>
               <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 <b>#${rw}</b> \u00b7 Lose \u2192 <b>#${rl}</b></div>
+              <div class="muted" style="font-size:11px; margin-top:2px;">Everyone else's matchup will shuffle this too.</div>
             </div>`;
           }
         }
@@ -3741,26 +3742,37 @@ function swissCompletedRaces_() {
 function swissRecords_(raceList, count) {
   const rec = new Map();
   const n = count == null ? raceList.length : count;
+  const blank = () => ({ w: 0, l: 0, avgSum: 0, n: 0 });
   for (let i = 0; i < n; i++) {
     for (const m of raceList[i].ms) {
       const p1 = String(m.p1 || "").trim().toLowerCase();
       const p2 = String(m.p2 || "").trim().toLowerCase();
       const w = String(m.winner || "").trim().toLowerCase();
       if (!p1 || !p2 || !w) continue;
-      if (!rec.has(p1)) rec.set(p1, { w: 0, l: 0 });
-      if (!rec.has(p2)) rec.set(p2, { w: 0, l: 0 });
+      if (!rec.has(p1)) rec.set(p1, blank());
+      if (!rec.has(p2)) rec.set(p2, blank());
       const loser = w === p1 ? p2 : (w === p2 ? p1 : "");
       if (!loser) continue;
       rec.get(w).w++;
       rec.get(loser).l++;
+      const a1 = Number(m.a1);
+      const a2 = Number(m.a2);
+      if (Number.isFinite(a1) && a1 > 0) { rec.get(p1).avgSum += a1; rec.get(p1).n++; }
+      if (Number.isFinite(a2) && a2 > 0) { rec.get(p2).avgSum += a2; rec.get(p2).n++; }
     }
   }
   return rec;
 }
 
+// Mirror the server's Overall ordering (player-stats.js):
+// win% desc, then average finishing position asc, then name.
 function sortedRecords_(rec) {
+  const pct = r => (r.w + r.l) ? r.w / (r.w + r.l) : 0;
+  const avg = r => r.n > 0 ? r.avgSum / r.n : 0;
   return [...rec.entries()].sort((a, b) =>
-    b[1].w - a[1].w || a[1].l - b[1].l || (a[0] < b[0] ? -1 : 1));
+    pct(b[1]) - pct(a[1]) ||
+    avg(a[1]) - avg(b[1]) ||
+    String(a[0]).localeCompare(String(b[0])));
 }
 
 function rankFromRecords_(rec, name) {
@@ -3774,8 +3786,12 @@ function topRankedName_(rec) {
 
 function bumpRecord_(rec, name, won) {
   if (!name) return;
-  if (!rec.has(name)) rec.set(name, { w: 0, l: 0 });
-  won ? rec.get(name).w++ : rec.get(name).l++;
+  if (!rec.has(name)) rec.set(name, { w: 0, l: 0, avgSum: 0, n: 0 });
+  const r = rec.get(name);
+  won ? r.w++ : r.l++;
+  // hypothetical race: assume the player runs their own current
+  // average, so the avg-finish tiebreaker is left undisturbed
+  if (r.n > 0) { r.avgSum += r.avgSum / r.n; r.n++; }
 }
 
 function meGames_(blob, me) {
