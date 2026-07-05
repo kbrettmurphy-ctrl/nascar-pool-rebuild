@@ -793,6 +793,8 @@ select, input{
   border-bottom:none;
   border-radius: 12px;
   padding: 10px;
+  /* highlight bleeds outward; text stays aligned with plain rows */
+  margin: 0 -6px;
 }
 
 .matchupRow{
@@ -1301,6 +1303,8 @@ select, input{
   border-bottom:none;
   border-radius:12px;
   padding:10px;
+  margin:0 -6px;
+  margin-bottom:0 !important;
 }
 
 /* ==========================================================
@@ -1478,6 +1482,7 @@ select, input{
   border-bottom-color: transparent;
   padding-left:8px;
   padding-right:8px;
+  margin:0 -4px;
 }
 
 /* ==========================================================

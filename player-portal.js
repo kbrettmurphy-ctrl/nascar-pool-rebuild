@@ -4335,6 +4335,14 @@ function showBuschPhotoMenu_(x, y) {
     if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
   }
 
+  // Non-passive preventDefault on touchstart is what lets the hold
+  // timer paint MID-HOLD on iOS: without it, WebKit's native
+  // long-press recognizer defers our menu render until release.
+  // (The original logo long-press always had this - proven pattern.)
+  trigger.addEventListener("touchstart", (e) => {
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
   trigger.addEventListener("pointerdown", (e) => {
     if (!e.isPrimary) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -4442,6 +4450,14 @@ function showBuschPhotoMenu_(x, y) {
     zReset_(false);
     zMeasureBase_();
   });
+
+  // Same preventDefault trick as the logo: keeps iOS painting our
+  // 650ms menu during the hold instead of deferring it to release.
+  // Tap-nav lives on pointerup and click is swallowed, so nothing
+  // else here depends on native touch behavior.
+  popupImg?.addEventListener("touchstart", (e) => {
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
 
   popupImg?.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
