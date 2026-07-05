@@ -3958,7 +3958,10 @@ function initBuschLongPress_() {
   let buschHistoryIndex = -1;
 
   function showBuschImage_(src) {
-    if (popupImg && src) popupImg.src = src;
+    if (popupImg && src) {
+      zReset_(false);
+      popupImg.src = src;
+    }
   }
 
   function nextBuschImage_() {
@@ -4297,6 +4300,8 @@ function showBuschPhotoMenu_(x, y) {
     closeBuschSaveSheet_();
     cancelLogoHold_();
     cancelPhotoHold_();
+    zReset_(false);
+    zPtrs.clear();
     popup.hidden = true;
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
@@ -4372,13 +4377,92 @@ function showBuschPhotoMenu_(x, y) {
     showBuschPhotoMenu_(x || 0, y || 0);
   }
 
+  /* --- Pinch zoom / pan / double-tap (Photos-app style) --- */
+
+  const zPtrs = new Map();
+  let zScale = 1, zTx = 0, zTy = 0;
+  let zBaseW = 0, zBaseH = 0, zBaseLeft = 0, zBaseTop = 0;
+  let pinchStart = null;
+  let panLast = null;
+  let lastTapAt = 0, lastTapX = 0, lastTapY = 0;
+  let navTapTimer = null;
+
+  function zApply_(animate) {
+    if (!popupImg) return;
+    popupImg.classList.toggle("zoomAnim", !!animate);
+    popupImg.style.transform = (zScale === 1 && !zTx && !zTy)
+      ? ""
+      : `translate(${zTx}px, ${zTy}px) scale(${zScale})`;
+  }
+
+  function zReset_(animate) {
+    zScale = 1; zTx = 0; zTy = 0;
+    pinchStart = null; panLast = null;
+    zApply_(animate);
+  }
+
+  function zMeasureBase_() {
+    const prev = popupImg.style.transform;
+    popupImg.style.transform = "";
+    const r = popupImg.getBoundingClientRect();
+    zBaseW = r.width; zBaseH = r.height;
+    zBaseLeft = r.left; zBaseTop = r.top;
+    popupImg.style.transform = prev;
+  }
+
+  function zClamp_() {
+    zScale = Math.min(4, Math.max(1, zScale));
+    zTx = Math.min(0, Math.max(zBaseW - zScale * zBaseW, zTx));
+    zTy = Math.min(0, Math.max(zBaseH - zScale * zBaseH, zTy));
+  }
+
+  function zZoomAt_(mx, my) {
+    zMeasureBase_();
+    const lx = mx - zBaseLeft;
+    const ly = my - zBaseTop;
+    zScale = 2.5;
+    zTx = lx - zScale * lx;
+    zTy = ly - zScale * ly;
+    zClamp_();
+    zApply_(true);
+  }
+
+  popupImg?.addEventListener("load", () => {
+    zReset_(false);
+    zMeasureBase_();
+  });
+
   popupImg?.addEventListener("pointerdown", (e) => {
-    if (!e.isPrimary) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    zPtrs.set(e.pointerId, { x: e.clientX || 0, y: e.clientY || 0 });
+    try { popupImg.setPointerCapture(e.pointerId); } catch (err) {}
+
+    if (zPtrs.size === 2) {
+      // second finger down: switch to pinch mode
+      cancelPhotoHold_();
+      if (navTapTimer) { clearTimeout(navTapTimer); navTapTimer = null; }
+      zMeasureBase_();
+      const [a, b] = [...zPtrs.values()];
+      pinchStart = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        scale: zScale, tx: zTx, ty: zTy,
+        midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2
+      };
+      panLast = null;
+      return;
+    }
+    if (zPtrs.size > 2) return;
 
     photoDownX = e.clientX || 0;
     photoDownY = e.clientY || 0;
     photoMenuFired = false;
+
+    if (zScale > 1) {
+      panLast = { x: photoDownX, y: photoDownY };
+      return;
+    }
+
     cancelPhotoHold_();
     photoTimer = setTimeout(() => {
       photoTimer = null;
@@ -4387,6 +4471,36 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   popupImg?.addEventListener("pointermove", (e) => {
+    if (zPtrs.has(e.pointerId)) {
+      zPtrs.set(e.pointerId, { x: e.clientX || 0, y: e.clientY || 0 });
+    }
+
+    if (pinchStart && zPtrs.size >= 2) {
+      const [a, b] = [...zPtrs.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+
+      // keep the image point that was under the fingers under them
+      const px = ((pinchStart.midX - zBaseLeft) - pinchStart.tx) / pinchStart.scale;
+      const py = ((pinchStart.midY - zBaseTop) - pinchStart.ty) / pinchStart.scale;
+      zScale = Math.min(4, Math.max(1, pinchStart.scale * dist / pinchStart.dist));
+      zTx = (midX - zBaseLeft) - zScale * px;
+      zTy = (midY - zBaseTop) - zScale * py;
+      zClamp_();
+      zApply_(false);
+      return;
+    }
+
+    if (panLast && zScale > 1 && zPtrs.size === 1) {
+      zTx += (e.clientX || 0) - panLast.x;
+      zTy += (e.clientY || 0) - panLast.y;
+      panLast = { x: e.clientX || 0, y: e.clientY || 0 };
+      zClamp_();
+      zApply_(false);
+      return;
+    }
+
     if (!photoTimer) return;
     if (Math.abs((e.clientX || 0) - photoDownX) > HOLD_MOVE_THRESHOLD ||
         Math.abs((e.clientY || 0) - photoDownY) > HOLD_MOVE_THRESHOLD) {
@@ -4395,21 +4509,76 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   popupImg?.addEventListener("pointerup", (e) => {
+    zPtrs.delete(e.pointerId);
+
+    if (pinchStart) {
+      if (zPtrs.size < 2) {
+        pinchStart = null;
+        if (zScale <= 1.05) zReset_(true);
+        else {
+          const rest = zPtrs.values().next().value;
+          panLast = rest ? { x: rest.x, y: rest.y } : null;
+        }
+      }
+      return;
+    }
+
     const menuShown = photoMenuFired;
     cancelPhotoHold_();
     if (menuShown) return;
-    if (!e.isPrimary) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
 
-    if (Math.abs((e.clientX || 0) - photoDownX) > TAP_MOVE_THRESHOLD ||
-        Math.abs((e.clientY || 0) - photoDownY) > TAP_MOVE_THRESHOLD) return;
+    const upX = e.clientX || 0;
+    const upY = e.clientY || 0;
+    const moved =
+      Math.abs(upX - photoDownX) > TAP_MOVE_THRESHOLD ||
+      Math.abs(upY - photoDownY) > TAP_MOVE_THRESHOLD;
 
-    const rect = popupImg.getBoundingClientRect();
-    if ((e.clientX || 0) - rect.left < rect.width / 2) prevBuschImage_();
-    else nextBuschImage_();
+    if (zScale > 1) {
+      panLast = null;
+      if (moved) return;
+      const now = Date.now();
+      if (now - lastTapAt < 300 &&
+          Math.abs(upX - lastTapX) < 30 && Math.abs(upY - lastTapY) < 30) {
+        lastTapAt = 0;
+        zReset_(true);
+      } else {
+        lastTapAt = now; lastTapX = upX; lastTapY = upY;
+      }
+      return;
+    }
+
+    if (moved) return;
+
+    const now = Date.now();
+    if (now - lastTapAt < 300 &&
+        Math.abs(upX - lastTapX) < 30 && Math.abs(upY - lastTapY) < 30) {
+      // double-tap: zoom in at the tap point
+      lastTapAt = 0;
+      if (navTapTimer) { clearTimeout(navTapTimer); navTapTimer = null; }
+      zZoomAt_(upX, upY);
+      return;
+    }
+
+    lastTapAt = now; lastTapX = upX; lastTapY = upY;
+
+    // single tap navigates, delayed briefly to leave room for a double-tap
+    if (navTapTimer) clearTimeout(navTapTimer);
+    navTapTimer = setTimeout(() => {
+      navTapTimer = null;
+      const rect = popupImg.getBoundingClientRect();
+      if (upX - rect.left < rect.width / 2) prevBuschImage_();
+      else nextBuschImage_();
+    }, 280);
   });
 
-  popupImg?.addEventListener("pointercancel", cancelPhotoHold_);
+  popupImg?.addEventListener("pointercancel", (e) => {
+    zPtrs.delete(e.pointerId);
+    if (zPtrs.size < 2) pinchStart = null;
+    panLast = null;
+    cancelPhotoHold_();
+    if (zScale <= 1.05) zReset_(false);
+  });
 
   // Navigation is handled on pointerup; swallow the synthetic click
   // so nothing double-fires.
@@ -4425,6 +4594,7 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   function closeIfOutsideCard(e) {
+    if (!e.isPrimary) return; // second pinch finger must not close the popup
     if (!e.target.closest(".buschPopupCard")) {
       e.preventDefault();
       e.stopPropagation();

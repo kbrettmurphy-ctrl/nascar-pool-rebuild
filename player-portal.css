@@ -560,9 +560,15 @@ select, input{
   border-radius:16px;
   box-shadow:0 18px 52px rgba(0,0,0,.42);
   touch-action:none;
+  transform-origin:0 0;
+  will-change:transform;
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
+}
+
+.buschPopupImg.zoomAnim{
+  transition:transform .18s ease;
 }
 
 .buschPopupClose{
