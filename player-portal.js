@@ -515,6 +515,8 @@ if (liveCard) {
     document.querySelectorAll(".adminTabPane").forEach(pane => {
       pane.classList.toggle("active", pane.id === `adminTab-${tabName}`);
     });
+
+    if (tabName === "push") loadAdminPushTab_();
   }
 
   async function unlockAdmin_() {
@@ -3250,36 +3252,6 @@ async function enablePushNotifications_() {
   }
 }
 
-async function adminSetPushPaused_(paused) {
-  const sel = document.getElementById("adminFundsPlayer");
-  const name = sel ? String(sel.value || "").trim() : "";
-
-  if (!name) {
-    setAdminStatus_("adminFundsStatus", "Pick a player first.", true);
-    return;
-  }
-
-  setAdminStatus_("adminFundsStatus", `${paused ? "Pausing" : "Resuming"} push for ${name}…`);
-
-  try {
-    const data = await adminFetch_("/api/push-prefs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerName: name, paused })
-    });
-
-    const n = Number(data?.updated) || 0;
-    setAdminStatus_(
-      "adminFundsStatus",
-      n === 0
-        ? `${name} has no push subscriptions.`
-        : `${paused ? "Paused" : "Resumed"} push for ${name} (${n} device${n === 1 ? "" : "s"}).`
-    );
-  } catch (err) {
-    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
-  }
-}
-
 function paintPushButton_(active) {
   const btn = document.getElementById("enableNotificationsBtn");
   if (!btn) return;
@@ -3828,6 +3800,109 @@ function initBuschVotes_() {
 /* ==========================================================
    Admin: Busch girls photo ratings + removal
    ========================================================== */
+
+/* ==========================================================
+   Admin: Push tab (composer + per-player notification toggles)
+   ========================================================== */
+
+async function loadAdminPushTab_() {
+  const toSel = document.getElementById("adminPushTo");
+  if (toSel && !toSel.dataset.bound) {
+    toSel.dataset.bound = "1";
+    try {
+      const ctx = await getAdminContext_();
+      toSel.innerHTML =
+        `<option value="">Everyone</option>` +
+        (ctx.players || [])
+          .map(p => `<option value="${escapeAttr(p.name)}">${escapeHtml(p.name)}</option>`)
+          .join("");
+    } catch (e) { /* composer still works for Everyone */ }
+  }
+  loadAdminPushList_();
+}
+
+async function loadAdminPushList_() {
+  const box = document.getElementById("adminPushList");
+  if (!box) return;
+
+  box.classList.add("muted");
+  box.textContent = "Loading\u2026";
+
+  try {
+    const data = await adminFetch_("/api/push-prefs?all=1", { cache: "no-store" });
+    const rows = Array.isArray(data?.players) ? data.players : [];
+
+    box.classList.remove("muted");
+
+    if (!rows.length) {
+      box.innerHTML = `<div class="muted">No push subscriptions yet.</div>`;
+      return;
+    }
+
+    box.innerHTML = rows.map(r => `
+      <div class="pushRow" data-name="${escapeAttr(r.playerName)}">
+        <div class="pushName">${escapeHtml(r.playerName || "(no name)")}</div>
+        <div class="pushDevices">${Number(r.devices) || 0} device${Number(r.devices) === 1 ? "" : "s"}</div>
+        <button class="pushToggle ${r.active ? "on" : ""}" type="button">${r.active ? "On" : "Paused"}</button>
+      </div>
+    `).join("");
+
+    box.querySelectorAll(".pushToggle").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const name = btn.closest(".pushRow")?.dataset?.name || "";
+        if (!name) return;
+
+        const pausing = btn.classList.contains("on");
+        if (pausing && !confirm(`Pause all notifications for ${name}?`)) return;
+
+        btn.disabled = true;
+        try {
+          await adminFetch_("/api/push-prefs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ playerName: name, paused: pausing })
+          });
+          btn.classList.toggle("on", !pausing);
+          btn.textContent = pausing ? "Paused" : "On";
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+        btn.disabled = false;
+      });
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="muted">Error: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function adminSendPushForm_() {
+  const to = String(document.getElementById("adminPushTo")?.value || "").trim();
+  const title = String(document.getElementById("adminPushTitle")?.value || "").trim() || "NASCAR Pool";
+  const msg = String(document.getElementById("adminPushBody")?.value || "").trim();
+
+  if (!msg) {
+    setAdminStatus_("adminPushStatus", "Message is required.", true);
+    return;
+  }
+
+  if (!confirm(`Send to ${to || "EVERYONE"}?\n\n${title}\n${msg}`)) return;
+
+  setAdminStatus_("adminPushStatus", "Sending\u2026");
+
+  try {
+    const data = await adminFetch_("/api/send-push-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName: to, title, body: msg, url: "/" })
+    });
+
+    setAdminStatus_("adminPushStatus", `Sent: ${data.sent || 0}, failed: ${data.failed || 0}.`);
+    const bodyEl = document.getElementById("adminPushBody");
+    if (bodyEl) bodyEl.value = "";
+  } catch (err) {
+    setAdminStatus_("adminPushStatus", err.message || String(err), true);
+  }
+}
 
 async function loadBuschRatings_() {
   const box = document.getElementById("buschRatingsList");
@@ -4741,52 +4816,6 @@ function showBuschPhotoMenu_(x, y) {
   });
 }
 
-async function sendTestPush_() {
-  const playerName = prompt(
-    "Player name (leave blank for everyone):",
-    ""
-  );
-  
-  const title = prompt("Push title:", "NASCAR Pool");
-    if (title === null) return;
-
-  const body = prompt("Push message:");
-  if (body === null) return;
-
-  const cleanTitle = String(title || "").trim();
-  const cleanBody = String(body || "").trim();
-
-  if (!cleanTitle || !cleanBody) {
-    alert("Title and message are required.");
-    return;
-  }
-
-  if (!confirm(`Send this push to all subscribers?\n\n${cleanTitle}\n${cleanBody}`)) {
-    return;
-  }
-
-  setAdminStatus_("adminFundsStatus", "Sending push...");
-
-  try {
-    const data = await adminFetch_("/api/send-push-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playerName: String(playerName || "").trim(),
-        title: cleanTitle,
-        body: cleanBody,
-        url: "/"
-      })
-    });
-
-    /*alert(`Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed`);*/
-    alert(JSON.stringify(data, null, 2));
-    setAdminStatus_("adminFundsStatus", `Push sent: ${data.sent || 0} sent, ${data.failed || 0} failed.`);
-  } catch (err) {
-    alert(err.message || String(err));
-    setAdminStatus_("adminFundsStatus", err.message || String(err), true);
-  }
-}
 
 function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
@@ -4924,13 +4953,11 @@ function initAdminControls_() {
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
   document.getElementById("adminMarkPaidOutBtn")?.addEventListener("click", markPaidOut_);
   document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
-  document.getElementById("adminPausePushBtn")?.addEventListener("click", () => adminSetPushPaused_(true));
-  document.getElementById("adminResumePushBtn")?.addEventListener("click", () => adminSetPushPaused_(false));
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
-  document.getElementById("adminTestPushBtn")?.addEventListener("click", sendTestPush_);
+  document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 
 

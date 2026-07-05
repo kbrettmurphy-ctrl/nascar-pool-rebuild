@@ -96,7 +96,7 @@ html{
 
   --navBg:rgba(2,11,18,.92);
   --overlayBg:rgba(2,11,18,.72);
-  --sheetBg:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
+  --sheetBg:#0a1822;
 
   --btnPrimaryBg:#0b1926;
   --btnPrimaryBorder:rgba(255,255,255,.28);
@@ -322,6 +322,16 @@ button.primary{
 button.primary:hover{ background: var(--btnPrimaryBg); filter: brightness(1.25); }
 
 button.secondary{ background:#334155; color:#fff; }
+
+button.primary.danger{
+  background: rgba(228,0,43,.14);
+  border:1px solid rgba(228,0,43,.40);
+  color: var(--redText);
+}
+button.primary.danger:hover{
+  background: rgba(228,0,43,.22);
+  filter:none;
+}
 
 button.topactions{
   background: var(--chip);
@@ -1945,6 +1955,71 @@ a.newsCard:last-child{ border-bottom:none; }
   margin-bottom:6px;
 }
 
+/* Header + context + tabs stay pinned while panes scroll */
+.adminSticky{
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: -14px -14px 12px;
+  padding: 14px 14px 10px;
+  background: var(--sheetBg);
+  border-radius: 20px 20px 0 0;
+  border-bottom: 1px solid var(--lineSoft);
+}
+
+.adminSticky .adminContextBar{ margin-bottom:10px; }
+
+.adminSectionTitle{
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:-0.2px;
+  margin:2px 0 2px;
+}
+
+.adminPushList{ margin-top:6px; }
+
+.pushRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 2px;
+  border-bottom:1px solid var(--lineSoft);
+}
+.pushRow:last-child{ border-bottom:none; }
+
+.pushName{
+  flex:1 1 auto;
+  min-width:0;
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.pushDevices{
+  flex:0 0 auto;
+  font-size:12px;
+  color:var(--muted);
+}
+
+.pushToggle{
+  flex:0 0 auto;
+  min-width:66px;
+  height:28px;
+  border-radius:999px;
+  background:var(--chip);
+  border:1px solid var(--chipBorder);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+.pushToggle.on{
+  background:var(--glassBlue42);
+  border-color:var(--glassBlue55);
+  color:#fff;
+}
+:root[data-theme="light"] .pushToggle.on{ color:var(--text); }
+
 .adminSheetHeader{
   display:flex;
   justify-content:space-between;
@@ -2025,26 +2100,34 @@ a.newsCard:last-child{ border-bottom:none; }
 
 .adminTabs{
   display:flex;
-  gap:8px;
-  margin-bottom:12px;
-  flex-wrap:wrap;
+  gap:2px;
+  margin-bottom:0;
+  flex-wrap:nowrap;
+  background: var(--chip);
+  border:1px solid var(--lineSoft);
+  border-radius:12px;
+  padding:3px;
 }
 
 .adminTab{
-  background:var(--chip);
-  color:var(--text);
-  border:1px solid var(--chipBorder);
-  padding:8px 12px;
+  flex:1 1 0;
+  min-width:0;
+  background:transparent;
+  color:var(--muted);
+  border:none;
+  border-radius:9px;
+  padding:7px 2px;
+  font-size:11px;
+  font-weight:600;
+  white-space:nowrap;
 }
+.adminTab:hover{ background:transparent; }
 
 .adminTab.active{
-  background:rgba(228,0,43,.22);
-  border-color:rgba(228,0,43,.42);
-  color:var(--redText);
-}
-:root[data-theme="dark"] .adminTab.active,
-:root:not([data-theme="light"]) .adminTab.active{
-  color:#fff;
+  background: var(--segActive);
+  box-shadow: var(--segShadow);
+  color: var(--text);
+  font-weight:700;
 }
 
 .adminTabPane{ display:none; }

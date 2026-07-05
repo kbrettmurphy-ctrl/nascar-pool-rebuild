@@ -184,6 +184,7 @@
 
   <div id="adminOverlay" class="adminOverlay" hidden>
     <div class="adminSheet">
+      <div class="adminSticky">
       <div class="adminSheetHeader">
         <div>
           <div class="pill">Admin Tools</div>
@@ -206,13 +207,12 @@
       </div>
 
       <div class="adminTabs">
-        <button class="adminTab active" data-admin-tab="raceops" type="button">Race Ops</button>
+        <button class="adminTab active" data-admin-tab="raceops" type="button">Race</button>
         <button class="adminTab" data-admin-tab="seeds" type="button">Seeds</button>
         <button class="adminTab" data-admin-tab="funds" type="button">Funds</button>
-        <button class="adminTab" data-admin-tab="buschgirls" type="button">Busch Girls</button>
-        <button class="topactions" id="adminTestPushBtn" type="button">
-          🔔 Send Push
-        </button>
+        <button class="adminTab" data-admin-tab="push" type="button">Push</button>
+        <button class="adminTab" data-admin-tab="buschgirls" type="button">Photos</button>
+      </div>
       </div>
 
       <div id="adminTab-raceops" class="adminTabPane active">
@@ -220,7 +220,7 @@
           <button id="adminAssignBtn" class="primary" type="button">Generate Assignments</button>
           <button id="adminQualBtn" class="primary" type="button">Import Qualifying</button>
           <button id="adminResultsBtn" class="primary" type="button">Import Results</button>
-          <button id="adminClearAssignmentsBtn" class="primary" style="background:rgba(228,0,43,.28);">Clear Assignments</button>
+          <button id="adminClearAssignmentsBtn" class="primary danger" type="button">Clear Assignments</button>
         </div>
         <div id="adminRaceOpsStatus" class="adminStatus"></div>
       </div>
@@ -253,7 +253,7 @@
         <div id="adminSeedsGrid" class="adminSeedsGrid"></div>
         <div class="adminRow" style="margin-top:10px;">
           <button id="adminSaveSeedsBtn" class="primary" type="button">Save Seeds</button>
-          <button id="adminClearSeedsBtn" class="primary" style="background:rgba(228,0,43,.28);">Clear Seeds</button>
+          <button id="adminClearSeedsBtn" class="primary danger" type="button">Clear Seeds</button>
         </div>
         <div id="adminSeedsStatus" class="adminStatus"></div>
       </div>
@@ -276,13 +276,31 @@
           <button id="adminWhoIOweBtn" class="primary" type="button">Who Do I Owe?</button>
         </div>
         <div class="adminRow">
-          <button id="adminPausePushBtn" class="primary" type="button">🔕 Pause Push</button>
-          <button id="adminResumePushBtn" class="primary" type="button">🔔 Resume Push</button>
-        </div>
-        <div class="adminRow">
           <button id="venmoBalanceBtn" class="primary" style="background:var(--glassBlue42);">Venmo: $0.00</button>
         </div>
         <div id="adminFundsStatus" class="adminStatus"></div>
+      </div>
+
+      <div id="adminTab-push" class="adminTabPane">
+        <div class="adminSectionTitle">Send Push</div>
+        <div class="adminField">
+          <label for="adminPushTo">To</label>
+          <select id="adminPushTo"><option value="">Everyone</option></select>
+        </div>
+        <div class="adminField">
+          <label for="adminPushTitle">Title</label>
+          <input id="adminPushTitle" type="text" placeholder="NASCAR Pool" maxlength="60">
+        </div>
+        <div class="adminField">
+          <label for="adminPushBody">Message</label>
+          <input id="adminPushBody" type="text" placeholder="Results are in..." maxlength="180">
+        </div>
+        <button id="adminPushSendBtn" class="primary" type="button">📣 Send Push</button>
+
+        <div class="adminSectionTitle" style="margin-top:18px;">Notifications</div>
+        <div class="muted">Tap a player's toggle to pause or resume all their devices.</div>
+        <div id="adminPushList" class="adminPushList muted">Loading…</div>
+        <div id="adminPushStatus" class="adminStatus"></div>
       </div>
 
       <div id="adminTab-buschgirls" class="adminTabPane">
