@@ -778,10 +778,10 @@ select, input{
   background: transparent
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     no-repeat right 2px center / 12px 8px;
-  padding:0 22px 0 0;
-  font-size: var(--big);
-  font-weight:800;
-  letter-spacing:-0.3px;
+  padding:0 20px 0 0;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:-0.1px;
   color: var(--text);
   border-radius:8px;
 }
