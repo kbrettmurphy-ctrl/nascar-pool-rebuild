@@ -1976,6 +1976,8 @@ a.newsCard:last-child{ border-bottom:none; }
   margin:2px 0 2px;
 }
 
+#adminPushSendBtn{ width:100%; margin-top:8px; }
+
 .adminPushList{ margin-top:6px; }
 
 .pushRow{
