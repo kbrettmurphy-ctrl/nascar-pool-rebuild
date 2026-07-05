@@ -3858,7 +3858,8 @@ function initSparkHover_(root) {
 
   function show(clientX) {
     const rect = svg.getBoundingClientRect();
-    if (!rect.width) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    if (!rect.width || !wrapRect.width) return;
     const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const i = Math.round(f * (ranks.length - 1));
     cursor.setAttribute("cx", x(i).toFixed(1));
@@ -3866,8 +3867,10 @@ function initSparkHover_(root) {
     cursor.setAttribute("visibility", "visible");
     tip.hidden = false;
     tip.textContent = `Race ${i + 1} \u00b7 #${ranks[i]}`;
-    const px = (x(i) / w) * rect.width + svg.offsetLeft;
-    tip.style.left = Math.min(rect.width - 10, Math.max(10, px)) + "px";
+    // position relative to the wrap (SVG elements have no offsetLeft,
+    // which made this NaN before and parked the tip at the left edge)
+    const px = (rect.left - wrapRect.left) + (x(i) / w) * rect.width;
+    tip.style.left = Math.min(wrapRect.width - 30, Math.max(30, px)) + "px";
   }
 
   function hide() {
