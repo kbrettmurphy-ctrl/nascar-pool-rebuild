@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v34";
+const CACHE_NAME = "nascar-pool-pwa-v35";
 
 const STATIC_ASSETS = [
   "/",
@@ -68,7 +68,8 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin === location.origin && NETWORK_FIRST.has(url.pathname)) {
     event.respondWith(
-      fetch(req).then((res) => {
+      // no-cache forces conditional revalidation (ETag 304s are cheap)
+      fetch(req, { cache: "no-cache" }).then((res) => {
         if (req.method === "GET" && res.ok) {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));

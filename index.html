@@ -405,6 +405,49 @@
           navigator.serviceWorker.register("/service-worker.js")
             .catch((err) => console.log("Service worker registration failed:", err));
         });
+
+        // Auto-update long-lived PWA sessions: when the app comes back
+        // to the foreground, check whether a newer build is deployed
+        // (ETag probe covers content-only edits; reg.update() covers
+        // service-worker changes) and reload once if so.
+        (function autoFreshen(){
+          var hadController = false;
+          var reloaded = false;
+          var loadedEtag = null;
+
+          navigator.serviceWorker.ready.then(function(){
+            hadController = !!navigator.serviceWorker.controller;
+          });
+
+          navigator.serviceWorker.addEventListener("controllerchange", function(){
+            if (reloaded || !hadController) return;
+            reloaded = true;
+            location.reload();
+          });
+
+          function probeEtag(){
+            return fetch("/player-portal.js", { method: "HEAD", cache: "no-cache" })
+              .then(function(res){ return res.headers.get("etag") || null; })
+              .catch(function(){ return null; });
+          }
+
+          probeEtag().then(function(tag){ loadedEtag = tag; });
+
+          document.addEventListener("visibilitychange", function(){
+            if (document.visibilityState !== "visible" || reloaded) return;
+
+            navigator.serviceWorker.getRegistration()
+              .then(function(reg){ if (reg) reg.update(); })
+              .catch(function(){});
+
+            probeEtag().then(function(tag){
+              if (tag && loadedEtag && tag !== loadedEtag && !reloaded) {
+                reloaded = true;
+                location.reload();
+              }
+            });
+          });
+        })();
       }
     </script>
     <script src="player-portal.js" defer></script>
