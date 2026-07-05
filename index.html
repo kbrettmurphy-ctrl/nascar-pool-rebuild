@@ -337,24 +337,44 @@
         var btn = document.getElementById("themeToggleBtn");
         if (!btn) return;
 
+        var mq = window.matchMedia ? matchMedia("(prefers-color-scheme: light)") : null;
+
+        function systemTheme(){
+          return (mq && mq.matches) ? "light" : "dark";
+        }
+
         function current(){
           return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
         }
 
-        function paint(){
-          btn.textContent = current() === "light" ? "🌙" : "☀️";
+        function apply(t){
+          document.documentElement.setAttribute("data-theme", t);
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute("content", t === "light" ? "#eef2f5" : "#020b12");
+          btn.textContent = t === "light" ? "🌙" : "☀️";
         }
 
         btn.addEventListener("click", function(){
           var next = current() === "light" ? "dark" : "light";
-          document.documentElement.setAttribute("data-theme", next);
-          try { localStorage.setItem("npTheme", next); } catch(e){}
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute("content", next === "light" ? "#eef2f5" : "#020b12");
-          paint();
+          try {
+            // Toggling back to the system's theme returns to auto,
+            // so the app keeps following the phone's setting.
+            if (next === systemTheme()) localStorage.removeItem("npTheme");
+            else localStorage.setItem("npTheme", next);
+          } catch(e){}
+          apply(next);
         });
 
-        paint();
+        // Follow live system changes while no manual override is set
+        if (mq && mq.addEventListener) {
+          mq.addEventListener("change", function(){
+            var stored = null;
+            try { stored = localStorage.getItem("npTheme"); } catch(e){}
+            if (stored !== "light" && stored !== "dark") apply(systemTheme());
+          });
+        }
+
+        apply(current());
       })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/ios-haptics@latest/dist/ios-haptics.min.js"></script>

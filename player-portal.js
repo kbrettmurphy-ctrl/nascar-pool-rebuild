@@ -3156,12 +3156,20 @@ async function enablePushNotifications_() {
   if (btn) btn.disabled = true;
 
   try {
-    if (!("serviceWorker" in navigator)) {
-      throw new Error("Service workers are not supported here.");
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone =
+      window.navigator.standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches;
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      if (isIOS && !isStandalone) {
+        throw new Error("On iPhone, notifications only work from the installed app: tap Share, then 'Add to Home Screen', open NASCAR Pool from your home screen, and tap Notify Me again.");
+      }
+      throw new Error("Push notifications are not supported in this browser.");
     }
 
-    if (!("PushManager" in window)) {
-      throw new Error("Push notifications are not supported here.");
+    if (!loadPlayerName().trim()) {
+      throw new Error("Pick your name from the dropdown first so we know who to notify.");
     }
 
     const permission = await Notification.requestPermission();
@@ -3205,11 +3213,8 @@ function initPushNotifications_() {
   const btn = document.getElementById("enableNotificationsBtn");
   if (!btn) return;
 
-  if (!("Notification" in window)) {
-    btn.hidden = true;
-    return;
-  }
-
+  // Keep the button visible even where push isn't supported (iOS
+  // Safari tab) - the click handler explains how to enable it.
   btn.addEventListener("click", enablePushNotifications_);
 }
 
@@ -3543,13 +3548,21 @@ async function loadHub_() {
     newsBox.innerHTML = items.length
       ? items.map(it => {
           const d = new Date(it.pubDate || "");
-          const when = Number.isNaN(d.getTime())
-            ? ""
-            : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          let when = "";
+          if (!Number.isNaN(d.getTime())) {
+            const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+            when =
+              mins < 60 ? `${mins}m ago` :
+              mins < 1440 ? `${Math.round(mins / 60)}h ago` :
+              d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          }
           return `
-            <a class="hubRow newsRow" href="${escapeAttr(it.link)}" target="_blank" rel="noopener">
-              <div class="hubWhat">${escapeHtml(it.title)}</div>
-              ${when ? `<div class="newsWhen">${when}</div>` : ""}
+            <a class="newsCard" href="${escapeAttr(it.link)}" target="_blank" rel="noopener">
+              <div class="newsBody">
+                <div class="newsTitle">${escapeHtml(it.title)}</div>
+                ${when ? `<div class="newsWhen">${when}</div>` : ""}
+              </div>
+              ${it.image ? `<img class="newsThumb" src="${escapeAttr(it.image)}" loading="lazy" alt="">` : ""}
             </a>`;
         }).join("")
       : `<div class="muted">No headlines right now.</div>`;
@@ -4244,7 +4257,6 @@ function showBuschPhotoMenu_(x, y) {
       <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
       <button type="button" role="menuitem" data-action="save">Save Image</button>
       <button type="button" role="menuitem" data-action="info">Get Info</button>
-      <button type="button" role="menuitem" data-action="download">Download Photo</button>
       <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
     </div>
   `;
@@ -4276,7 +4288,6 @@ function showBuschPhotoMenu_(x, y) {
       if (action === "view") window.open(info.url, "_blank", "noopener");
       else if (action === "save") await saveBuschPhotoImage_(info);
       else if (action === "info") showBuschPhotoInfo_();
-      else if (action === "download") downloadBuschPhoto_(info);
       else if (action === "delete") await deleteBuschPhoto_(info);
     });
   });

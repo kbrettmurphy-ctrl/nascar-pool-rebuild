@@ -37,9 +37,9 @@ html{
   --radius:16px;
   --radius2:14px;
 
-  --h2:24px;
-  --big:20px;
-  --body:14px;
+  --h2:22px;
+  --big:18px;
+  --body:13px;
 
   --micro:8px;
 
@@ -50,14 +50,9 @@ html{
   --vvb:0px;
   --navH:62px;
   --sponsorH:102px;
-  --pageBottomPad: calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
+  --pageBottomPad: calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) + var(--vvb));
 
   --wmShift:0px;
-
-  /* Global scale — everything renders at 92%, like browser zoom-out.
-     env() safe-area values are real device px, so anywhere they're
-     used inside the zoomed body they get divided by this. */
-  --appZoom:0.92;
 }
 
 /* ==========================================================
@@ -209,7 +204,6 @@ html{
 *{ box-sizing:border-box; }
 
 body{
-  zoom: var(--appZoom);
   font-size: var(--body);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
   line-height:1.4;
@@ -230,7 +224,7 @@ h2{ margin:0 0 6px 0; font-size: var(--h2); font-weight:800; letter-spacing:-0.4
 /* NASCAR tri-stripe pinned to the very top of the screen.
    The bar extends up through the notch/Dynamic-Island safe area
    (filled with the page bg) so content never scrolls above it.
-   Lives on html so the body zoom can't shrink the safe-area fill. */
+   Lives on html, above everything. */
 html::after{
   content:"";
   position: fixed;
@@ -1227,7 +1221,7 @@ select, input{
 .bottomNav{
   position: fixed;
   left:0; right:0; bottom:0;
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom) / var(--appZoom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
   background: var(--navBg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1700,16 +1694,39 @@ select, input{
   padding:2px 8px;
 }
 
-a.newsRow{
+a.newsCard{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 2px;
+  border-bottom:1px solid var(--lineSoft);
   text-decoration:none;
   color: var(--text);
-  display:flex;
+  min-width:0;
 }
-.newsRow .hubWhat{ font-weight:600; line-height:1.35; }
+a.newsCard:last-child{ border-bottom:none; }
+
+.newsBody{ flex:1 1 auto; min-width:0; }
+
+.newsTitle{
+  font-size:13px;
+  font-weight:600;
+  line-height:1.35;
+}
+
 .newsWhen{
-  flex:0 0 auto;
+  margin-top:3px;
   font-size:11px;
   color: var(--muted);
+}
+
+.newsThumb{
+  flex:0 0 auto;
+  width:76px;
+  height:56px;
+  object-fit:cover;
+  border-radius:10px;
+  background: var(--chip);
 }
 
 .buschRatingsList{ margin-top:10px; }
@@ -2366,7 +2383,7 @@ html.iosStandalone{
 }
 
 html.iosStandalone body{
-  padding-top: calc(var(--pad) + env(safe-area-inset-top) / var(--appZoom));
+  padding-top: calc(var(--pad) + env(safe-area-inset-top));
   padding-bottom: var(--pageBottomPad);
 }
 
@@ -2374,19 +2391,19 @@ html.iosStandalone .bottomNav{
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom) / var(--appZoom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
   background: var(--navBg);
   border-top: 1px solid var(--lineSoft);
   border-radius: 0;
 }
 
 html.iosStandalone .sponsor-container{
-  bottom: calc(var(--navH) + env(safe-area-inset-bottom) / var(--appZoom));
+  bottom: calc(var(--navH) + env(safe-area-inset-bottom));
 }
 
 html.iosStandalone .adminOverlay{
   padding:
-    calc(14px + env(safe-area-inset-top) / var(--appZoom))
+    calc(14px + env(safe-area-inset-top))
     14px
-    calc(14px + env(safe-area-inset-bottom) / var(--appZoom) + 90px);
+    calc(14px + env(safe-area-inset-bottom) + 90px);
 }

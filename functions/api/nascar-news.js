@@ -1,44 +1,72 @@
-// NASCAR.com headlines. nascar.com/feed sits behind a Cloudflare bot
-// wall (403s server-side fetches), so we read the same headlines via
-// Google News RSS filtered to nascar.com.
+// NASCAR Cup headlines with thumbnails.
+// Primary: motorsport.com RSS (fetchable from Workers, includes images).
+// Fallback: Google News RSS scoped to nascar.com (no images).
+// nascar.com's own feed 403s server-side fetches behind its bot wall.
 export async function onRequestGet() {
   try {
-    const res = await fetch(
-      "https://news.google.com/rss/search?q=site:nascar.com&hl=en-US&gl=US&ceid=US:en",
-      {
-        headers: {
-          Accept: "application/rss+xml, application/xml, text/xml",
-          "User-Agent": "Mozilla/5.0",
-        },
-        cf: { cacheTtl: 600, cacheEverything: true },
-      }
-    );
-
-    if (!res.ok) {
-      return json({ ok: false, error: `Feed fetch failed: ${res.status}` }, 502);
-    }
-
-    const xml = await res.text();
-
-    const items = [];
-    const itemRe = /<item>([\s\S]*?)<\/item>/g;
-    let m;
-
-    while ((m = itemRe.exec(xml)) && items.length < 12) {
-      const block = m[1];
-      const title = decode_(pick_(block, "title"))
-        .replace(/\s+-\s+NASCAR(\.com)?\s*$/i, "");
-      const link = pick_(block, "link");
-      const pubDate = pick_(block, "pubDate");
-      if (title && link) {
-        items.push({ title, link, pubDate });
-      }
-    }
-
+    let items = await fromMotorsport_();
+    if (!items.length) items = await fromGoogleNews_();
     return json({ ok: true, items });
   } catch (err) {
+    try {
+      const items = await fromGoogleNews_();
+      if (items.length) return json({ ok: true, items });
+    } catch {}
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
+}
+
+async function fromMotorsport_() {
+  const xml = await fetchText_("https://www.motorsport.com/rss/nascar-cup/news/");
+  const items = [];
+  const itemRe = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+
+  while ((m = itemRe.exec(xml)) && items.length < 15) {
+    const block = m[1];
+    const title = decode_(pick_(block, "title"));
+    const link = pick_(block, "link");
+    const pubDate = pick_(block, "pubDate");
+    const img = block.match(/<enclosure[^>]*url="([^"]+)"/)?.[1] || "";
+    if (title && link) {
+      items.push({ title, link, pubDate, image: img });
+    }
+  }
+  return items;
+}
+
+async function fromGoogleNews_() {
+  const xml = await fetchText_(
+    "https://news.google.com/rss/search?q=site:nascar.com&hl=en-US&gl=US&ceid=US:en"
+  );
+  const items = [];
+  const itemRe = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+
+  while ((m = itemRe.exec(xml)) && items.length < 12) {
+    const block = m[1];
+    const title = decode_(pick_(block, "title"))
+      .replace(/\s+-\s+NASCAR(\.com)?\s*$/i, "");
+    const link = pick_(block, "link");
+    const pubDate = pick_(block, "pubDate");
+    if (title && link) {
+      items.push({ title, link, pubDate, image: "" });
+    }
+  }
+  return items;
+}
+
+async function fetchText_(url) {
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/rss+xml, application/xml, text/xml",
+      "User-Agent":
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+    },
+    cf: { cacheTtl: 600, cacheEverything: true },
+  });
+  if (!res.ok) throw new Error(`Feed fetch failed: ${res.status}`);
+  return res.text();
 }
 
 function pick_(block, tag) {

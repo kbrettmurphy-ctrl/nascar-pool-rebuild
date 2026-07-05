@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v19";
+const CACHE_NAME = "nascar-pool-pwa-v20";
 
 const STATIC_ASSETS = [
   "/",
@@ -52,6 +52,29 @@ self.addEventListener("fetch", (event) => {
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req).catch(() => caches.match("/index.html"))
+    );
+    return;
+  }
+
+  // Code assets go network-first so a fresh deploy applies on the
+  // first launch instead of one load late; cache is the offline
+  // fallback. Everything else (images) stays cache-first.
+  const NETWORK_FIRST = new Set([
+    "/player-portal.js",
+    "/player-portal.css",
+    "/index.html",
+    "/manifest.webmanifest"
+  ]);
+
+  if (url.origin === location.origin && NETWORK_FIRST.has(url.pathname)) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (req.method === "GET" && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req))
     );
     return;
   }
