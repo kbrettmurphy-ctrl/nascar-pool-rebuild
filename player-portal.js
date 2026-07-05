@@ -3467,6 +3467,10 @@ function initPushNotifications_() {
 
 let buschGirls = [];
 let buschQueue = [];
+
+// Set by initBuschLongPress_; opens the popup on a specific image
+// (used by the admin ratings thumbnails).
+let openBuschViewer_ = null;
 let buschSeenUrls = new Set();
 
 const BUSCH_WARMUP_COUNT = 2;
@@ -3936,6 +3940,12 @@ async function loadBuschRatings_() {
           <button class="bgRemoveBtn" type="button">Remove</button>
         </div>
       `).join("");
+
+    box.querySelectorAll(".bgRateRow img").forEach(img => {
+      img.addEventListener("click", () => {
+        openBuschViewer_?.(img.getAttribute("src"));
+      });
+    });
 
     box.querySelectorAll(".bgVoteChip").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -4485,9 +4495,24 @@ function showBuschPhotoMenu_(x, y) {
     zReset_(false);
     zPtrs.clear();
     popup.hidden = true;
-    document.body.style.overflow = "";
+    // keep the page locked if the admin sheet is still open behind us
+    const adminOpen = !document.getElementById("adminOverlay")?.hidden;
+    document.body.style.overflow = adminOpen ? "hidden" : "";
     document.body.classList.remove("noSelect");
   }
+
+  // Open the popup directly on one image (admin ratings thumbnails).
+  // Pushes it onto the history so zoom, votes, and the long-press
+  // menu all work on exactly this photo.
+  openBuschViewer_ = (src) => {
+    if (!src || !popupImg) return;
+    buschHistory.push(src);
+    buschHistoryIndex = buschHistory.length - 1;
+    showBuschImage_(src);
+    popup.hidden = false;
+    document.body.style.overflow = "hidden";
+    document.body.classList.add("noSelect");
+  };
 
   /* ----------------------------------------------------------
      Logo: hold 1s (touch or mouse) opens the popup.

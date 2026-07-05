@@ -1758,6 +1758,7 @@ a.newsCard:last-child{ border-bottom:none; }
   object-fit:cover;
   border-radius:8px;
   flex:0 0 auto;
+  cursor:pointer;
 }
 .bgRateInfo{ min-width:0; flex:1 1 auto; }
 .bgRateName{
