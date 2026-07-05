@@ -2331,9 +2331,10 @@ await refreshAfterAdminChange_();
           ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
           : `Balance Due: $${balance.toFixed(2)}`;
 
-      const venmoBtn = (balance > 0 && VENMO_HANDLE)
+      const venmoUser = String(VENMO_HANDLE || "").replace(/^@/, "");
+      const venmoBtn = (balance > 0 && venmoUser)
         ? `<a class="venmoPayBtn" target="_blank" rel="noopener"
-             href="https://account.venmo.com/pay?recipients=${encodeURIComponent(VENMO_HANDLE)}&amount=${balance.toFixed(2)}&note=${encodeURIComponent("NASCAR Pool dues - " + name)}">
+             href="https://account.venmo.com/pay?recipients=${encodeURIComponent(venmoUser)}&amount=${balance.toFixed(2)}&note=${encodeURIComponent("NASCAR Pool dues - " + name)}">
              Pay $${balance.toFixed(2)} on Venmo</a>`
         : "";
 
