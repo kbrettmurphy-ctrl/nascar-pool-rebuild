@@ -11,8 +11,6 @@
 
 html{
   scrollbar-gutter: stable;
-  min-height: 100%;
-  min-height: 100dvh;
 }
 @supports not (scrollbar-gutter: stable){
   html{ overflow-y: scroll; }
@@ -52,7 +50,7 @@ html{
   --vvb:0px;
   --navH:62px;
   --sponsorH:102px;
-  --pageBottomPad: calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom));
+  --pageBottomPad: calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom) + var(--vvb));
 
   --wmShift:0px;
 
@@ -221,9 +219,6 @@ body{
   background: var(--bg);
   color: var(--text);
   padding-bottom: var(--pageBottomPad);
-  scroll-padding-bottom: var(--pageBottomPad);
-  min-height: calc(100dvh + 1px);
-  overscroll-behavior-y: contain;
   position: relative;
   overflow-x: hidden;
   transition: background-color .25s ease, color .25s ease;
@@ -565,7 +560,7 @@ select, input{
   border-radius:16px;
   box-shadow:0 18px 52px rgba(0,0,0,.42);
   touch-action:none;
-  -webkit-touch-callout:default;
+  -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
 }

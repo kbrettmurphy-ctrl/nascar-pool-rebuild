@@ -143,31 +143,6 @@
     }
   })();
 
-  let _pageBottomPaddingTimer = null;
-
-  function updatePageBottomPadding_() {
-    const root = document.documentElement;
-    // Keep bottom inset stable: nav + sponsor + safe area only.
-    // Dynamic --vvb and toggling 0/full pad caused layout shifts while the
-    // mobile browser chrome collapsed, which felt like a required second scroll.
-    const fullPad = `calc(var(--navH) + var(--sponsorH) + env(safe-area-inset-bottom) / var(--appZoom))`;
-    root.style.setProperty("--pageBottomPad", fullPad);
-  }
-
-  function schedulePageBottomPadding_() {
-    if (_pageBottomPaddingTimer) clearTimeout(_pageBottomPaddingTimer);
-    _pageBottomPaddingTimer = setTimeout(() => {
-      _pageBottomPaddingTimer = null;
-      updatePageBottomPadding_();
-    }, 80);
-  }
-
-  window.addEventListener("resize", schedulePageBottomPadding_);
-  window.addEventListener("orientationchange", schedulePageBottomPadding_);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", schedulePageBottomPadding_);
-  }
-
   /* ==========================================================
    Data fetchers
    ========================================================== */
@@ -1519,8 +1494,6 @@ await refreshAfterAdminChange_();
       loadLiveMatchups();
       startLivePolling_();
     }
-
-    schedulePageBottomPadding_();
   }
 
   function refreshActiveView() {
@@ -1558,8 +1531,6 @@ await refreshAfterAdminChange_();
     } else if (activeView === "live") {
       loadLiveMatchups();
     }
-
-    schedulePageBottomPadding_();
   }
 
   function savePlayerName(name) {
@@ -2696,7 +2667,6 @@ await refreshAfterAdminChange_();
         const box = document.getElementById("statsPanel");
         _statsMode = "drivers";
         await renderDrivers_(box);
-        schedulePageBottomPadding_();
         return;
       }
 
@@ -2720,7 +2690,6 @@ await refreshAfterAdminChange_();
       });
 
       setStatsMode_("overall");
-      schedulePageBottomPadding_();
     }catch(e){
       area.innerHTML = "Error: " + (e && e.message ? e.message : e);
     }
@@ -3415,8 +3384,6 @@ function initPushNotifications_() {
         };
       });
     }
-
-    schedulePageBottomPadding_();
   } catch(e){
     if (headerSelect) headerSelect.innerHTML = "";
     sub.textContent = "Bracket failed to load.";
@@ -4049,96 +4016,9 @@ function initBuschLongPress_() {
   trigger.addEventListener("dragstart", suppressNativePress);
   trigger.addEventListener("selectstart", suppressNativePress);
 
-  let imageMenuBlockClickUntil = 0;
   let buschPhotoMenuEl = null;
   let buschSaveSheetEl = null;
-  let lastPhotoMenuAt = 0;
-  let lastLogoPopupAt = 0;
-  const PHOTO_MENU_HOLD_MS = 650;
-  const HOLD_MOVE_THRESHOLD = 10;
   const coarsePointer_ = window.matchMedia("(pointer: coarse)").matches;
-
-  function createHoldDetector_(holdMs, onTrigger) {
-    let intervalId = null;
-    let holdStart = 0;
-    let startX = 0;
-    let startY = 0;
-    let fired = false;
-
-    function clearPending_() {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = null;
-      holdStart = 0;
-      fired = false;
-    }
-
-    function stopInterval_() {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = null;
-      holdStart = 0;
-    }
-
-    function tick_() {
-      if (!holdStart || fired) return;
-      if (Date.now() - holdStart >= holdMs) {
-        fired = true;
-        if (intervalId) clearInterval(intervalId);
-        intervalId = null;
-        onTrigger();
-        void document.body.offsetHeight;
-      }
-    }
-
-    return {
-      start(x, y) {
-        clearPending_();
-        holdStart = Date.now();
-        startX = x || 0;
-        startY = y || 0;
-        fired = false;
-        intervalId = setInterval(tick_, 32);
-      },
-      move(x, y) {
-        if (!holdStart || fired) return;
-        if (
-          Math.abs((x || 0) - startX) > HOLD_MOVE_THRESHOLD ||
-          Math.abs((y || 0) - startY) > HOLD_MOVE_THRESHOLD
-        ) {
-          clearPending_();
-        }
-      },
-      end() {
-        stopInterval_();
-      },
-      cancel: clearPending_,
-      confirmFire() {
-        fired = true;
-        stopInterval_();
-      },
-      holdElapsed() {
-        return holdStart ? Date.now() - holdStart : 0;
-      },
-      wasFired() { return fired; }
-    };
-  }
-
-  function triggerPhotoMenu_(x, y) {
-    if (Date.now() - lastPhotoMenuAt < 400) return;
-    lastPhotoMenuAt = Date.now();
-    photoMenuShownThisTouch = true;
-    photoMenuHold_.confirmFire();
-    imageMenuBlockClickUntil = Date.now() + 900;
-    if (navigator.vibrate) navigator.vibrate(8);
-    showBuschPhotoMenu_(x || 0, y || 0);
-  }
-
-  function triggerLogoPopup_() {
-    if (Date.now() - lastLogoPopupAt < 400) return;
-    lastLogoPopupAt = Date.now();
-    logoHold_.cancel();
-    longPressTriggered = true;
-    openPopup();
-  }
 
 function buschPhotoInfoFromSrc_(src) {
   const cleanSrc = String(src || "").split("?")[0];
@@ -4398,23 +4278,7 @@ function showBuschPhotoMenu_(x, y) {
   });
 
   buschPhotoMenuEl = menu;
-  imageMenuBlockClickUntil = Date.now() + 650;
-  void menu.offsetWidth;
 }
-
-  let photoMenuX = 0;
-  let photoMenuY = 0;
-
-  const photoMenuHold_ = createHoldDetector_(PHOTO_MENU_HOLD_MS, () => {
-    triggerPhotoMenu_(photoMenuX, photoMenuY);
-  });
-
-  const logoHold_ = createHoldDetector_(1000, () => {
-    triggerLogoPopup_();
-  });
-
-  const TAP_MOVE_THRESHOLD = 8;
-  let longPressTriggered = false;
 
   function openPopup() {
     nextBuschImage_();
@@ -4425,187 +4289,138 @@ function showBuschPhotoMenu_(x, y) {
     popup.hidden = false;
     document.body.style.overflow = "hidden";
     document.body.classList.add("noSelect");
-    void popup.offsetWidth;
   }
 
   function closePopup() {
     closePhotoMenu_();
     closeBuschSaveSheet_();
-    photoMenuHold_.cancel();
-    logoHold_.cancel();
+    cancelLogoHold_();
+    cancelPhotoHold_();
     popup.hidden = true;
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
   }
 
-  function startLogoPress_(e) {
-    longPressTriggered = false;
-    if (e.cancelable) e.preventDefault();
+  /* ----------------------------------------------------------
+     Logo: hold 1s (touch or mouse) opens the popup.
+     Right-click on desktop (and Android's long-press
+     contextmenu) opens it too.
+     ---------------------------------------------------------- */
 
-    let x = 0;
-    let y = 0;
-    if (e.type === "touchstart") {
-      const t = e.touches[0];
-      x = t?.clientX || 0;
-      y = t?.clientY || 0;
-    } else {
-      x = e.clientX || 0;
-      y = e.clientY || 0;
+  const HOLD_MOVE_THRESHOLD = 10;
+  const TAP_MOVE_THRESHOLD = 8;
+
+  let logoTimer = null;
+  let logoX = 0;
+  let logoY = 0;
+
+  function cancelLogoHold_() {
+    if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
+  }
+
+  trigger.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    logoX = e.clientX || 0;
+    logoY = e.clientY || 0;
+    cancelLogoHold_();
+    logoTimer = setTimeout(() => {
+      logoTimer = null;
+      openPopup();
+    }, 1000);
+  });
+
+  trigger.addEventListener("pointermove", (e) => {
+    if (!logoTimer) return;
+    if (Math.abs((e.clientX || 0) - logoX) > HOLD_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - logoY) > HOLD_MOVE_THRESHOLD) {
+      cancelLogoHold_();
     }
+  });
 
-    logoHold_.start(x, y);
+  trigger.addEventListener("pointerup", cancelLogoHold_);
+  trigger.addEventListener("pointercancel", cancelLogoHold_);
+
+  trigger.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelLogoHold_();
+    if (popup.hidden) openPopup();
+  });
+
+  /* ----------------------------------------------------------
+     Photo: tap left/right half = prev/next.
+     Hold 650ms fires the photo menu mid-hold; desktop
+     right-click opens the same menu.
+     ---------------------------------------------------------- */
+
+  let photoTimer = null;
+  let photoDownX = 0;
+  let photoDownY = 0;
+  let photoMenuFired = false;
+
+  function cancelPhotoHold_() {
+    if (photoTimer) { clearTimeout(photoTimer); photoTimer = null; }
   }
 
-  function moveLogoPress_(e) {
-    const t = e.touches?.[0];
-    const x = t ? t.clientX : (e.clientX || 0);
-    const y = t ? t.clientY : (e.clientY || 0);
-    logoHold_.move(x, y);
+  function firePhotoMenu_(x, y) {
+    cancelPhotoHold_();
+    photoMenuFired = true;
+    if (navigator.vibrate) navigator.vibrate(8);
+    showBuschPhotoMenu_(x || 0, y || 0);
   }
 
-  function endLogoPress_(e) {
-    if (longPressTriggered && e?.cancelable) {
-      e.preventDefault();
-      e.stopPropagation();
+  popupImg?.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    photoDownX = e.clientX || 0;
+    photoDownY = e.clientY || 0;
+    photoMenuFired = false;
+    cancelPhotoHold_();
+    photoTimer = setTimeout(() => {
+      photoTimer = null;
+      firePhotoMenu_(photoDownX, photoDownY);
+    }, 650);
+  });
+
+  popupImg?.addEventListener("pointermove", (e) => {
+    if (!photoTimer) return;
+    if (Math.abs((e.clientX || 0) - photoDownX) > HOLD_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - photoDownY) > HOLD_MOVE_THRESHOLD) {
+      cancelPhotoHold_();
     }
-    logoHold_.end();
-    setTimeout(() => {
-      longPressTriggered = false;
-    }, 0);
-  }
+  });
 
-  if (coarsePointer_) {
-    trigger.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      triggerLogoPopup_();
-    });
-  } else {
-    trigger.addEventListener("contextmenu", suppressNativePress);
-  }
+  popupImg?.addEventListener("pointerup", (e) => {
+    const menuShown = photoMenuFired;
+    cancelPhotoHold_();
+    if (menuShown) return;
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
-  trigger.addEventListener("mousedown", startLogoPress_);
-  trigger.addEventListener("mouseup", endLogoPress_);
-  trigger.addEventListener("mouseleave", () => logoHold_.cancel());
+    if (Math.abs((e.clientX || 0) - photoDownX) > TAP_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - photoDownY) > TAP_MOVE_THRESHOLD) return;
 
-  trigger.addEventListener("touchstart", startLogoPress_, { passive: false });
-  trigger.addEventListener("touchmove", moveLogoPress_, { passive: false });
-  trigger.addEventListener("touchend", endLogoPress_, { passive: false });
-  trigger.addEventListener("touchcancel", () => logoHold_.cancel(), { passive: false });
+    const rect = popupImg.getBoundingClientRect();
+    if ((e.clientX || 0) - rect.left < rect.width / 2) prevBuschImage_();
+    else nextBuschImage_();
+  });
 
-  let tapStartX = 0;
-  let tapStartY = 0;
-  let tapStartedWithMultiTouch = false;
-  let photoMenuTouchActive = false;
-  let photoMenuShownThisTouch = false;
-  let photoTouchStartAt = 0;
-  const PHOTO_TAP_MAX_MS = PHOTO_MENU_HOLD_MS - 80;
+  popupImg?.addEventListener("pointercancel", cancelPhotoHold_);
 
-  function wasPhotoLongPress_() {
-    if (photoMenuShownThisTouch || photoMenuHold_.wasFired()) return true;
-    if (!photoTouchStartAt) return false;
-    return (Date.now() - photoTouchStartAt) >= PHOTO_TAP_MAX_MS;
-  }
+  // Navigation is handled on pointerup; swallow the synthetic click
+  // so nothing double-fires.
+  popupImg?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
 
   popupImg?.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    triggerPhotoMenu_(e.clientX || 0, e.clientY || 0);
-  });
-
-  popupImg?.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "touch") return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (e.isPrimary === false) return;
-
-    photoTouchStartAt = Date.now();
-    photoMenuShownThisTouch = false;
-    tapStartX = e.clientX || 0;
-    tapStartY = e.clientY || 0;
-    tapStartedWithMultiTouch = false;
-
-    photoMenuX = tapStartX;
-    photoMenuY = tapStartY;
-    photoMenuHold_.start(tapStartX, tapStartY);
-  });
-
-  popupImg?.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "touch") return;
-    photoMenuHold_.move(e.clientX || 0, e.clientY || 0);
-  });
-
-  popupImg?.addEventListener("pointerup", (e) => {
-    if (e.pointerType === "touch") return;
-    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
-    else photoMenuHold_.end();
-  });
-
-  popupImg?.addEventListener("pointercancel", () => {
-    if (!photoMenuHold_.wasFired()) photoMenuHold_.cancel();
-  });
-
-  function handlePhotoTap_(clientX, clientY) {
-    if (wasPhotoLongPress_()) return;
-    if (Date.now() < imageMenuBlockClickUntil) return;
-    if (tapStartedWithMultiTouch) return;
-
-    const dx = Math.abs((clientX || 0) - tapStartX);
-    const dy = Math.abs((clientY || 0) - tapStartY);
-    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) return;
-
-    const rect = popupImg.getBoundingClientRect();
-    const x = (clientX || 0) - rect.left;
-
-    if (x < rect.width / 2) prevBuschImage_();
-    else nextBuschImage_();
-  }
-
-  popupImg?.addEventListener("touchstart", (e) => {
-    photoMenuTouchActive = true;
-    photoMenuShownThisTouch = false;
-    photoTouchStartAt = Date.now();
-    tapStartedWithMultiTouch = e.touches.length > 1;
-    if (e.touches.length !== 1) return;
-
-    const t = e.touches[0];
-    tapStartX = t.clientX || 0;
-    tapStartY = t.clientY || 0;
-    photoMenuX = tapStartX;
-    photoMenuY = tapStartY;
-  }, { passive: true });
-
-  popupImg?.addEventListener("touchmove", (e) => {
-    if (e.touches.length > 1) tapStartedWithMultiTouch = true;
-  }, { passive: true });
-
-  popupImg?.addEventListener("touchend", (e) => {
-    if (wasPhotoLongPress_()) {
-      if (!photoMenuShownThisTouch) {
-        triggerPhotoMenu_(photoMenuX, photoMenuY);
-      }
-    } else {
-      const t = e.changedTouches[0];
-      if (t) handlePhotoTap_(t.clientX, t.clientY);
-    }
-
-    setTimeout(() => {
-      photoMenuTouchActive = false;
-      photoMenuShownThisTouch = false;
-      photoTouchStartAt = 0;
-    }, 0);
-  }, { passive: true });
-
-  popupImg?.addEventListener("touchcancel", () => {
-    photoMenuTouchActive = false;
-    photoMenuShownThisTouch = false;
-    photoTouchStartAt = 0;
-  }, { passive: true });
-
-  popupImg?.addEventListener("click", (e) => {
-    if (e.pointerType && e.pointerType !== "mouse") return;
-    e.preventDefault();
-    e.stopPropagation();
-    handlePhotoTap_(e.clientX, e.clientY);
+    firePhotoMenu_(e.clientX, e.clientY);
   });
 
   function closeIfOutsideCard(e) {
@@ -4857,11 +4672,6 @@ function initAdminControls_() {
     initBuschVotes_();
     renderGreenFlagCountdown_();
     showKyleTributeOnLoad_();
-    new MutationObserver(schedulePageBottomPadding_).observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    schedulePageBottomPadding_();
 
     startLivePolling_();
 
