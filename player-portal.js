@@ -2392,7 +2392,7 @@ await refreshAfterAdminChange_();
       // cash + winnings clear the whole season.
       const net = -Number(data.balance ?? 0);
       const netLine =
-        `<div class="netLine ${net >= 0 ? "up" : "down"}">Season net: ${net >= 0 ? "+" : "\u2212"}$${Math.abs(net).toFixed(2)} <span class="muted" style="font-weight:500;">(vs full $180 season)</span></div>`;
+        `<div class="netLine ${net >= 0 ? "up" : "down"}">Season net: ${net >= 0 ? "+" : "\u2212"}$${Math.abs(net).toFixed(2)}`;
 
       const venmoUser = String(VENMO_HANDLE || "").replace(/^@/, "");
       const venmoBtn = (balance > 0 && venmoUser)
