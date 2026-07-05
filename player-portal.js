@@ -3331,19 +3331,56 @@ function initPushNotifications_() {
   // Safari tab) - the click handler explains how to enable it.
   btn.addEventListener("click", enablePushNotifications_);
 
-  // Reflect this device's current state on the bell icon.
+  // Reflect this device's state on the bell icon, and self-heal:
+  // iOS silently expires subscriptions and evicts service workers,
+  // so if permission is already granted we quietly rebuild and
+  // re-register the subscription instead of waiting for a bell tap.
+  // (A deleted-and-reinstalled PWA can't be healed - iOS wipes the
+  // permission itself, and re-prompting requires a user gesture.)
   (async () => {
     try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
+      let sub = await reg.pushManager.getSubscription();
+      const player = loadPlayerName().trim();
+
+      async function register_(subscription) {
+        await fetch("/api/save-push-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playerName: player, subscription })
+        }).catch(() => {});
+      }
+
+      if (!sub && Notification.permission === "granted" && player) {
+        try {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY)
+          });
+        } catch (e) { /* some platforms demand a fresh gesture */ }
+        if (sub) {
+          await register_(sub);
+          paintPushButton_(true);
+          return;
+        }
+      }
+
       if (!sub) return;
+
       const res = await fetch(
         `/api/push-prefs?endpoint=${encodeURIComponent(sub.endpoint)}`,
         { cache: "no-store" }
       );
       const data = await res.json().catch(() => ({}));
-      if (data?.ok && data.found) paintPushButton_(!data.paused);
+
+      if (data?.ok && data.found) {
+        paintPushButton_(!data.paused);
+      } else if (data?.ok && !data.found && player) {
+        // browser holds a live subscription the server lost - re-save
+        await register_(sub);
+        paintPushButton_(true);
+      }
     } catch (e) {}
   })();
 }
