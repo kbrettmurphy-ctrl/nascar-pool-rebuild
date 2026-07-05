@@ -780,8 +780,8 @@ select, input{
     no-repeat right 2px center / 12px 8px;
   padding:0 20px 0 0;
   font-size:14px;
-  font-weight:700;
-  letter-spacing:-0.1px;
+  font-weight:400;
+  letter-spacing:0;
   color: var(--text);
   border-radius:8px;
 }
