@@ -198,6 +198,7 @@ export async function getCurrentCupLiveContext_(env, options = {}) {
   const flagState = Number(liveJson?.flag_state ?? NaN);
   const lapNumber = Number(liveJson?.lap_number ?? NaN);
   const lapsToGo = Number(liveJson?.laps_to_go ?? NaN);
+  const runType = Number(liveJson?.run_type ?? NaN);
 
   Object.assign(debug, {
     liveSeriesId: liveMatch.liveSeriesId,
@@ -207,7 +208,8 @@ export async function getCurrentCupLiveContext_(env, options = {}) {
     isCorrectCupRace: liveMatch.isCorrectCupRace,
     flagState: Number.isFinite(flagState) ? flagState : null,
     lapNumber: Number.isFinite(lapNumber) ? lapNumber : null,
-    lapsToGo: Number.isFinite(lapsToGo) ? lapsToGo : null
+    lapsToGo: Number.isFinite(lapsToGo) ? lapsToGo : null,
+    runType: Number.isFinite(runType) ? runType : null
   });
 
   return {
@@ -218,6 +220,7 @@ export async function getCurrentCupLiveContext_(env, options = {}) {
     flagState,
     lapNumber,
     lapsToGo,
+    runType,
     ...liveMatch,
     debug
   };
@@ -235,6 +238,17 @@ function evaluateGreenFlagStart_(context) {
     return {
       shouldSend: false,
       reason: "wrong_live_race"
+    };
+  }
+
+  // Practice and qualifying run on the SAME live feed with the same
+  // race_id, and they go green too - which is how the 2026-07-03
+  // practice session burned the one-shot event for the weekend and
+  // muted the real race green flag. Only run_type 3 is the race.
+  if (Number(context.runType) !== 3) {
+    return {
+      shouldSend: false,
+      reason: "not_race_session"
     };
   }
 
@@ -343,7 +357,8 @@ function summarizeContext_(context) {
     isCorrectCupRace: debug.isCorrectCupRace ?? false,
     flagState: debug.flagState ?? null,
     lapNumber: debug.lapNumber ?? null,
-    lapsToGo: debug.lapsToGo ?? null
+    lapsToGo: debug.lapsToGo ?? null,
+    runType: debug.runType ?? null
   };
 }
 
