@@ -1,13 +1,18 @@
-// NASCAR headlines from the nascar.com RSS feed, parsed server-side.
+// NASCAR.com headlines. nascar.com/feed sits behind a Cloudflare bot
+// wall (403s server-side fetches), so we read the same headlines via
+// Google News RSS filtered to nascar.com.
 export async function onRequestGet() {
   try {
-    const res = await fetch("https://www.nascar.com/feed/", {
-      headers: {
-        Accept: "application/rss+xml, application/xml, text/xml",
-        "User-Agent": "Mozilla/5.0",
-      },
-      cf: { cacheTtl: 600, cacheEverything: true },
-    });
+    const res = await fetch(
+      "https://news.google.com/rss/search?q=site:nascar.com&hl=en-US&gl=US&ceid=US:en",
+      {
+        headers: {
+          Accept: "application/rss+xml, application/xml, text/xml",
+          "User-Agent": "Mozilla/5.0",
+        },
+        cf: { cacheTtl: 600, cacheEverything: true },
+      }
+    );
 
     if (!res.ok) {
       return json({ ok: false, error: `Feed fetch failed: ${res.status}` }, 502);
@@ -21,7 +26,8 @@ export async function onRequestGet() {
 
     while ((m = itemRe.exec(xml)) && items.length < 12) {
       const block = m[1];
-      const title = decode_(pick_(block, "title"));
+      const title = decode_(pick_(block, "title"))
+        .replace(/\s+-\s+NASCAR(\.com)?\s*$/i, "");
       const link = pick_(block, "link");
       const pubDate = pick_(block, "pubDate");
       if (title && link) {

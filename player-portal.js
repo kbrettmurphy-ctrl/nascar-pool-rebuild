@@ -2331,9 +2331,10 @@ await refreshAfterAdminChange_();
           ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
           : `Balance Due: $${balance.toFixed(2)}`;
 
-      const venmoBtn = (balance > 0 && VENMO_HANDLE)
+      const venmoUser = String(VENMO_HANDLE || "").replace(/^@/, "");
+      const venmoBtn = (balance > 0 && venmoUser)
         ? `<a class="venmoPayBtn" target="_blank" rel="noopener"
-             href="https://account.venmo.com/pay?recipients=${encodeURIComponent(VENMO_HANDLE)}&amount=${balance.toFixed(2)}&note=${encodeURIComponent("NASCAR Pool dues - " + name)}">
+             href="https://account.venmo.com/pay?recipients=${encodeURIComponent(venmoUser)}&amount=${balance.toFixed(2)}&note=${encodeURIComponent("NASCAR Pool dues - " + name)}">
              Pay $${balance.toFixed(2)} on Venmo</a>`
         : "";
 
@@ -3735,17 +3736,50 @@ async function loadBuschRatings_() {
     }
 
     box.innerHTML =
-      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} photos</div>` +
+      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} voted photo${rows.length === 1 ? "" : "s"}</div>` +
       rows.map(p => `
         <div class="bgRateRow" data-id="${escapeAttr(String(p.id))}">
           <img src="${escapeAttr(p.url)}" loading="lazy" alt="">
           <div class="bgRateInfo">
             <div class="bgRateName">${escapeHtml(p.folder)}/${escapeHtml(p.filename)}</div>
-            <div class="bgRateVotes">👍 ${Number(p.likes) || 0} · 👎 ${Number(p.dislikes) || 0} · net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</div>
+            <div class="bgRateVotes">
+              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.likedBy || []).join("|"))}" aria-label="Show likes">👍 ${Number(p.likes) || 0}</button>
+              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.dislikedBy || []).join("|"))}" aria-label="Show dislikes">👎 ${Number(p.dislikes) || 0}</button>
+              <span>net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</span>
+            </div>
+            <div class="bgVoterList" hidden></div>
           </div>
           <button class="bgRemoveBtn" type="button">Remove</button>
         </div>
       `).join("");
+
+    box.querySelectorAll(".bgVoteChip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".bgRateRow");
+        const list = row?.querySelector(".bgVoterList");
+        if (!list) return;
+
+        const voters = String(btn.dataset.voters || "")
+          .split("|")
+          .map(v => v.trim())
+          .filter(Boolean);
+
+        const wasOpen = !list.hidden && btn.classList.contains("active");
+
+        row.querySelectorAll(".bgVoteChip").forEach(chip => chip.classList.remove("active"));
+        if (wasOpen) {
+          list.hidden = true;
+          list.innerHTML = "";
+          return;
+        }
+
+        btn.classList.add("active");
+        list.hidden = false;
+        list.innerHTML = voters.length
+          ? voters.map(v => `<span>${escapeHtml(v)}</span>`).join("")
+          : `<span class="muted">No votes yet</span>`;
+      });
+    });
 
     box.querySelectorAll(".bgRemoveBtn").forEach(btn => {
       btn.addEventListener("click", async () => {
@@ -3798,6 +3832,7 @@ async function loadBuschGirls() {
         id: String(p.id || ""),
         url: String(p.url || "").trim(),
         folder: String(p.folder || "").trim().toLowerCase(),
+        filename: String(p.filename || "").trim(),
         uploadedAt: String(p.uploaded_at || "").trim()
       }))
       .filter(p => p.url && p.folder);
@@ -3979,13 +4014,12 @@ function initBuschLongPress_() {
   logo?.addEventListener("dragstart", suppressNativePress);
   logo?.addEventListener("selectstart", suppressNativePress);
 
-  trigger.addEventListener("contextmenu", suppressNativePress);
   trigger.addEventListener("dragstart", suppressNativePress);
   trigger.addEventListener("selectstart", suppressNativePress);
 
-  popupImg?.addEventListener("contextmenu", suppressNativePress);
-
-  let photoInfoTimer = null;
+  let buschPhotoMenuEl = null;
+  let buschSaveSheetEl = null;
+  const coarsePointer_ = window.matchMedia("(pointer: coarse)").matches;
 
 function buschPhotoInfoFromSrc_(src) {
   const cleanSrc = String(src || "").split("?")[0];
@@ -3996,16 +4030,20 @@ function buschPhotoInfoFromSrc_(src) {
 
   const url = found?.url || cleanSrc;
   const parts = url.split("/");
-  const file = decodeURIComponent(parts.pop() || "");
+  const file = found?.filename || decodeURIComponent(parts.pop() || "");
   const folder = found?.folder || decodeURIComponent(parts.pop() || "");
 
-  return { folder, file, url };
+  return { id: found?.id || "", folder, file, url };
+}
+
+function currentBuschPhotoInfo_() {
+  if (!popupImg?.src) return;
+  return buschPhotoInfoFromSrc_(popupImg.src);
 }
 
 function showBuschPhotoInfo_() {
-  if (!popupImg?.src) return;
-
-  const info = buschPhotoInfoFromSrc_(popupImg.src);
+  const info = currentBuschPhotoInfo_();
+  if (!info) return;
 
   alert(
     `Folder: ${info.folder || "(unknown)"}\n` +
@@ -4013,49 +4051,235 @@ function showBuschPhotoInfo_() {
   );
 }
 
-popupImg?.addEventListener("touchstart", (e) => {
-  clearTimeout(photoInfoTimer);
-
-  if (e.touches.length !== 1) return;
-
-  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
-}, { passive: true });
-
-popupImg?.addEventListener("touchmove", (e) => {
-  if (e.touches.length !== 1) {
-    clearTimeout(photoInfoTimer);
+function closePhotoMenu_() {
+  if (buschPhotoMenuEl) {
+    buschPhotoMenuEl.remove();
+    buschPhotoMenuEl = null;
   }
-}, { passive: true });
+}
 
-popupImg?.addEventListener("touchend", () => {
-  clearTimeout(photoInfoTimer);
-}, { passive: true });
+function closeBuschSaveSheet_() {
+  if (buschSaveSheetEl) {
+    buschSaveSheetEl.remove();
+    buschSaveSheetEl = null;
+  }
+}
 
-popupImg?.addEventListener("touchcancel", () => {
-  clearTimeout(photoInfoTimer);
-}, { passive: true });
+function downloadBuschPhoto_(info) {
+  if (!info?.url) return;
 
-popupImg?.addEventListener("mousedown", () => {
-  clearTimeout(photoInfoTimer);
-  photoInfoTimer = setTimeout(showBuschPhotoInfo_, 900);
-});
+  const a = document.createElement("a");
+  a.href = info.url;
+  a.download = info.file || "busch-photo";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
-popupImg?.addEventListener("mouseup", () => {
-  clearTimeout(photoInfoTimer);
-});
+async function fetchBuschPhotoFile_(info) {
+  const res = await fetch(info.url, { cache: "no-store" });
+  if (!res.ok) throw new Error("Could not load photo.");
+  const blob = await res.blob();
+  const ext = String(info.file || "").split(".").pop() || "jpg";
+  const type = blob.type || `image/${ext}`;
+  const file = new File([blob], info.file || `busch-photo.${ext}`, { type });
+  return file;
+}
 
-popupImg?.addEventListener("mouseleave", () => {
-  clearTimeout(photoInfoTimer);
-});
+function showBuschPhotoSaveSheet_(info) {
+  if (!info?.url) return;
 
-  let pressTimer = null;
-  let startX = 0;
-  let startY = 0;
-  let longPressTriggered = false;
+  closeBuschSaveSheet_();
+  closePhotoMenu_();
 
-  const MOVE_THRESHOLD = 10;
-  const HOLD_TIME = 1000;
-  const TAP_MOVE_THRESHOLD = 8;
+  const sheet = document.createElement("div");
+  sheet.className = "buschSaveSheet";
+  sheet.innerHTML = `
+    <div class="buschSaveSheetHint">Press and hold the image for Save Image / Add to Photos</div>
+    <img class="buschSaveSheetImg" src="${escapeAttr(info.url)}" alt="${escapeAttr(info.file || "Busch photo")}">
+    <button type="button" class="buschSaveSheetDone">Done</button>
+  `;
+
+  sheet.querySelector(".buschSaveSheetDone")?.addEventListener("click", closeBuschSaveSheet_);
+  sheet.addEventListener("click", (e) => {
+    if (e.target === sheet) closeBuschSaveSheet_();
+  });
+
+  document.body.appendChild(sheet);
+  buschSaveSheetEl = sheet;
+}
+
+async function saveBuschPhotoImage_(info) {
+  if (!info?.url) return;
+
+  if (!coarsePointer_) {
+    try {
+      const file = await fetchBuschPhotoFile_(info);
+      const blobUrl = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = info.file || "busch-photo.jpg";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+      return;
+    } catch {
+      downloadBuschPhoto_(info);
+      return;
+    }
+  }
+
+  try {
+    const file = await fetchBuschPhotoFile_(info);
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: info.file || "Busch photo"
+      });
+      return;
+    }
+  } catch (err) {
+    if (err?.name === "AbortError") return;
+  }
+
+  showBuschPhotoSaveSheet_(info);
+}
+
+async function copyBuschPhotoLink_(info) {
+  if (!info?.url) return;
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(info.url);
+      alert("Photo link copied.");
+      return;
+    } catch {}
+  }
+
+  window.prompt("Copy photo link:", info.url);
+}
+
+async function unlockAdminForPhotoDelete_() {
+  if (getAdminToken_()) return true;
+
+  const pin = prompt("Admin PIN to delete this photo:");
+  if (pin === null) return false;
+
+  const cleanPin = String(pin || "").trim();
+  if (!cleanPin) return false;
+
+  const res = await fetch("/api/admin-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin: cleanPin })
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data?.ok || !data?.token) {
+    throw new Error(data?.error || "Invalid PIN");
+  }
+
+  setAdminToken_(data.token);
+  return true;
+}
+
+async function deleteBuschPhoto_(info, allowRetry = true) {
+  if (!info?.id) {
+    alert("Could not find this photo in the active gallery.");
+    return;
+  }
+
+  let unlocked = false;
+  try {
+    unlocked = await unlockAdminForPhotoDelete_();
+  } catch (err) {
+    alert(err.message || String(err));
+    return;
+  }
+  if (!unlocked) return;
+
+  if (!confirm(`Delete this photo from the rotation?\n\n${info.file || info.id}`)) return;
+
+  try {
+    await adminFetch_("/api/remove-buschgirl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId: info.id })
+    });
+
+    buschGirls = buschGirls.filter(p => p.id !== info.id);
+    buschQueue = buschQueue.filter(p => p.id !== info.id);
+    buschSeenUrls.delete(info.url);
+    buschHistory = buschHistory.filter(src => String(src || "").split("?")[0] !== String(info.url || "").split("?")[0]);
+    buschHistoryIndex = Math.min(buschHistoryIndex, buschHistory.length - 1);
+
+    if (buschGirls.length) nextBuschImage_();
+    else closePopup();
+  } catch (err) {
+    if (allowRetry && /unauthorized|expired/i.test(err.message || "")) {
+      clearAdminToken_();
+      await deleteBuschPhoto_(info, false);
+      return;
+    }
+    alert(err.message || String(err));
+  }
+}
+
+function showBuschPhotoMenu_(x, y) {
+  const info = currentBuschPhotoInfo_();
+  if (!info) return;
+
+  closePhotoMenu_();
+
+  const menu = document.createElement("div");
+  menu.className = "buschPhotoMenu";
+  menu.innerHTML = `
+    <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
+      <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
+      <button type="button" role="menuitem" data-action="save">Save Image</button>
+      <button type="button" role="menuitem" data-action="info">Get Info</button>
+      <button type="button" role="menuitem" data-action="download">Download Photo</button>
+      <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  const panel = menu.querySelector(".buschPhotoMenuPanel");
+  const rect = panel.getBoundingClientRect();
+  const pad = 14;
+  const left = Math.min(Math.max(x - rect.width / 2, pad), window.innerWidth - rect.width - pad);
+  const preferredTop = y < window.innerHeight * 0.55 ? y + 18 : y - rect.height - 18;
+  const top = Math.min(Math.max(preferredTop, pad), window.innerHeight - rect.height - pad);
+
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+
+  menu.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".buschPhotoMenuPanel")) closePhotoMenu_();
+  });
+
+  menu.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const action = btn.dataset.action;
+      closePhotoMenu_();
+
+      if (action === "view") window.open(info.url, "_blank", "noopener");
+      else if (action === "save") await saveBuschPhotoImage_(info);
+      else if (action === "info") showBuschPhotoInfo_();
+      else if (action === "download") downloadBuschPhoto_(info);
+      else if (action === "delete") await deleteBuschPhoto_(info);
+    });
+  });
+
+  buschPhotoMenuEl = menu;
+}
 
   function openPopup() {
     nextBuschImage_();
@@ -4069,112 +4293,135 @@ popupImg?.addEventListener("mouseleave", () => {
   }
 
   function closePopup() {
+    closePhotoMenu_();
+    closeBuschSaveSheet_();
+    cancelLogoHold_();
+    cancelPhotoHold_();
     popup.hidden = true;
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
   }
 
-  function cancelPress() {
-    if (pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-    document.body.classList.remove("noSelect");
+  /* ----------------------------------------------------------
+     Logo: hold 1s (touch or mouse) opens the popup.
+     Right-click on desktop (and Android's long-press
+     contextmenu) opens it too.
+     ---------------------------------------------------------- */
+
+  const HOLD_MOVE_THRESHOLD = 10;
+  const TAP_MOVE_THRESHOLD = 8;
+
+  let logoTimer = null;
+  let logoX = 0;
+  let logoY = 0;
+
+  function cancelLogoHold_() {
+    if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
   }
 
-  function startPress(e) {
-    cancelPress();
-    longPressTriggered = false;
+  trigger.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
-    if (e.cancelable) e.preventDefault();
-
-    if (e.type === "touchstart") {
-      const t = e.touches[0];
-      startX = t.clientX;
-      startY = t.clientY;
-    } else {
-      startX = e.clientX || 0;
-      startY = e.clientY || 0;
-    }
-
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      longPressTriggered = true;
+    logoX = e.clientX || 0;
+    logoY = e.clientY || 0;
+    cancelLogoHold_();
+    logoTimer = setTimeout(() => {
+      logoTimer = null;
       openPopup();
-    }, HOLD_TIME);
-  }
-
-  function handleTouchMove(e) {
-    if (!pressTimer) return;
-    const t = e.touches[0];
-    if (!t) return;
-
-    if (
-      Math.abs(t.clientX - startX) > MOVE_THRESHOLD ||
-      Math.abs(t.clientY - startY) > MOVE_THRESHOLD
-    ) {
-      cancelPress();
-    }
-  }
-
-  function endPress(e) {
-    if (longPressTriggered && e?.cancelable) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    cancelPress();
-    setTimeout(() => {
-      longPressTriggered = false;
-    }, 0);
-  }
-
-  // Attach listeners
-  trigger.addEventListener("mousedown", startPress);
-  trigger.addEventListener("mouseup", endPress);
-  trigger.addEventListener("mouseleave", endPress);
-
-  trigger.addEventListener("touchstart", startPress, { passive: false });
-  trigger.addEventListener("touchmove", handleTouchMove, { passive: false });
-  trigger.addEventListener("touchend", endPress, { passive: false });
-  trigger.addEventListener("touchcancel", endPress, { passive: false });
-
-  let tapStartX = 0;
-  let tapStartY = 0;
-  let tapStartedWithMultiTouch = false;
-
-  popupImg?.addEventListener("pointerdown", (e) => {
-    tapStartX = e.clientX || 0;
-    tapStartY = e.clientY || 0;
-    tapStartedWithMultiTouch = false;
+    }, 1000);
   });
 
-  popupImg?.addEventListener("touchstart", (e) => {
-    tapStartedWithMultiTouch = e.touches.length > 1;
-  }, { passive: true });
-
-  popupImg?.addEventListener("touchmove", (e) => {
-    if (e.touches.length > 1) {
-      tapStartedWithMultiTouch = true;
+  trigger.addEventListener("pointermove", (e) => {
+    if (!logoTimer) return;
+    if (Math.abs((e.clientX || 0) - logoX) > HOLD_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - logoY) > HOLD_MOVE_THRESHOLD) {
+      cancelLogoHold_();
     }
-  }, { passive: true });
+  });
 
-  popupImg?.addEventListener("click", (e) => {
-    if (tapStartedWithMultiTouch) return;
+  trigger.addEventListener("pointerup", cancelLogoHold_);
+  trigger.addEventListener("pointercancel", cancelLogoHold_);
 
-    const dx = Math.abs((e.clientX || 0) - tapStartX);
-    const dy = Math.abs((e.clientY || 0) - tapStartY);
-
-    if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) return;
-
+  trigger.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
+    cancelLogoHold_();
+    if (popup.hidden) openPopup();
+  });
+
+  /* ----------------------------------------------------------
+     Photo: tap left/right half = prev/next.
+     Hold 650ms fires the photo menu mid-hold; desktop
+     right-click opens the same menu.
+     ---------------------------------------------------------- */
+
+  let photoTimer = null;
+  let photoDownX = 0;
+  let photoDownY = 0;
+  let photoMenuFired = false;
+
+  function cancelPhotoHold_() {
+    if (photoTimer) { clearTimeout(photoTimer); photoTimer = null; }
+  }
+
+  function firePhotoMenu_(x, y) {
+    cancelPhotoHold_();
+    photoMenuFired = true;
+    if (navigator.vibrate) navigator.vibrate(8);
+    showBuschPhotoMenu_(x || 0, y || 0);
+  }
+
+  popupImg?.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    photoDownX = e.clientX || 0;
+    photoDownY = e.clientY || 0;
+    photoMenuFired = false;
+    cancelPhotoHold_();
+    photoTimer = setTimeout(() => {
+      photoTimer = null;
+      firePhotoMenu_(photoDownX, photoDownY);
+    }, 650);
+  });
+
+  popupImg?.addEventListener("pointermove", (e) => {
+    if (!photoTimer) return;
+    if (Math.abs((e.clientX || 0) - photoDownX) > HOLD_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - photoDownY) > HOLD_MOVE_THRESHOLD) {
+      cancelPhotoHold_();
+    }
+  });
+
+  popupImg?.addEventListener("pointerup", (e) => {
+    const menuShown = photoMenuFired;
+    cancelPhotoHold_();
+    if (menuShown) return;
+    if (!e.isPrimary) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    if (Math.abs((e.clientX || 0) - photoDownX) > TAP_MOVE_THRESHOLD ||
+        Math.abs((e.clientY || 0) - photoDownY) > TAP_MOVE_THRESHOLD) return;
 
     const rect = popupImg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    if ((e.clientX || 0) - rect.left < rect.width / 2) prevBuschImage_();
+    else nextBuschImage_();
+  });
 
-    if (x < rect.width / 2) {
-      prevBuschImage_();
-    } else {
-      nextBuschImage_();
-    }
+  popupImg?.addEventListener("pointercancel", cancelPhotoHold_);
+
+  // Navigation is handled on pointerup; swallow the synthetic click
+  // so nothing double-fires.
+  popupImg?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  popupImg?.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    firePhotoMenu_(e.clientX, e.clientY);
   });
 
   function closeIfOutsideCard(e) {
@@ -4188,6 +4435,11 @@ popupImg?.addEventListener("mouseleave", () => {
   popup.addEventListener("pointerdown", closeIfOutsideCard);
 
   document.addEventListener("keydown", e => {
+    if (buschSaveSheetEl && e.key === "Escape") {
+      closeBuschSaveSheet_();
+      return;
+    }
+
     if (popup.hidden) return;
 
     if (e.key === "Escape") closePopup();

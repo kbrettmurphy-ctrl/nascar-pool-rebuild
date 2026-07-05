@@ -71,21 +71,28 @@ export async function onRequestGet(context) {
     }
 
     const [votes, photos] = await Promise.all([
-      getJson(`/rest/v1/buschgirl_votes?select=photo_id,vote`),
+      getJson(`/rest/v1/buschgirl_votes?select=photo_id,player_name,vote`),
       getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,url&active=eq.true`)
     ]);
 
     const tally = new Map();
     for (const v of votes || []) {
       const id = String(v.photo_id);
-      if (!tally.has(id)) tally.set(id, { likes: 0, dislikes: 0 });
+      if (!tally.has(id)) tally.set(id, { likes: 0, dislikes: 0, likedBy: [], dislikedBy: [] });
       const t = tally.get(id);
-      if (Number(v.vote) === 1) t.likes++;
-      else if (Number(v.vote) === -1) t.dislikes++;
+      const playerName = String(v.player_name || "").trim();
+      if (Number(v.vote) === 1) {
+        t.likes++;
+        if (playerName) t.likedBy.push(playerName);
+      } else if (Number(v.vote) === -1) {
+        t.dislikes++;
+        if (playerName) t.dislikedBy.push(playerName);
+      }
     }
 
-    const rows = (photos || []).map(p => {
-      const t = tally.get(String(p.id)) || { likes: 0, dislikes: 0 };
+    const rows = (photos || []).flatMap(p => {
+      const t = tally.get(String(p.id));
+      if (!t || (t.likes + t.dislikes) < 1) return [];
       return {
         id: p.id,
         folder: p.folder,
@@ -93,6 +100,8 @@ export async function onRequestGet(context) {
         url: p.url,
         likes: t.likes,
         dislikes: t.dislikes,
+        likedBy: t.likedBy.sort((a, b) => a.localeCompare(b)),
+        dislikedBy: t.dislikedBy.sort((a, b) => a.localeCompare(b)),
         net: t.likes - t.dislikes
       };
     });
