@@ -2329,6 +2329,8 @@ await refreshAfterAdminChange_();
         ${luck ? `<div class="meSection"><div class="meSectionTitle">Luck index</div><div class="muted">${luck}</div></div>` : ""}
         ${!done.length ? `<div class="muted" style="margin-top:10px;">${escapeHtml(getEarlyMessage())}</div>` : ""}
       `;
+
+      initSparkHover_(out);
     } catch (e) {
       out.textContent = "Error: " + (e && e.message ? e.message : e);
     }
@@ -3556,12 +3558,29 @@ async function renderGreenFlagCountdown_() {
 
     if (!_gfStartMs) return;
 
-    const paint = () => {
+    const paint = async () => {
       const diff = _gfStartMs - Date.now();
 
       if (diff <= 0) {
-        host.innerHTML = "";
-        if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
+        // Scheduled time passed; the feeds don't publish the exact
+        // green-flag time, so watch the live flag until it drops.
+        if (diff < -4 * 3600000) {
+          host.innerHTML = "";
+          if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
+          return;
+        }
+        try {
+          const res = await fetch("/api/live-matchups", { cache: "no-store" });
+          const data = await res.json().catch(() => ({}));
+          const flag = Number(data?.race?.flag);
+          const lap = Number(data?.race?.lap);
+          if (flag === 1 || flag === 2 || flag === 3 || (Number.isFinite(lap) && lap > 0)) {
+            host.innerHTML = "";
+            if (_gfTimer) { clearInterval(_gfTimer); _gfTimer = null; }
+            return;
+          }
+        } catch (e) { /* keep waiting */ }
+        host.innerHTML = `<div class="gfCountdown waiting"><span class="gfDot yellow"></span>Pre-race \u2014 green flag any minute\u2026</div>`;
         return;
       }
 
@@ -3637,12 +3656,16 @@ async function loadHub_() {
           const d = new Date(ts);
           const bad = Number.isNaN(d.getTime());
           const past = !bad && d.getTime() < Date.now();
+          const note = String(ev.notes || "").trim();
           return `
             <div class="hubRow ${past ? "past" : ""}">
               <div class="hubWhen">${bad ? "" : `${fmtDay(d)} ${fmtTime(d)}`}</div>
-              <div class="hubWhat">${escapeHtml(ev.name)}</div>
+              <div class="hubWhat">${escapeHtml(ev.name)}${note ? `<div class="hubNote">${escapeHtml(note)}</div>` : ""}</div>
             </div>`;
-        }).join("")
+        }).join("") +
+        (sched.some(ev => /^race$/i.test(String(ev.name || "").trim()))
+          ? `<div class="hubFootnote">Race time is when coverage starts \u2014 the green flag usually drops 15\u201320 minutes later. The app pushes a notification the moment it actually waves.</div>`
+          : "")
       : `<div class="muted">No weekend schedule posted yet.</div>`;
 
     const lineup = Array.isArray(data.lineup) ? data.lineup : [];
@@ -3800,15 +3823,63 @@ function rankSparkline_(ranks, totalPlayers, boundaries) {
     .join("");
 
   return `
-    <div class="meSparkWrap" role="img" aria-label="Overall season rank after each race: ${ranks.join(", ")}">
+    <div class="meSparkWrap" role="img" data-ranks="${ranks.join(",")}" data-total="${worst}"
+         aria-label="Overall season rank after each race: ${ranks.join(", ")}">
       <svg class="meSpark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
         ${ticks}
         <polyline points="${pts}" fill="none" stroke="var(--blueText)" stroke-width="2"
           stroke-linejoin="round" stroke-linecap="round"/>
         <circle cx="${x(ranks.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="var(--blueText)"/>
+        <circle class="sparkCursor" r="4" fill="var(--blueText)" stroke="var(--cardSolid)"
+          stroke-width="1.5" visibility="hidden"/>
       </svg>
+      <div class="sparkTip" hidden></div>
       <div class="meSparkLabels"><span>Race 1 \u00b7 #${ranks[0]}</span><span>Race ${ranks.length} (now) \u00b7 #${last}</span></div>
     </div>`;
+}
+
+// Hover/drag scrubbing on the season-rank sparkline: nearest race
+// point gets a cursor dot and a "Race N \u00b7 #rank" tooltip.
+function initSparkHover_(root) {
+  const wrap = root.querySelector(".meSparkWrap");
+  if (!wrap || wrap.dataset.bound) return;
+  wrap.dataset.bound = "1";
+
+  const ranks = String(wrap.dataset.ranks || "").split(",").map(Number).filter(Number.isFinite);
+  const svg = wrap.querySelector("svg");
+  const cursor = wrap.querySelector(".sparkCursor");
+  const tip = wrap.querySelector(".sparkTip");
+  if (ranks.length < 2 || !svg || !cursor || !tip) return;
+
+  const w = 280, h = 44, pad = 5;
+  const worst = Math.max(Number(wrap.dataset.total) || 1, ...ranks);
+  const x = i => pad + (w - 2 * pad) * i / (ranks.length - 1);
+  const y = r => pad + (h - 2 * pad) * (r - 1) / Math.max(1, worst - 1);
+
+  function show(clientX) {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const i = Math.round(f * (ranks.length - 1));
+    cursor.setAttribute("cx", x(i).toFixed(1));
+    cursor.setAttribute("cy", y(ranks[i]).toFixed(1));
+    cursor.setAttribute("visibility", "visible");
+    tip.hidden = false;
+    tip.textContent = `Race ${i + 1} \u00b7 #${ranks[i]}`;
+    const px = (x(i) / w) * rect.width + svg.offsetLeft;
+    tip.style.left = Math.min(rect.width - 10, Math.max(10, px)) + "px";
+  }
+
+  function hide() {
+    cursor.setAttribute("visibility", "hidden");
+    tip.hidden = true;
+  }
+
+  wrap.addEventListener("pointerdown", e => show(e.clientX));
+  wrap.addEventListener("pointermove", e => show(e.clientX));
+  wrap.addEventListener("pointerleave", hide);
+  wrap.addEventListener("pointerup", () => setTimeout(hide, 1200));
+  wrap.addEventListener("pointercancel", hide);
 }
 
 function overallRankDeltas_() {
