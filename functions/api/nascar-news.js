@@ -25,9 +25,9 @@ async function fromMotorsport_() {
   while ((m = itemRe.exec(xml)) && items.length < 15) {
     const block = m[1];
     const title = decode_(pick_(block, "title"));
-    const link = pick_(block, "link");
+    const link = decode_(pick_(block, "link"));
     const pubDate = pick_(block, "pubDate");
-    const img = block.match(/<enclosure[^>]*url="([^"]+)"/)?.[1] || "";
+    const img = decode_(block.match(/<enclosure[^>]*url="([^"]+)"/)?.[1] || "");
     if (title && link) {
       items.push({ title, link, pubDate, image: img });
     }
@@ -47,7 +47,7 @@ async function fromGoogleNews_() {
     const block = m[1];
     const title = decode_(pick_(block, "title"))
       .replace(/\s+-\s+NASCAR(\.com)?\s*$/i, "");
-    const link = pick_(block, "link");
+    const link = decode_(pick_(block, "link"));
     const pubDate = pick_(block, "pubDate");
     if (title && link) {
       items.push({ title, link, pubDate, image: "" });
