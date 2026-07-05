@@ -1666,6 +1666,13 @@ select, input{
 .hubPane{ display:none; }
 .hubPane.active{ display:block; }
 
+.hubHeading{
+  font-size: var(--big);
+  font-weight:800;
+  letter-spacing:-0.3px;
+  margin-top:18px;
+}
+
 .hubSection{ margin-top:8px; }
 
 .hubRow{
@@ -1984,6 +1991,94 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 
 #adminPushSendBtn{ width:100%; margin-top:8px; }
+
+/* ==========================================================
+   Me page (driver profile)
+   ========================================================== */
+
+.meTiles{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.meTiles .tile{ padding:10px 6px; text-align:center; }
+.meTiles .tVal{ font-size:18px; margin-top:2px; }
+
+.formRow{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:10px;
+}
+.formRow .tLabel{ margin-right:2px; }
+
+.formDot{
+  width:24px;
+  height:24px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:800;
+}
+.formDot.w{
+  background:rgba(22,163,74,.16);
+  color:var(--greenText);
+  border:1px solid rgba(22,163,74,.35);
+}
+.formDot.l{
+  background:rgba(228,0,43,.12);
+  color:var(--redText);
+  border:1px solid rgba(228,0,43,.32);
+}
+
+.meSection{ margin-top:16px; }
+.meSectionTitle{
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-0.2px;
+  margin-bottom:6px;
+}
+
+.meSparkWrap{
+  border:1px solid var(--lineSoft);
+  border-radius:12px;
+  padding:10px;
+}
+.meSpark{ width:100%; height:44px; display:block; }
+.meSparkLabels{
+  display:flex;
+  justify-content:space-between;
+  margin-top:6px;
+  font-size:11px;
+  color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+
+.whatIf{ font-size:13px; }
+.whatIf b{ color:var(--blueText); }
+
+.rivalRow{ font-size:13px; }
+
+.badgeWall{ display:flex; flex-wrap:wrap; gap:6px; }
+.badgeChip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:var(--yellowChipBg);
+  border:1px solid var(--yellowChipBorder);
+  color:var(--yellowText);
+  font-size:12px;
+  font-weight:700;
+}
+
+.netLine{ margin-top:4px; font-weight:700; }
+.netLine.up{ color:var(--greenText); }
+.netLine.down{ color:var(--redText); }
 
 /* Enlarge-only lightbox for ratings thumbnails */
 .adminLightbox{

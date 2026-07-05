@@ -2170,117 +2170,161 @@ await refreshAfterAdminChange_();
     const name = sel ? String(sel.value || "").trim() : "";
 
     if (!name) {
-      out.textContent = "Pick your damn name first, you anonymous ghost. We can't show your pathetic stats, overdue dues, your sad matchups, or even highlight your sorry ass in the full-field view until you select who the hell you are from the dropdown. This ain't the pace car parade—nobody's waiting on your indecisive ass to drop the green. Without a name, you're just another random dipshit in the grandstands yelling at the TV like your fantasy pick didn't just get taken out in the Big One on lap 47. Click a name already. Or keep lurking like a crew chief hiding bad fuel strategy notes. Your call, but the leaderboard ain't gonna populate itself.Select or GTFO. The checkered flag waits for no one... especially not you.";
+      out.textContent = "Pick your damn name first, you anonymous ghost. No name, no stats, no dues, no glory. Click a name already.";
       return;
     }
 
     savePlayerName(name);
-    out.textContent = "Loading…";
+    out.textContent = "Loading\u2026";
 
-    try{
-      const data = await getPlayerMyMatchup_(name);
-      const status = String(data.status || "").trim().toLowerCase();
+    try {
+      const blob = await getPlayerRaceData_();
+      const me = name.trim().toLowerCase();
+      const games = meGames_(blob, me);
+      const done = games.filter(g => g.won !== null);
 
-      const youDriversArr = Array.isArray(data.youDrivers)
-        ? data.youDrivers.map(x => String(x || "").trim()).filter(Boolean)
-        : [];
+      const raceList = swissCompletedRaces_();
+      const fullRec = swissRecords_(raceList);
+      const totalPlayers = fullRec.size || 0;
 
-      const youNumsArr = Array.isArray(data.youNums) ? data.youNums : [];
-      const n1 = (youNumsArr.length > 0 && String(youNumsArr[0] ?? "").trim() !== "") ? String(youNumsArr[0]).trim() : "";
-      const n2 = (youNumsArr.length > 1 && String(youNumsArr[1] ?? "").trim() !== "") ? String(youNumsArr[1]).trim() : "";
+      let w = 0, l = 0;
+      done.forEach(g => g.won ? w++ : l++);
 
-      const opp = String(data.opponent || "").trim();
-      const hasRealOpponent =
-        !!opp &&
-        opp !== "-" &&
-        opp.toLowerCase() !== "tbd" &&
-        opp.toLowerCase() !== "bye";
-
-      const tour = String(data.tournament ?? "").trim();
-      const rnd  = String(data.round ?? "").trim();
-      const hasRealContext =
-        tour !== "" && tour !== "0" &&
-        rnd  !== "" && rnd  !== "0";
-
-      const youListLabel = youDriversArr.length
-        ? "Your drivers:"
-        : ((n1 || n2) ? "Your numbers:" : "");
-
-      const youListText = youDriversArr.length
-        ? youDriversArr.join("<br>")
-        : ((n1 || n2) ? [n1,n2].filter(Boolean).join(", ") : "");
-
-      const youListHtml = youDriversArr.length ? youListText : escapeHtml(youListText);
-
-      if (!hasRealOpponent || !hasRealContext) {
-        out.innerHTML = `
-          <div class="microBox" style="margin-top:6px;">
-            <div class="pill" style="margin-bottom:8px;">⏳ Not started yet</div>
-            <div class="microMeta" style="font-weight:400; color: var(--textStrong);">
-              ${escapeHtml(getEarlyMessage())}
-            </div>
-            ${youListText ? `
-              <div style="margin-top:10px;">
-                <div class="microTitle">${escapeHtml(youListLabel)}</div>
-                <div class="microMeta">${youListHtml}</div>
-              </div>
-            ` : ``}
-          </div>
-        `;
-        return;
+      let streak = 0, streakType = "";
+      for (let i = done.length - 1; i >= 0; i--) {
+        const t = done[i].won ? "W" : "L";
+        if (!streakType) { streakType = t; streak = 1; }
+        else if (t === streakType) streak++;
+        else break;
       }
 
-      if (status === "not_started") {
-        out.innerHTML = `
-          <div class="microBox" style="margin-top:6px;">
-            <div class="microTitle">Matchups not published yet</div>
-            <div class="microMeta" style="font-weight:400; color: var(--textStrong);">
-              ${escapeHtml(data.you || name)}, Calm your shit, amigo.<br><br>
-              It’ll show up when it exists.
-            </div>
-          </div>
-        `;
-        return;
+      const winPct = (w + l) ? Math.round(100 * w / (w + l)) : 0;
+      const rank = rankFromRecords_(fullRec, me);
+
+      const form = done.slice(-5).map(g =>
+        `<span class="formDot ${g.won ? "w" : "l"}">${g.won ? "W" : "L"}</span>`).join("");
+
+      // rank history for the sparkline
+      const ranks = [];
+      for (let i = 1; i <= raceList.length; i++) {
+        const r = rankFromRecords_(swissRecords_(raceList, i), me);
+        if (r) ranks.push(r);
+      }
+      const spark = rankSparkline_(ranks, totalPlayers);
+
+      // what-if for this week's published matchup (respects spoilers)
+      let whatIf = "";
+      if (spoilersOn_() && raceList.length) {
+        const cur = blob?.matchups?.current;
+        const curBlob = cur ? blob?.matchups?.races?.[`${cur.tournament}||${cur.race}`] : null;
+        const myCur = (curBlob?.matchups || []).find(mm => {
+          const p1 = String(mm.p1 || "").trim().toLowerCase();
+          const p2 = String(mm.p2 || "").trim().toLowerCase();
+          return !String(mm.winner || "").trim() && (p1 === me || p2 === me);
+        });
+
+        if (myCur) {
+          const oppName = String(myCur.p1 || "").trim().toLowerCase() === me ? myCur.p2 : myCur.p1;
+          const opp = String(oppName || "").trim().toLowerCase();
+
+          const winRec = swissRecords_(raceList);
+          bumpRecord_(winRec, me, true);
+          bumpRecord_(winRec, opp, false);
+          const loseRec = swissRecords_(raceList);
+          bumpRecord_(loseRec, me, false);
+          bumpRecord_(loseRec, opp, true);
+
+          const rw = rankFromRecords_(winRec, me);
+          const rl = rankFromRecords_(loseRec, me);
+          if (rw && rl) {
+            whatIf = `<div class="meSection">
+              <div class="meSectionTitle">This week</div>
+              <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 <b>#${rw}</b> \u00b7 Lose \u2192 <b>#${rl}</b></div>
+            </div>`;
+          }
+        }
       }
 
-      const youMeta = formatDriversOrNumbers(data.youDrivers, data.youNums);
-      const oppMeta = formatDriversOrNumbers(data.oppDrivers, data.oppNums);
+      // badges
+      const winsM = done.filter(g => g.won && g.margin != null);
+      const lossM = done.filter(g => !g.won && g.margin != null);
+      const blowout = winsM.reduce((a, g) => (!a || g.margin > a.margin) ? g : a, null);
+      const heartbreaks = lossM.filter(g => g.margin < 1).length;
+      const clutchWins = winsM.filter(g => g.margin < 1).length;
 
-      if (!spoilersOn_()){
-        out.innerHTML = `
-          <div class="mmHeader">
-            Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
-          </div>
-          <div class="microBox youBox">
-            <div class="microTitle">${escapeHtml(data.you)}</div>
-            ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
-          </div>
-          <div class="centerVS">VS</div>
-          <div class="microBox" style="display:flex; align-items:center; justify-content:center; min-height:64px;">
-            <div style="font-size:34px; line-height:1;">🤷</div>
-          </div>
-        `;
-        return;
+      let maxWStreak = 0, run = 0;
+      done.forEach(g => { run = g.won ? run + 1 : 0; if (run > maxWStreak) maxWStreak = run; });
+
+      const leader = topRankedName_(fullRec);
+      const giantKill = leader && leader !== me &&
+        done.some(g => g.won && String(g.opp || "").trim().toLowerCase() === leader);
+
+      const badges = [
+        blowout && blowout.margin >= 2 ? `<span class="badgeChip">\ud83d\udca5 Blowout \u00b7 +${blowout.margin.toFixed(1)}</span>` : "",
+        maxWStreak >= 3 ? `<span class="badgeChip">\ud83d\udd25 Heater \u00b7 W${maxWStreak}</span>` : "",
+        giantKill ? `<span class="badgeChip">\ud83d\udde1\ufe0f Giant Killer</span>` : "",
+        clutchWins >= 2 ? `<span class="badgeChip">\ud83e\uddca Clutch \u00b7 ${clutchWins} close wins</span>` : "",
+        heartbreaks >= 2 ? `<span class="badgeChip">\ud83d\udc94 Heartbreaker \u00b7 ${heartbreaks} close losses</span>` : ""
+      ].filter(Boolean).join("");
+
+      // luck index
+      const avgWin = winsM.length ? winsM.reduce((s, g) => s + g.margin, 0) / winsM.length : 0;
+      const avgLoss = lossM.length ? lossM.reduce((s, g) => s + g.margin, 0) / lossM.length : 0;
+      let luck = "";
+      if (heartbreaks >= 2 && heartbreaks > clutchWins) {
+        luck = `Snakebit: ${heartbreaks} losses by less than a position. The racing gods owe you.`;
+      } else if (clutchWins >= 2 && clutchWins >= heartbreaks) {
+        luck = `Ice in the veins: ${clutchWins} wins by less than a position.`;
+      } else if (winsM.length && lossM.length) {
+        luck = `Average win margin ${avgWin.toFixed(1)} \u00b7 average loss margin ${avgLoss.toFixed(1)}.`;
       }
 
-      const h2h = await h2hLineHtml_(data.you, data.opponent);
+      // rival: most-faced, closest record breaks ties
+      const byOpp = new Map();
+      done.forEach(g => {
+        const k = String(g.opp || "").trim();
+        if (!k) return;
+        if (!byOpp.has(k)) byOpp.set(k, { name: k, games: 0, w: 0, l: 0 });
+        const r = byOpp.get(k);
+        r.games++;
+        g.won ? r.w++ : r.l++;
+      });
+      let rival = null;
+      for (const r of byOpp.values()) {
+        if (r.games < 2) continue;
+        if (!rival || r.games > rival.games ||
+            (r.games === rival.games && Math.abs(r.w - r.l) < Math.abs(rival.w - rival.l))) {
+          rival = r;
+        }
+      }
+      let rivalHtml = "";
+      if (rival) {
+        const lead =
+          rival.w > rival.l ? `you lead ${rival.w}\u2013${rival.l}` :
+          rival.w < rival.l ? `${escapeHtml(rival.name)} leads ${rival.l}\u2013${rival.w}` :
+          `tied ${rival.w}\u2013${rival.l}`;
+        rivalHtml = `<div class="meSection">
+          <div class="meSectionTitle">Rival</div>
+          <div class="rivalRow">\ud83e\udd3a <b>${escapeHtml(rival.name)}</b> \u2014 ${lead}</div>
+        </div>`;
+      }
 
       out.innerHTML = `
-        <div class="mmHeader">
-          Tourney ${escapeHtml(data.tournament)} · ${escapeHtml(data.race)} · Round ${escapeHtml(data.round)}
+        <div class="meTiles">
+          <div class="tile"><div class="tLabel">Rank</div><div class="tVal">${rank ? "#" + rank : "\u2014"}</div></div>
+          <div class="tile"><div class="tLabel">Record</div><div class="tVal">${w}-${l}</div></div>
+          <div class="tile"><div class="tLabel">Streak</div><div class="tVal">${streakType ? streakType + streak : "\u2014"}</div></div>
+          <div class="tile"><div class="tLabel">Win %</div><div class="tVal">${winPct}</div></div>
         </div>
-        <div class="microBox youBox">
-          <div class="microTitle">${escapeHtml(data.you)}</div>
-          ${youMeta ? `<div class="microMeta">${escapeHtml(youMeta)}</div>` : ``}
-        </div>
-        <div class="centerVS">VS</div>
-        <div class="microBox">
-          <div class="microTitle">${escapeHtml(data.opponent)}</div>
-          ${oppMeta ? `<div class="microMeta">${escapeHtml(oppMeta)}</div>` : ``}
-        </div>
-        ${h2h}
+        ${form ? `<div class="formRow"><span class="tLabel">Last 5</span>${form}</div>` : ""}
+        ${ranks.length >= 2 ? `<div class="meSection"><div class="meSectionTitle">Rank by round</div>${spark}</div>` : ""}
+        ${whatIf}
+        ${rivalHtml}
+        ${badges ? `<div class="meSection"><div class="meSectionTitle">Badges</div><div class="badgeWall">${badges}</div></div>` : ""}
+        ${luck ? `<div class="meSection"><div class="meSectionTitle">Luck index</div><div class="muted">${luck}</div></div>` : ""}
+        ${!done.length ? `<div class="muted" style="margin-top:10px;">${escapeHtml(getEarlyMessage())}</div>` : ""}
       `;
-    }catch(e){
+    } catch (e) {
       out.textContent = "Error: " + (e && e.message ? e.message : e);
     }
   }
@@ -2333,6 +2377,10 @@ await refreshAfterAdminChange_();
           ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
           : `Balance Due: $${balance.toFixed(2)}`;
 
+      const net = winnings - paid;
+      const netLine =
+        `<div class="netLine ${net >= 0 ? "up" : "down"}">Season net: ${net >= 0 ? "+" : "\u2212"}$${Math.abs(net).toFixed(2)}</div>`;
+
       const venmoUser = String(VENMO_HANDLE || "").replace(/^@/, "");
       const venmoBtn = (balance > 0 && venmoUser)
         ? `<a class="venmoPayBtn" target="_blank" rel="noopener"
@@ -2345,6 +2393,7 @@ await refreshAfterAdminChange_();
           <div>${paidLine}</div>
           <div>Winnings: $${winnings.toFixed(2)}</div>
           <div>${balanceLine}</div>
+          ${netLine}
           ${venmoBtn}
         </div>`;
 
@@ -3645,95 +3694,119 @@ function normKey_(s) {
 }
 
 /* ==========================================================
-   Head-to-head record (My Matchup)
-   ========================================================== */
-
-async function h2hLineHtml_(you, opp) {
-  try {
-    const blob = await getPlayerRaceData_();
-    const races = blob?.matchups?.races || {};
-    const ny = String(you || "").trim().toLowerCase();
-    const no = String(opp || "").trim().toLowerCase();
-    if (!ny || !no) return "";
-
-    let yw = 0, ow = 0;
-
-    for (const k of Object.keys(races)) {
-      for (const m of (races[k]?.matchups || [])) {
-        const p1 = String(m.p1 || "").trim().toLowerCase();
-        const p2 = String(m.p2 || "").trim().toLowerCase();
-        const w  = String(m.winner || "").trim().toLowerCase();
-        if (!w) continue;
-        if ((p1 === ny && p2 === no) || (p1 === no && p2 === ny)) {
-          if (w === ny) yw++;
-          else if (w === no) ow++;
-        }
-      }
-    }
-
-    if (!yw && !ow) return "";
-
-    const txt =
-      yw === ow ? `All-time: tied ${yw}–${ow}` :
-      yw > ow   ? `All-time: you lead ${yw}–${ow}` :
-                  `All-time: ${escapeHtml(opp)} leads ${ow}–${yw}`;
-
-    return `<div class="h2hLine">${txt}</div>`;
-  } catch (e) {
-    return "";
-  }
-}
-
-/* ==========================================================
    Overall standings movement (vs last completed race)
    ========================================================== */
 
-function overallRankDeltas_() {
+function swissCompletedRaces_() {
   const races = _playerRaceData?.matchups?.races;
-  if (!races) return null;
-
-  const raceList = Object.values(races)
+  if (!races) return [];
+  return Object.values(races)
     .map(r => ({
       t: Number(r.tournament) || 0,
       rnd: Number(r.round) || 0,
       ms: (r.matchups || []).filter(m => String(m.winner || "").trim())
     }))
-    .filter(r => r.ms.length);
+    .filter(r => r.ms.length)
+    .sort((a, b) => a.t - b.t || a.rnd - b.rnd);
+}
 
-  if (raceList.length < 2) return null;
-
-  raceList.sort((a, b) => a.t - b.t || a.rnd - b.rnd);
-
-  function ranksThrough(count) {
-    const rec = new Map();
-    for (let i = 0; i < count; i++) {
-      for (const m of raceList[i].ms) {
-        const p1 = String(m.p1 || "").trim().toLowerCase();
-        const p2 = String(m.p2 || "").trim().toLowerCase();
-        const w  = String(m.winner || "").trim().toLowerCase();
-        if (!p1 || !p2 || !w) continue;
-        if (!rec.has(p1)) rec.set(p1, { w: 0, l: 0 });
-        if (!rec.has(p2)) rec.set(p2, { w: 0, l: 0 });
-        const loser = w === p1 ? p2 : (w === p2 ? p1 : "");
-        if (!loser) continue;
-        rec.get(w).w++;
-        rec.get(loser).l++;
-      }
+function swissRecords_(raceList, count) {
+  const rec = new Map();
+  const n = count == null ? raceList.length : count;
+  for (let i = 0; i < n; i++) {
+    for (const m of raceList[i].ms) {
+      const p1 = String(m.p1 || "").trim().toLowerCase();
+      const p2 = String(m.p2 || "").trim().toLowerCase();
+      const w = String(m.winner || "").trim().toLowerCase();
+      if (!p1 || !p2 || !w) continue;
+      if (!rec.has(p1)) rec.set(p1, { w: 0, l: 0 });
+      if (!rec.has(p2)) rec.set(p2, { w: 0, l: 0 });
+      const loser = w === p1 ? p2 : (w === p2 ? p1 : "");
+      if (!loser) continue;
+      rec.get(w).w++;
+      rec.get(loser).l++;
     }
-    const sorted = [...rec.entries()]
-      .sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l || (a[0] < b[0] ? -1 : 1));
-    const out = new Map();
-    sorted.forEach(([k], i) => out.set(k, i + 1));
-    return out;
   }
+  return rec;
+}
 
-  const prev = ranksThrough(raceList.length - 1);
-  const cur  = ranksThrough(raceList.length);
+function sortedRecords_(rec) {
+  return [...rec.entries()].sort((a, b) =>
+    b[1].w - a[1].w || a[1].l - b[1].l || (a[0] < b[0] ? -1 : 1));
+}
 
+function rankFromRecords_(rec, name) {
+  const i = sortedRecords_(rec).findIndex(([k]) => k === name);
+  return i < 0 ? null : i + 1;
+}
+
+function topRankedName_(rec) {
+  return sortedRecords_(rec)[0]?.[0] || "";
+}
+
+function bumpRecord_(rec, name, won) {
+  if (!name) return;
+  if (!rec.has(name)) rec.set(name, { w: 0, l: 0 });
+  won ? rec.get(name).w++ : rec.get(name).l++;
+}
+
+function meGames_(blob, me) {
+  const races = Object.values(blob?.matchups?.races || {})
+    .map(r => ({ t: Number(r.tournament) || 0, rnd: Number(r.round) || 0, race: r.race, ms: r.matchups || [] }))
+    .sort((a, b) => a.t - b.t || a.rnd - b.rnd);
+
+  const games = [];
+  for (const r of races) {
+    for (const m of r.ms) {
+      const p1 = String(m.p1 || "").trim().toLowerCase();
+      const p2 = String(m.p2 || "").trim().toLowerCase();
+      if (p1 !== me && p2 !== me) continue;
+      const iAmP1 = p1 === me;
+      const wname = String(m.winner || "").trim().toLowerCase();
+      const myAvg = Number(iAmP1 ? m.a1 : m.a2);
+      const oppAvg = Number(iAmP1 ? m.a2 : m.a1);
+      games.push({
+        race: r.race,
+        opp: iAmP1 ? m.p2 : m.p1,
+        won: wname ? wname === me : null,
+        margin: (Number.isFinite(myAvg) && Number.isFinite(oppAvg)) ? Math.abs(myAvg - oppAvg) : null
+      });
+    }
+  }
+  return games;
+}
+
+// Single-series micro line: rank 1 renders at the top, labels wear
+// muted text ink, values carried in the aria-label.
+function rankSparkline_(ranks, totalPlayers) {
+  if (ranks.length < 2) return "";
+  const w = 280, h = 44, pad = 5;
+  const worst = Math.max(totalPlayers || 1, ...ranks);
+  const x = i => pad + (w - 2 * pad) * i / (ranks.length - 1);
+  const y = r => pad + (h - 2 * pad) * (r - 1) / Math.max(1, worst - 1);
+  const pts = ranks.map((r, i) => `${x(i).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
+  const last = ranks[ranks.length - 1];
+  return `
+    <div class="meSparkWrap" role="img" aria-label="Rank by round: ${ranks.join(", ")}">
+      <svg class="meSpark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="${pts}" fill="none" stroke="var(--blueText)" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="${x(ranks.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" fill="var(--blueText)"/>
+      </svg>
+      <div class="meSparkLabels"><span>Rnd 1 \u00b7 #${ranks[0]}</span><span>Now \u00b7 #${last}</span></div>
+    </div>`;
+}
+
+function overallRankDeltas_() {
+  const raceList = swissCompletedRaces_();
+  if (raceList.length < 2) return null;
+  const prev = swissRecords_(raceList, raceList.length - 1);
+  const cur = swissRecords_(raceList);
   const deltas = new Map();
-  for (const [k, r] of cur) {
-    const p = prev.get(k);
-    if (p) deltas.set(k, p - r);
+  for (const [k] of cur) {
+    const p = rankFromRecords_(prev, k);
+    const c = rankFromRecords_(cur, k);
+    if (p && c) deltas.set(k, p - c);
   }
   return deltas;
 }
