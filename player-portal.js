@@ -2217,35 +2217,79 @@ await refreshAfterAdminChange_();
         ? "Overall standing after each race \u00b7 dashed lines mark new tournaments"
         : "Overall standing after each race, all tournaments combined";
 
-      // what-if for this week's published matchup (respects spoilers)
+      // what-if for this week's published matchup (respects spoilers).
+      // The whole round is played at once, so freezing everyone else is
+      // wrong (it's what put a real loss at #14 while predicting #5).
+      // Enumerate every combination of the OTHER undecided matchups and
+      // report the rank range + median for each of my two outcomes.
       let whatIf = "";
       if (spoilersOn_() && raceList.length) {
         const cur = blob?.matchups?.current;
         const curBlob = cur ? blob?.matchups?.races?.[`${cur.tournament}||${cur.race}`] : null;
-        const myCur = (curBlob?.matchups || []).find(mm => {
-          const p1 = String(mm.p1 || "").trim().toLowerCase();
-          const p2 = String(mm.p2 || "").trim().toLowerCase();
-          return !String(mm.winner || "").trim() && (p1 === me || p2 === me);
+        const openMatchups = (curBlob?.matchups || []).filter(mm => {
+          const p1 = String(mm.p1 || "").trim();
+          const p2 = String(mm.p2 || "").trim();
+          return !String(mm.winner || "").trim() && p1 && p2;
         });
+
+        const myCur = openMatchups.find(mm =>
+          String(mm.p1 || "").trim().toLowerCase() === me ||
+          String(mm.p2 || "").trim().toLowerCase() === me);
 
         if (myCur) {
           const oppName = String(myCur.p1 || "").trim().toLowerCase() === me ? myCur.p2 : myCur.p1;
-          const opp = String(oppName || "").trim().toLowerCase();
 
-          const winRec = swissRecords_(raceList);
-          bumpRecord_(winRec, me, true);
-          bumpRecord_(winRec, opp, false);
-          const loseRec = swissRecords_(raceList);
-          bumpRecord_(loseRec, me, false);
-          bumpRecord_(loseRec, opp, true);
+          const others = openMatchups
+            .filter(mm => mm !== myCur)
+            .map(mm => [String(mm.p1 || "").trim().toLowerCase(), String(mm.p2 || "").trim().toLowerCase()]);
 
-          const rw = rankFromRecords_(winRec, me);
-          const rl = rankFromRecords_(loseRec, me);
-          if (rw && rl) {
+          const base = swissRecords_(raceList);
+          const MAX_EXACT = 14; // 2^14 = 16k, still instant
+
+          const rangeFor = (iWon) => {
+            const seed = new Map();
+            for (const [k, v] of base) seed.set(k, { ...v });
+            bumpRecord_(seed, me, iWon);
+            bumpRecord_(seed, String(oppName).trim().toLowerCase(), !iWon);
+
+            const k = others.length;
+            const exact = k <= MAX_EXACT;
+            const iters = exact ? (1 << k) : 8192;
+            const ranks = [];
+
+            for (let mask = 0; mask < iters; mask++) {
+              const rec = new Map();
+              for (const [key, v] of seed) rec.set(key, { ...v });
+              for (let b = 0; b < k; b++) {
+                const p1won = exact ? !!(mask & (1 << b)) : (Math.random() < 0.5);
+                const [a, c] = others[b];
+                bumpRecord_(rec, p1won ? a : c, true);
+                bumpRecord_(rec, p1won ? c : a, false);
+              }
+              const r = rankFromRecords_(rec, me);
+              if (r) ranks.push(r);
+            }
+            ranks.sort((a, b) => a - b);
+            return ranks.length ? {
+              best: ranks[0],
+              worst: ranks[ranks.length - 1],
+              median: ranks[Math.floor(ranks.length / 2)]
+            } : null;
+          };
+
+          const win = rangeFor(true);
+          const lose = rangeFor(false);
+
+          const fmt = (r) => r.best === r.worst
+            ? `<b>#${r.best}</b>`
+            : `<b>#${r.median}</b> <span class="muted" style="font-weight:500;">(#${r.best}\u2013#${r.worst})</span>`;
+
+          if (win && lose) {
             whatIf = `<div class="meSection">
               <div class="meSectionTitle">This week</div>
-              <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 <b>#${rw}</b> \u00b7 Lose \u2192 <b>#${rl}</b></div>
-              <div class="muted" style="font-size:11px; margin-top:2px;">Everyone else's matchup will shuffle this too.</div>
+              <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 ${fmt(win)}</div>
+              <div class="whatIf" style="margin-top:2px;">Lose \u2192 ${fmt(lose)}</div>
+              <div class="muted" style="font-size:11px; margin-top:4px;">Likely finish, with the best\u2013worst range across every way the rest of the round could shake out.</div>
             </div>`;
           }
         }
