@@ -1718,6 +1718,61 @@ select, input{
   color:var(--muted);
 }
 
+/* Weekend: per-series session groups */
+.seriesBlock{ margin-bottom:14px; }
+.seriesBlock:last-child{ margin-bottom:0; }
+
+.seriesHead{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-0.2px;
+  padding-bottom:4px;
+  border-bottom:2px solid var(--blueText);
+  margin-bottom:2px;
+}
+.seriesRace{
+  font-size:11px;
+  font-weight:500;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  min-width:0;
+}
+
+/* Season: full Cup list */
+.seasonRow{ align-items:center; }
+.seasonRound{
+  flex:0 0 26px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  font-variant-numeric:tabular-nums;
+  text-align:right;
+}
+.seasonWhen{
+  flex:0 0 auto;
+  font-size:11px;
+  font-weight:600;
+  color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+.seasonRow.next{
+  background:var(--glassBlue14);
+  border-radius:10px;
+  border-bottom-color:transparent;
+  margin:0 -6px;
+  padding-left:6px;
+  padding-right:6px;
+}
+.seasonRow.next .seasonWhen{
+  color:var(--blueText);
+  font-weight:800;
+}
+
 .hubFootnote{
   margin-top:10px;
   font-size:11px;

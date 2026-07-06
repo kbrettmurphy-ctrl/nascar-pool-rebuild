@@ -3716,10 +3716,12 @@ async function loadHub_() {
     };
   });
 
+  const seasonBox = document.getElementById("hubSeason");
   schedBox.innerHTML = `<div class="muted">Loading schedule…</div>`;
 
   const fmtDay = (d) => d.toLocaleDateString("en-US", { weekday: "short" });
   const fmtTime = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const parseTs = (v) => new Date(String(v || "").trim());
 
   // Who has which driver this week (for lineup annotations)
   let driverOwner = new Map();
@@ -3743,27 +3745,48 @@ async function loadHub_() {
       sub.textContent = bits.join(" · ");
     }
 
-    const sched = Array.isArray(data.schedule) ? data.schedule : [];
-    schedBox.innerHTML = sched.length
-      ? sched.map(ev => {
-          // start_time_utc comes without a Z suffix; force UTC so
-          // toLocale* renders in the viewer's local time zone
-          let ts = String(ev.startUtc || "").trim();
-          if (ts && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(ts)) ts += "Z";
-          const d = new Date(ts);
-          const bad = Number.isNaN(d.getTime());
-          const past = !bad && d.getTime() < Date.now();
-          const note = String(ev.notes || "").trim();
+    // Weekend: each national series with only its P / Q / R times
+    const weekend = Array.isArray(data.weekend) ? data.weekend : [];
+    schedBox.innerHTML = weekend.length
+      ? weekend.map(s => {
+          const rows = (s.sessions || []).map(sess => {
+            const d = parseTs(sess.startUtc);
+            const bad = Number.isNaN(d.getTime());
+            const past = !bad && d.getTime() < Date.now();
+            return `
+              <div class="hubRow ${past ? "past" : ""}">
+                <div class="hubWhen">${bad ? "" : `${fmtDay(d)} ${fmtTime(d)}`}</div>
+                <div class="hubWhat">${escapeHtml(sess.type)}</div>
+              </div>`;
+          }).join("");
           return `
-            <div class="hubRow ${past ? "past" : ""}">
-              <div class="hubWhen">${bad ? "" : `${fmtDay(d)} ${fmtTime(d)}`}</div>
-              <div class="hubWhat">${escapeHtml(ev.name)}${note ? `<div class="hubNote">${escapeHtml(note)}</div>` : ""}</div>
+            <div class="seriesBlock">
+              <div class="seriesHead">${escapeHtml(s.series)}<span class="seriesRace">${escapeHtml(s.raceName || "")}</span></div>
+              ${rows}
             </div>`;
         }).join("") +
-        (sched.some(ev => /^race$/i.test(String(ev.name || "").trim()))
-          ? `<div class="hubFootnote">Race time is when coverage starts \u2014 the green flag usually drops 15\u201320 minutes later. The app pushes a notification the moment it actually waves.</div>`
-          : "")
+        `<div class="hubFootnote">Race time is when TV coverage starts \u2014 the green flag drops 15\u201320 minutes later. The app pushes a notification the moment it actually waves.</div>`
       : `<div class="muted">No weekend schedule posted yet.</div>`;
+
+    // Season: full Cup schedule, next race highlighted
+    if (seasonBox) {
+      const season = Array.isArray(data.season) ? data.season : [];
+      seasonBox.classList.remove("muted");
+      seasonBox.innerHTML = season.length
+        ? season.map(r => {
+            const d = parseTs(r.startUtc);
+            const bad = Number.isNaN(d.getTime());
+            const past = !bad && d.getTime() < Date.now() && !r.isNext;
+            const when = bad ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            return `
+              <div class="hubRow seasonRow ${past ? "past" : ""} ${r.isNext ? "next" : ""}">
+                <div class="seasonRound">${r.round}</div>
+                <div class="hubWhat">${escapeHtml(r.name)}${r.track ? `<div class="hubNote">${escapeHtml(r.track)}</div>` : ""}</div>
+                <div class="seasonWhen">${r.isNext ? "NEXT" : when}</div>
+              </div>`;
+          }).join("")
+        : `<div class="muted">Season schedule unavailable.</div>`;
+    }
 
     const lineup = Array.isArray(data.lineup) ? data.lineup : [];
     lineupBox.classList.remove("muted");
@@ -3781,6 +3804,7 @@ async function loadHub_() {
   } catch (e) {
     schedBox.innerHTML = `<div class="muted">Schedule unavailable.</div>`;
     lineupBox.innerHTML = `<div class="muted">Lineup unavailable.</div>`;
+    if (seasonBox) seasonBox.innerHTML = `<div class="muted">Season schedule unavailable.</div>`;
   }
 
   try {

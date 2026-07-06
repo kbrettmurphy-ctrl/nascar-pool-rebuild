@@ -1,5 +1,9 @@
-// Weekend hub: current race weekend schedule + starting lineup,
-// pulled from the same NASCAR feeds the import functions use.
+// Weekend hub:
+//  - weekend: this weekend's Truck / Xfinity / Cup sessions
+//    (practice / qualifying / race times only), like nascar.com
+//  - season: the full Cup season schedule with the next race flagged
+//  - lineup: Cup starting grid once qualifying is in
+// All from the same NASCAR feeds the import functions use.
 export async function onRequestGet(context) {
   try {
     const { env } = context;
@@ -40,77 +44,128 @@ export async function onRequestGet(context) {
 
     const completed = new Set((results || []).map(r => Number(r.race_id)));
     const race = (races || []).find(r => !completed.has(Number(r.id))) || null;
-
-    if (!race) {
-      return json({ ok: true, race: null, schedule: [], lineup: [] });
-    }
+    const seasonYear = Number(race?.season_year) || new Date().getFullYear();
 
     const raceListJson = await nascarJson(
-      `https://cf.nascar.com/cacher/${race.season_year}/race_list_basic.json`
+      `https://cf.nascar.com/cacher/${seasonYear}/race_list_basic.json`
     );
 
-    const cupPointsRaces = (Array.isArray(raceListJson?.series_1) ? raceListJson.series_1 : [])
-      .slice()
-      .sort((a, b) => {
-        const da = Date.parse(a?.race_date ?? a?.date_scheduled ?? "") || 0;
-        const db = Date.parse(b?.race_date ?? b?.date_scheduled ?? "") || 0;
-        return da - db;
-      })
-      .filter(r => {
-        const name = String(r?.race_name ?? "").toLowerCase();
-        if (name.includes("clash") || name.includes("duel") ||
-            name.includes("all-star") || name.includes("shootout") ||
-            name.includes("exhibition")) return false;
-        return true;
-      });
+    const isPoints = r => {
+      const name = String(r?.race_name ?? "").toLowerCase();
+      return !(name.includes("clash") || name.includes("duel") ||
+        name.includes("all-star") || name.includes("shootout") ||
+        name.includes("exhibition"));
+    };
+    const byDate = (a, b) =>
+      (Date.parse(a?.race_date ?? a?.date_scheduled ?? "") || 0) -
+      (Date.parse(b?.race_date ?? b?.date_scheduled ?? "") || 0);
 
-    const targetRace = cupPointsRaces[Number(race.race_number) - 1];
-    if (!targetRace?.race_id) {
-      return json({ ok: true, race: raceInfo_(race, null), schedule: [], lineup: [] });
+    const cupPoints = (Array.isArray(raceListJson?.series_1) ? raceListJson.series_1 : [])
+      .slice().sort(byDate).filter(isPoints);
+
+    // ---- Full Cup season (what the pool runs on) ----
+    const nextCup = cupPoints[Number(race?.race_number || 0) - 1] || null;
+    const season = cupPoints.map((r, i) => ({
+      round: i + 1,
+      name: String(r?.race_name || "").trim(),
+      track: String(r?.track_name || "").trim(),
+      startUtc: fromEastern_(r?.race_date || r?.date_scheduled),
+      isNext: nextCup ? Number(r?.race_id) === Number(nextCup.race_id) : false,
+    })).filter(r => r.name);
+
+    // ---- This weekend across the three national series ----
+    const anchor = nextCup;
+    const anchorMs = anchor ? Date.parse(anchor.race_date || anchor.date_scheduled || "") : NaN;
+    const anchorTrack = Number(anchor?.track_id) || null;
+
+    const seriesDefs = [
+      { key: "series_3", label: "Craftsman Truck" },
+      { key: "series_2", label: "Xfinity" },
+      { key: "series_1", label: "Cup" },
+    ];
+
+    const weekend = [];
+    if (anchor && Number.isFinite(anchorMs)) {
+      for (const def of seriesDefs) {
+        const list = Array.isArray(raceListJson?.[def.key]) ? raceListJson[def.key] : [];
+        // same track, within a 4-day window of the Cup race
+        const match = list
+          .filter(r => Number(r?.track_id) === anchorTrack)
+          .map(r => ({ r, ms: Date.parse(r?.race_date || r?.date_scheduled || "") }))
+          .filter(x => Number.isFinite(x.ms) && Math.abs(x.ms - anchorMs) <= 4 * 86400000)
+          .sort((a, b) => Math.abs(a.ms - anchorMs) - Math.abs(b.ms - anchorMs))[0]?.r;
+
+        if (!match) continue;
+
+        const sessions = [];
+        for (const ev of (match.schedule || [])) {
+          const rt = Number(ev?.run_type);
+          const startUtc = fromUtcField_(ev?.start_time_utc || ev?.start_time);
+          if (!startUtc) continue;
+          if (rt === 1) sessions.push({ type: "Practice", startUtc });
+          else if (rt === 2) sessions.push({ type: "Qualifying", startUtc });
+          else if (rt === 3) sessions.push({ type: "Race", startUtc });
+        }
+        // one of each, earliest wins (skip the odd second practice)
+        const seen = new Set();
+        const clean = sessions
+          .sort((a, b) => (Date.parse(a.startUtc) || 0) - (Date.parse(b.startUtc) || 0))
+          .filter(s => (seen.has(s.type) ? false : seen.add(s.type)));
+
+        if (clean.length) {
+          weekend.push({
+            series: def.label,
+            raceName: String(match.race_name || "").trim(),
+            sessions: clean,
+          });
+        }
+      }
     }
 
-    // Schedule: race_list entries carry the full weekend event schedule
-    const schedule = (Array.isArray(targetRace.schedule) ? targetRace.schedule : [])
-      .map(ev => ({
-        name: String(ev?.event_name || ev?.notes || "").trim(),
-        notes: String(ev?.notes || "").trim(),
-        startUtc: String(ev?.start_time_utc || ev?.start_time || "").trim(),
-      }))
-      .filter(ev => ev.name && ev.startUtc)
-      .sort((a, b) => (Date.parse(a.startUtc) || 0) - (Date.parse(b.startUtc) || 0));
-
-    // Lineup: weekend feed race results rows carry starting_position pre-race
+    // ---- Cup starting lineup (once qualifying posts) ----
     let lineup = [];
-    try {
-      const weekendJson = await nascarJson(
-        `https://cf.nascar.com/cacher/${race.season_year}/1/${targetRace.race_id}/weekend-feed.json`
-      );
-
-      const rows = Array.isArray(weekendJson?.weekend_race?.[0]?.results)
-        ? weekendJson.weekend_race[0].results
-        : [];
-
-      lineup = rows
-        .map(r => ({
-          pos: Number(r?.starting_position ?? r?.start_pos ?? r?.StartPos),
-          driver: String(r?.driver_fullname ?? r?.driver_name ?? r?.FullName ?? "").trim(),
-          car: String(r?.car_number ?? r?.CarNo ?? "").trim(),
-        }))
-        .filter(r => Number.isFinite(r.pos) && r.pos > 0 && r.driver)
-        .sort((a, b) => a.pos - b.pos);
-    } catch {
-      lineup = [];
+    if (anchor?.race_id && race) {
+      try {
+        const weekendJson = await nascarJson(
+          `https://cf.nascar.com/cacher/${seasonYear}/1/${anchor.race_id}/weekend-feed.json`
+        );
+        const rows = Array.isArray(weekendJson?.weekend_race?.[0]?.results)
+          ? weekendJson.weekend_race[0].results : [];
+        lineup = rows
+          .map(r => ({
+            pos: Number(r?.starting_position ?? r?.start_pos ?? r?.StartPos),
+            driver: String(r?.driver_fullname ?? r?.driver_name ?? r?.FullName ?? "").trim(),
+            car: String(r?.car_number ?? r?.CarNo ?? "").trim(),
+          }))
+          .filter(r => Number.isFinite(r.pos) && r.pos > 0 && r.driver)
+          .sort((a, b) => a.pos - b.pos);
+      } catch { lineup = []; }
     }
 
     return json({
       ok: true,
-      race: raceInfo_(race, targetRace),
-      schedule,
+      race: raceInfo_(race, anchor),
+      weekend,
+      season,
       lineup,
     });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
+}
+
+// The feed mixes two conventions: schedule start_time_utc is genuine
+// UTC; race_date / date_scheduled are US Eastern local. Tag each
+// correctly so the client renders in the viewer's own zone.
+function fromUtcField_(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  return /[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + "Z";
+}
+function fromEastern_(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  return /[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + "-04:00";
 }
 
 function raceInfo_(dbRace, nascarRace) {
