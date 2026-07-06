@@ -2243,7 +2243,11 @@ await refreshAfterAdminChange_();
             .filter(mm => mm !== myCur)
             .map(mm => [String(mm.p1 || "").trim().toLowerCase(), String(mm.p2 || "").trim().toLowerCase()]);
 
-          const base = swissRecords_(raceList);
+          // Rank WITHIN the current tournament (the live bracket, where
+          // the payouts live), not the all-tournaments overall list.
+          const curT = Number(cur?.tournament);
+          const tournRaces = raceList.filter(r => r.t === curT);
+          const base = swissRecords_(tournRaces);
           const MAX_EXACT = 14; // 2^14 = 16k, still instant
 
           const rangeFor = (iWon) => {
@@ -2280,16 +2284,22 @@ await refreshAfterAdminChange_();
           const win = rangeFor(true);
           const lose = rangeFor(false);
 
+          const ord = (n) => {
+            const s = ["th", "st", "nd", "rd"], v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+          };
           const fmt = (r) => r.best === r.worst
-            ? `<b>#${r.best}</b>`
-            : `<b>#${r.median}</b> <span class="muted" style="font-weight:500;">(#${r.best}\u2013#${r.worst})</span>`;
+            ? `<b>${ord(r.best)}</b>`
+            : `<b>${ord(r.median)}</b> <span class="muted" style="font-weight:500;">(${ord(r.best)}\u2013${ord(r.worst)})</span>`;
 
           if (win && lose) {
+            const tLabel = Number.isFinite(curT) ? `Tournament ${curT}` : "this tournament";
             whatIf = `<div class="meSection">
               <div class="meSectionTitle">This week</div>
+              <div class="muted" style="font-size:11px; margin-bottom:4px;">Where you'd place in ${escapeHtml(tLabel)} \u2014 the live bracket that pays out.</div>
               <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 ${fmt(win)}</div>
               <div class="whatIf" style="margin-top:2px;">Lose \u2192 ${fmt(lose)}</div>
-              <div class="muted" style="font-size:11px; margin-top:4px;">Likely finish, with the best\u2013worst range across every way the rest of the round could shake out.</div>
+              <div class="muted" style="font-size:11px; margin-top:4px;">Likely placement, with the best\u2013worst range across every way the rest of the round could go.</div>
             </div>`;
           }
         }
