@@ -1,7 +1,4 @@
 {
   "name": "nascar-pool",
-  "version": "1.0.0",
-  "scripts": {
-    "build:buschgirls": "node scripts/build-buschgirls-manifest.js"
-  }
+  "version": "1.0.0"
 }

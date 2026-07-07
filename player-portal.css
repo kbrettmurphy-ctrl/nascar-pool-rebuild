@@ -25,27 +25,21 @@ html{
   --red:#E4002B;
   --yellow:#FFD659;
   --green:#4DD21D;
-  --navy:#020b12;
 
   --greenfade:#4DD21DBF;
   --greentrans:#4DD21D33; /* 20% */
-  --redtrans:#E4002B33;   /* 20% */
 
   --winnerGreen:#16a34a;
 
   --pad:12px;
   --radius:16px;
-  --radius2:14px;
 
   --h2:22px;
   --big:18px;
   --body:13px;
 
-  --micro:8px;
 
   --mmPad:6px;
-  --mmGap:6px;
-  --mmHeaderGap:4px;
 
   --vvb:0px;
   --navH:62px;
@@ -64,7 +58,6 @@ html{
   color-scheme: dark;
 
   --bg:#020b12;
-  --bgSoft:#07131c;
 
   --card:rgba(255,255,255,.05);
   --cardSolid:#0a1822;
@@ -80,8 +73,6 @@ html{
 
   --glassBlue10:rgba(0,122,194,.10);
   --glassBlue14:rgba(0,122,194,.14);
-  --glassBlue20:rgba(0,122,194,.20);
-  --glassBlue22:rgba(0,122,194,.22);
   --glassBlue42:rgba(0,122,194,.42);
   --glassBlue55:rgba(0,122,194,.55);
 
@@ -117,11 +108,7 @@ html{
   --wmOpacity:.18;
 
   /* legacy tint names kept for JS / inline-style compatibility */
-  --white06:rgba(255,255,255,.06);
-  --white10:rgba(255,255,255,.10);
-  --white12:rgba(255,255,255,.12);
   --white14:rgba(255,255,255,.14);
-  --black75:rgba(0,0,0,.75);
 
   --scrollTrack:rgba(255,255,255,.06);
   --scrollThumb:rgba(0,122,194,.40);
@@ -137,7 +124,6 @@ html{
   color-scheme: light;
 
   --bg:#eef2f5;
-  --bgSoft:#e4eaef;
 
   --card:#ffffff;
   --cardSolid:#ffffff;
@@ -153,8 +139,6 @@ html{
 
   --glassBlue10:rgba(0,122,194,.06);
   --glassBlue14:rgba(0,122,194,.08);
-  --glassBlue20:rgba(0,122,194,.12);
-  --glassBlue22:rgba(0,122,194,.14);
   --glassBlue42:rgba(0,122,194,.22);
   --glassBlue55:rgba(0,122,194,.45);
 
@@ -189,11 +173,7 @@ html{
   --wmOpacity:.08;
 
   /* legacy tint names remapped to ink so chips/badges stay visible */
-  --white06:rgba(12,26,38,.05);
-  --white10:rgba(12,26,38,.08);
-  --white12:rgba(12,26,38,.10);
   --white14:rgba(12,26,38,.12);
-  --black75:rgba(255,255,255,.85);
 
   --scrollTrack:rgba(12,26,38,.06);
   --scrollThumb:rgba(0,122,194,.35);
@@ -264,15 +244,7 @@ body::before{
    Shared layout + utility pieces
    ========================================================== */
 
-.sub{
-  color: var(--muted);
-  font-size: 13px;
-  margin-bottom: 6px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
+
 
 /* Standard control height: pills and switches 28px, icon buttons 30px */
 .pill{
@@ -581,23 +553,7 @@ select, input{
   transition:transform .18s ease;
 }
 
-.buschPopupClose{
-  position:absolute;
-  top:8px;
-  right:8px;
-  width:32px;
-  height:32px;
-  border-radius:999px;
-  border:1px solid var(--chipBorder);
-  background:var(--chip);
-  color:var(--text);
-  font-size:20px;
-  line-height:1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-}
+
 
 .buschPhotoMenu{
   position:fixed;
@@ -739,8 +695,7 @@ select, input{
 
 .buschPopup,
 .buschPopupCard,
-.buschPopupImg,
-.buschPopupClose{
+.buschPopupImg{
   -webkit-user-select:none;
   user-select:none;
   -webkit-touch-callout:none;
@@ -1122,43 +1077,11 @@ select, input{
 
 .bracketWrap{ position: relative; margin-top:10px; }
 
-.bracketSticky{
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display:none !important;
-  gap:10px;
-  padding: 6px 10px;
-  margin: 0 0 6px 0;
-  background: var(--black75);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
-}
 
-.bracketSticky .chip{
-  flex:0 0 auto;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 8px;
-  border-radius:999px;
-  border:1px solid var(--chipBorder);
-  background: var(--chip);
-  font-size:11px;
-  font-weight:800;
-  color: var(--text);
-  scroll-snap-align: start;
-}
 
-.bracketSticky .chip .small{
-  font-size:10px;
-  font-weight:700;
-  color: var(--muted);
-}
+
+
+
 
 .bracketFade{
   pointer-events:none;
@@ -1189,12 +1112,7 @@ select, input{
 
 .mmWrap{ margin-top:6px; }
 
-.mmHeader{
-  font-weight:800;
-  font-size:14px;
-  margin: 0 0 var(--mmHeaderGap) 0;
-  line-height:1.2;
-}
+
 
 .microBox{
   border:1px solid var(--lineSoft);
@@ -1203,10 +1121,7 @@ select, input{
   background: transparent;
 }
 
-.youBox{
-  border-color: transparent;
-  background: var(--glassBlue14);
-}
+
 
 .microTitle{
   font-weight:800;
@@ -1223,14 +1138,7 @@ select, input{
   line-height:1.25;
 }
 
-.centerVS{
-  text-align:center;
-  font-weight:800;
-  font-size:12px;
-  color: var(--redText);
-  margin: var(--mmGap) 0;
-  letter-spacing:.5px;
-}
+
 
 /* ==========================================================
    Bottom navigation
@@ -1554,13 +1462,7 @@ select, input{
   border-radius:999px;
 }
 
-.h2hLine{
-  margin-top:8px;
-  text-align:center;
-  font-size:12px;
-  font-weight:700;
-  color: var(--muted);
-}
+
 
 .moveArrow{
   font-size:10px;
@@ -2291,36 +2193,13 @@ a.newsCard:last-child{ border-bottom:none; }
   margin: 0 0 0 0;
 }
 
-.adminPinModal .adminRow{
-  display:flex;
-  gap:14px;
-  margin-top:0;
-}
 
-.adminPinModal .adminRow button{
-  flex:1 1 0;
-  width:100%;
-  min-width:0;
-  margin:0;
-  padding:8px 10px;
-  font-size:12px;
-  line-height:1.0;
-  border-radius:16px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-}
 
-#adminPinCancel{
-  background:#41506b;
-  color:#fff;
-}
 
-#adminPinSubmit{
-  background:var(--btnPrimaryBg);
-  color:var(--btnPrimaryText);
-  border:1px solid var(--btnPrimaryBorder);
-}
+
+
+
+
 
 .adminTabs{
   display:flex;

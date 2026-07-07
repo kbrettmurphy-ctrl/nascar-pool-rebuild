@@ -158,16 +158,7 @@
     return data;
   }
 
-  async function getPlayerMyMatchup_(name){
-    const res = await fetch(`/api/player-my-matchup?name=${encodeURIComponent(name)}`, {
-      cache: "no-store"
-    });
-    const data = await res.json();
-    if (!res.ok || !data || !data.ok) {
-      throw new Error(data?.error || "player-my-matchup failed");
-    }
-    return data.data || {};
-  }
+
 
   async function getPlayerBracket_(tournament){
     const qs = tournament ? `?tournament=${encodeURIComponent(tournament)}` : "";
@@ -1548,30 +1539,7 @@ await refreshAfterAdminChange_();
     return !!loadPlayerName();
   }
 
-  function clearSavedAndReset() {
-    localStorage.removeItem(STORAGE_KEY);
 
-    const gp = document.getElementById("globalPlayer");
-    if (gp) {
-      const ph = gp.querySelector("#playerPlaceholder");
-      if (ph) ph.hidden = false;
-      gp.value = "";
-      autoSizePlayerSelect_(gp);
-    }
-
-    setWelcome();
-    applyYouRowsNow_();
-
-    if (activeView === "mymatchup") {
-      const out = document.getElementById("mmStatus");
-      if (out) out.textContent = "";
-    }
-
-    if (activeView === "dues") {
-      const out = document.getElementById("duesStatus");
-      if (out) out.textContent = "";
-    }
-  }
 
   function renderFutureRaceMessage_(area, raceData){
     const header = document.getElementById("currentHeader");
@@ -1721,32 +1689,7 @@ await refreshAfterAdminChange_();
     };
   }
 
-  function formatDriversOrNumbers(driversArr, numsArr){
-    const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
-    const d2 = (driversArr && driversArr[1] != null) ? String(driversArr[1]).trim() : "";
 
-    const n1 = (numsArr && numsArr[0] != null) ? String(numsArr[0]).trim() : "";
-    const n2 = (numsArr && numsArr[1] != null) ? String(numsArr[1]).trim() : "";
-
-    const hasDrivers = !!(d1 || d2);
-    const hasNums = !!(n1 || n2);
-
-    if (!hasDrivers && !hasNums) return "";
-    if (!hasDrivers && hasNums){
-      return `Numbers: ${[n1, n2].filter(Boolean).join(", ")}`;
-    }
-
-    function fmtPair(num, drv){
-      const numClean = String(num || "").trim();
-      const drvClean = String(drv || "").trim();
-      if (!numClean && !drvClean) return "";
-      if (numClean && drvClean) return `(${numClean}) ${drvClean}`;
-      if (drvClean) return drvClean;
-      return `(${numClean})`;
-    }
-
-    return [fmtPair(n1, d1), fmtPair(n2, d2)].filter(Boolean).join(", ");
-  }
 
   function applyYouRowsNow_(){
     const you = loadPlayerName().trim().toLowerCase();
@@ -3515,19 +3458,6 @@ function initPushNotifications_() {
     const rounds = data.rounds || [];
     let html = `<div class="bracketGrid">`;
 
-    const sticky = document.getElementById("bracketSticky");
-    if (sticky) {
-      sticky.innerHTML = rounds.map((r, idx) => {
-        const label = r.isCurrent ? "CURRENT" : roundLabel(r.round);
-        const raceLabel = r.raceLabel || "";
-        return `
-          <div class="chip" data-idx="${idx}">
-            <span>${escapeHtml(label)}</span>
-            <span class="small">${escapeHtml(raceLabel)}</span>
-          </div>
-        `;
-      }).join("");
-    }
 
     rounds.forEach(r => {
       const tag = r.isCurrent
@@ -4456,13 +4386,10 @@ function initBuschLongPress_() {
   const trigger = document.getElementById("buschLogoTrigger");
   const logo = document.getElementById("buschLogo");
   const popup = document.getElementById("buschPopup");
-  const closeBtn = document.getElementById("buschPopupClose");
   const backdrop = popup?.querySelector(".buschPopupBackdrop");
   const popupImg = document.querySelector(".buschPopupImg");
 
   if (!trigger || !popup) return;
-
-  if (closeBtn) closeBtn.style.display = "none";
 
   let buschHistory = [];
   let buschHistoryIndex = -1;
@@ -4661,19 +4588,7 @@ async function saveBuschPhotoImage_(info) {
   showBuschPhotoSaveSheet_(info);
 }
 
-async function copyBuschPhotoLink_(info) {
-  if (!info?.url) return;
 
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(info.url);
-      alert("Photo link copied.");
-      return;
-    } catch {}
-  }
-
-  window.prompt("Copy photo link:", info.url);
-}
 
 async function unlockAdminForPhotoDelete_() {
   if (getAdminToken_()) return true;
@@ -5315,7 +5230,6 @@ function initAdminControls_() {
     initPushNotifications_();
     initAdminControls_();
     loadPlayersThenInit();
-    persistHScroll(".navInner", "nascar_nav_scroll");
     await loadBuschGirls();
     initBuschLongPress_();
     initBuschVotes_();
