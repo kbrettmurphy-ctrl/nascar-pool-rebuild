@@ -1382,29 +1382,11 @@ select, input{
 }
 .miniPill .k{ color: var(--muted); font-weight:700; }
 
-.statsRow.overallRow{
-  display:grid;
-  grid-template-columns: auto var(--overallNameW, max-content) 1fr;
-  align-items:center;
-  gap:8px;
-}
 
-.statsRow.overallRow .statsName{
-  width: var(--overallNameW, max-content);
-  white-space:nowrap;
-  overflow: visible;
-  text-overflow: clip;
-}
 
-.statsRow.overallRow .statsBadges{
-  justify-content:flex-start;
-  flex-wrap:nowrap;
-  overflow-x:auto;
-  overflow-y:hidden;
-  -webkit-overflow-scrolling: touch;
-  white-space:nowrap;
-}
-.statsRow.overallRow .statsBadges .miniPill{ flex:0 0 auto; }
+
+
+
 
 /* Driver usage: grouped by times assigned */
 .drvGroup{
@@ -1435,6 +1417,14 @@ select, input{
 }
 
 .drvSummary{ color:var(--muted); font-weight:600; }
+
+.drvFull .drvName{
+  display:block;
+  padding:4px 0;
+  border-bottom:1px solid var(--lineSoft);
+  font-weight:600;
+}
+.drvFull .drvName:last-child{ border-bottom:none; }
 .drvChev{ font-size:10px; }
 .drvFull[hidden], .drvSummary[hidden]{ display:none; }
 

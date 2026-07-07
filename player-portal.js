@@ -28,7 +28,6 @@
   let _playerList = null;
   let _cache_standings = null;
   let _statsMode = "overall";
-  let _nameWTimer = null;
   let _selectedBracketTournament = "";
   let _adminContext = null;
   let _adminSeedWheel = null;
@@ -2661,47 +2660,6 @@ await refreshAfterAdminChange_();
     });
   }
 
-  function syncOverallNameColumnWidth_(){
-    const panel = document.getElementById("statsPanel");
-    if(!panel) return;
-
-    const names = panel.querySelectorAll(".statsRow .statsName");
-    if(!names.length) return;
-
-    let ruler = document.getElementById("__nameRuler");
-    if(!ruler){
-      ruler = document.createElement("span");
-      ruler.id = "__nameRuler";
-      ruler.style.position = "fixed";
-      ruler.style.left = "-9999px";
-      ruler.style.top = "-9999px";
-      ruler.style.visibility = "hidden";
-      ruler.style.whiteSpace = "nowrap";
-      ruler.style.padding = "0";
-      ruler.style.margin = "0";
-      ruler.style.border = "0";
-      document.body.appendChild(ruler);
-    }
-
-    const cs = window.getComputedStyle(names[0]);
-    ruler.style.fontFamily = cs.fontFamily;
-    ruler.style.fontSize = cs.fontSize;
-    ruler.style.fontWeight = cs.fontWeight;
-    ruler.style.letterSpacing = cs.letterSpacing;
-    ruler.style.textTransform = cs.textTransform;
-
-    let max = 0;
-    names.forEach(el => {
-      ruler.textContent = el.textContent || "";
-      max = Math.max(max, ruler.getBoundingClientRect().width);
-    });
-
-    const next = Math.ceil(max + 6);
-    const prev = parseFloat(panel.style.getPropertyValue("--overallNameW")) || 0;
-    if (Math.abs(next - prev) < 1) return;
-
-    panel.style.setProperty("--overallNameW", next + "px");
-  }
 
   async function loadStandings() {
     const area = document.getElementById("standingsArea");
@@ -2780,7 +2738,6 @@ await refreshAfterAdminChange_();
 
     if (!rows.length || !headers.length){
       box.innerHTML = `<div class="muted">(No standings data yet)</div>`;
-      requestAnimationFrame(() => syncOverallNameColumnWidth_());
       resetStatPillScrollSoon(box);
       return;
     }
@@ -2831,7 +2788,7 @@ await refreshAfterAdminChange_();
         : `<span class="moveArrow ${dv > 0 ? "up" : "down"}">${dv > 0 ? "▲" : "▼"}${Math.abs(dv)}</span>`;
 
       html += `
-        <div class="statsRow overallRow ${isYou ? "youRow" : ""}">
+        <div class="statsRow ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(rank || "—")}</div>
           <div class="statsName">${escapeHtml(name)}${move}</div>
           <div class="statsBadges">${badges}</div>
@@ -2840,7 +2797,6 @@ await refreshAfterAdminChange_();
     });
 
     box.innerHTML = html;
-    requestAnimationFrame(syncOverallNameColumnWidth_);
     resetStatPillScrollSoon(box);
   }
 
@@ -2969,7 +2925,7 @@ await refreshAfterAdminChange_();
       ].filter(Boolean).join("");
 
       html += `
-        <div class="statsRow overallRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
+        <div class="statsRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(r)}</div>
           <div class="statsName">${escapeHtml(name)}</div>
           <div class="statsBadges">${badges}</div>
@@ -2980,7 +2936,6 @@ await refreshAfterAdminChange_();
     html += `</div>`;
 
     box.innerHTML = html;
-    requestAnimationFrame(syncOverallNameColumnWidth_);
     resetStatPillScrollSoon(box);
   }
 
@@ -3190,7 +3145,7 @@ await refreshAfterAdminChange_();
               <div class="drvCount">${c}\u00d7</div>
               <div class="drvNames">
                 ${many
-                  ? `<span class="drvSummary">${names.length} drivers <span class="drvChev">\u25b8</span></span><span class="drvFull" hidden>${inline}</span>`
+                  ? `<span class="drvSummary">${names.length} drivers <span class="drvChev">\u25b8</span></span><span class="drvFull" hidden>${names.map(n => `<span class="drvName">${escapeHtml(n)}</span>`).join("")}</span>`
                   : inline}
               </div>
             </div>`;
@@ -5237,14 +5192,6 @@ function initAdminControls_() {
 
 
 
-  window.addEventListener("resize", () => {
-    if (_statsMode !== "overall" && _statsMode !== "tourney") return;
-
-    clearTimeout(_nameWTimer);
-    _nameWTimer = setTimeout(() => {
-      syncOverallNameColumnWidth_();
-    }, 150);
-  });
   
   async function forcePwaUpdate_() {
     if (!("serviceWorker" in navigator)) return;
