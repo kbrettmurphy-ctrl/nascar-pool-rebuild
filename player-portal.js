@@ -3458,6 +3458,20 @@ function initPushNotifications_() {
     const rounds = data.rounds || [];
     let html = `<div class="bracketGrid">`;
 
+    const sticky = document.getElementById("bracketSticky");
+    if (sticky) {
+      sticky.innerHTML = rounds.map((r, idx) => {
+        const label = r.isCurrent ? "CURRENT" : roundLabel(r.round);
+        const raceLabel = r.raceLabel || "";
+        return `
+          <div class="chip" data-idx="${idx}">
+            <span>${escapeHtml(label)}</span>
+            <span class="small">${escapeHtml(raceLabel)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
 
     rounds.forEach(r => {
       const tag = r.isCurrent
