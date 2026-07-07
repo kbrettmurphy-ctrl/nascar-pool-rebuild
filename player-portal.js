@@ -2731,6 +2731,12 @@ await refreshAfterAdminChange_();
     box.innerHTML = "";
   }
 
+  // zero-pad single-digit averages (3.83 -> 03.83) so the right-side
+  // pills stay visually aligned down the list
+  function padAvg_(v){
+    return String(v ?? "").replace(/^(\d)(?=\.|$)/, "0$1");
+  }
+
   function renderOverall_(box){
     const data = _cache_standings || {};
     const rows = Array.isArray(data.overall) ? data.overall : [];
@@ -2778,7 +2784,8 @@ await refreshAfterAdminChange_();
         ...badgeKeys.map(k => {
           const v = r[k];
           if (v == null || String(v).trim() === "") return "";
-          return `<span class="miniPill"><span class="k">${escapeHtml(k)}:</span> ${escapeHtml(v)}</span>`;
+          const shown = /avg/i.test(k) ? padAvg_(v) : v;
+          return `<span class="miniPill"><span class="k">${escapeHtml(k)}:</span> ${escapeHtml(shown)}</span>`;
         })
       ].filter(Boolean).join("");
 
@@ -2917,7 +2924,7 @@ await refreshAfterAdminChange_();
       const badges = [
         record ? `<span class="miniPill">${escapeHtml(record)}</span>` : "",
         avgVal != null && String(avgVal).trim() !== ""
-          ? `<span class="miniPill"><span class="k">Avg:</span> ${escapeHtml(avgVal)}</span>` : "",
+          ? `<span class="miniPill"><span class="k">Avg:</span> ${escapeHtml(padAvg_(avgVal))}</span>` : "",
         wpVal != null && String(wpVal).trim() !== ""
           ? `<span class="miniPill"><span class="k">W%:</span> ${escapeHtml(wpVal)}</span>` : "",
         payout
