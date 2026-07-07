@@ -1316,8 +1316,8 @@ select, input{
 .statsRow{
   display:flex;
   align-items:center;
-  gap:10px;
-  padding:8px 4px;
+  gap:8px;
+  padding:3px 4px;
   border-radius:0;
   border:none;
   border-bottom:1px solid var(--lineSoft);
@@ -1330,14 +1330,14 @@ select, input{
   flex:0 0 auto;
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:8px;
   min-width:0;
 }
 
 .rankBadge{
   flex:0 0 auto;
-  min-width:32px;
-  height:24px;
+  min-width:26px;
+  height:19px;
   border-radius:999px;
   display:inline-flex;
   align-items:center;
@@ -1346,7 +1346,7 @@ select, input{
   font-variant-numeric: tabular-nums;
   background: var(--chip);
   border:1px solid var(--chipBorder);
-  font-size:13px;
+  font-size:11px;
 }
 
 .statsName{
@@ -1355,7 +1355,7 @@ select, input{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  font-size:14px;
+  font-size:12px;
 }
 
 .statsBadges{
@@ -1370,13 +1370,13 @@ select, input{
 .miniPill{
   display:inline-flex;
   align-items:center;
-  gap:6px;
-  padding:4px 8px;
+  gap:4px;
+  padding:2px 6px;
   border-radius:999px;
   border:1px solid var(--chipBorder);
   background: var(--chip);
-  font-size:11px;
-  font-weight:800;
+  font-size:10px;
+  font-weight:700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -1386,7 +1386,7 @@ select, input{
   display:grid;
   grid-template-columns: auto var(--overallNameW, max-content) 1fr;
   align-items:center;
-  gap:10px;
+  gap:8px;
 }
 
 .statsRow.overallRow .statsName{
@@ -1405,6 +1405,38 @@ select, input{
   white-space:nowrap;
 }
 .statsRow.overallRow .statsBadges .miniPill{ flex:0 0 auto; }
+
+/* Driver usage: grouped by times assigned */
+.drvGroup{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  padding:5px 4px;
+  border-bottom:1px solid var(--lineSoft);
+}
+.drvGroup:last-child{ border-bottom:none; }
+.drvGroup.collapsible{ cursor:pointer; }
+
+.drvCount{
+  flex:0 0 30px;
+  font-size:12px;
+  font-weight:800;
+  color:var(--blueText);
+  font-variant-numeric:tabular-nums;
+  text-align:right;
+}
+
+.drvNames{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:12px;
+  font-weight:600;
+  line-height:1.6;
+}
+
+.drvSummary{ color:var(--muted); font-weight:600; }
+.drvChev{ font-size:10px; }
+.drvFull[hidden], .drvSummary[hidden]{ display:none; }
 
 .statsControls{
   display:flex;

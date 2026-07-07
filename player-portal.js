@@ -3171,20 +3171,40 @@ await refreshAfterAdminChange_();
           return;
         }
 
-        let html = ``;
+        // Group by usage count: one row per count, drivers inline.
+        // Big groups (the one-timers) collapse behind a tap.
+        const groups = new Map();
         rows.forEach(r => {
-          html += `
-            <div class="statsRow">
-              <div class="statsLeft">
-                <div class="statsName">${escapeHtml(r.driver || "")}</div>
-              </div>
-              <div class="statsBadges">
-                <span class="miniPill"><span class="k">Times:</span> ${escapeHtml(r.count ?? "")}</span>
-              </div>
-            </div>
-          `;
+          const c = Number(r.count) || 0;
+          if (!groups.has(c)) groups.set(c, []);
+          groups.get(c).push(String(r.driver || "").trim());
         });
-        out.innerHTML = html;
+
+        const counts = [...groups.keys()].sort((a, b) => b - a);
+        out.innerHTML = counts.map(c => {
+          const names = groups.get(c).filter(Boolean).sort();
+          const many = names.length > 5;
+          const inline = names.map(escapeHtml).join(" \u00b7 ");
+          return `
+            <div class="drvGroup ${many ? "collapsible" : ""}">
+              <div class="drvCount">${c}\u00d7</div>
+              <div class="drvNames">
+                ${many
+                  ? `<span class="drvSummary">${names.length} drivers <span class="drvChev">\u25b8</span></span><span class="drvFull" hidden>${inline}</span>`
+                  : inline}
+              </div>
+            </div>`;
+        }).join("");
+
+        out.querySelectorAll(".drvGroup.collapsible").forEach(g => {
+          g.addEventListener("click", () => {
+            const summary = g.querySelector(".drvSummary");
+            const full = g.querySelector(".drvFull");
+            const opening = full.hidden;
+            summary.hidden = opening;
+            full.hidden = !opening;
+          });
+        });
       }catch(e){
         out.innerHTML = `<div class="muted">Driver usage failed to load.</div>`;
       }
