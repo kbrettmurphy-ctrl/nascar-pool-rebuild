@@ -112,7 +112,7 @@ export async function onRequestGet(context) {
         `/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&order=tournament_id.asc,round_number.asc,match_number.asc`
       ),
       getJson(
-        `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_qualifying_position,driver_2_qualifying_position`
+        `/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_qualifying_position,driver_2_qualifying_position,driver_1_finish,driver_2_finish`
       ),
       getJson(
         `/rest/v1/tournament_players?select=tournament_id,player_id,seed,players(name)`
@@ -143,6 +143,8 @@ export async function onRequestGet(context) {
         {
           q1: row.driver_1_qualifying_position,
           q2: row.driver_2_qualifying_position,
+          f1: row.driver_1_finish,
+          f2: row.driver_2_finish,
           driver1Name: row.driver_1_name,
           driver2Name: row.driver_2_name,
         }
@@ -247,6 +249,8 @@ export async function onRequestGet(context) {
             p2Drivers: [m.player2_driver_1 || "", m.player2_driver_2 || ""],
             p1Nums: [p1Nums.q1 ?? "", p1Nums.q2 ?? ""],
             p2Nums: [p2Nums.q1 ?? "", p2Nums.q2 ?? ""],
+            p1Fins: [p1Nums.f1 ?? "", p1Nums.f2 ?? ""],
+            p2Fins: [p2Nums.f1 ?? "", p2Nums.f2 ?? ""],
             a1: m.player1_avg ?? null,
             a2: m.player2_avg ?? null,
             winner:

@@ -1821,6 +1821,7 @@ await refreshAfterAdminChange_();
 
     // reorder only for CURRENT race, same idea as live tab
     const matchups = Array.isArray(data.matchups) ? [...data.matchups] : [];
+    markDuplicateSurnames_(matchups);
 
     if (you) {
       const idx = matchups.findIndex(m =>
@@ -1846,47 +1847,44 @@ await refreshAfterAdminChange_();
       card.dataset.p1 = norm(m.p1);
       card.dataset.p2 = norm(m.p2);
 
-      function metaHtml_(driversArr, numsArr){
-        const d1 = (driversArr && driversArr[0] != null) ? String(driversArr[0]).trim() : "";
-        const d2 = (driversArr && driversArr[1] != null) ? String(driversArr[1]).trim() : "";
-        const n1 = (numsArr && numsArr[0] != null) ? String(numsArr[0]).trim() : "";
-        const n2 = (numsArr && numsArr[1] != null) ? String(numsArr[1]).trim() : "";
+      const ord_ = (n) => {
+        const x = Number(n);
+        if (!Number.isFinite(x) || x <= 0) return "";
+        const s = ["th", "st", "nd", "rd"], v = x % 100;
+        return x + (s[(v - 20) % 10] || s[v] || s[0]);
+      };
 
+      // one line per driver: "(qual) Name - finish"
+      function driverLinesHtml_(driversArr, numsArr, finsArr, showFins){
         const raceWinner = spoilersOn ? norm(data.raceWinnerDriver) : "";
+        const out = [];
 
-        function renderOne(num, drv){
-          const numClean = String(num || "").trim();
-          const drvClean = String(drv || "").trim();
-          if (!numClean && !drvClean) return "";
+        for (let i = 0; i < 2; i++) {
+          const drv = String(driversArr?.[i] ?? "").trim();
+          const q = String(numsArr?.[i] ?? "").trim();
+          const fin = showFins ? ord_(finsArr?.[i]) : "";
+          if (!drv && !q) continue;
 
-          const isWinner = raceWinner && drvClean && norm(drvClean) === raceWinner;
+          const isWinner = raceWinner && drv && norm(drv) === raceWinner;
+          const short = shortDriverName_(drv);
+          const nameHtml = drv
+            ? `<span class="dn ${isWinner ? "driverWinner" : ""}">${isWinner ? `<span class="winFlag" aria-hidden="true">\ud83c\udfc1</span>` : ""}${escapeHtml(drv)}</span>`
+            : "";
 
-          const safeNum = escapeHtml(numClean);
-          const safeDrv = escapeHtml(drvClean);
-
-          if (numClean && drvClean){
-            if (isWinner){
-              return `(${safeNum}) <span class="driverWinner"><span class="winFlag" aria-hidden="true">🏁</span>${safeDrv}</span>`;
-            }
-            return `(${safeNum}) ${safeDrv}`;
-          }
-
-          if (drvClean){
-            if (isWinner){
-              return `<span class="driverWinner"><span class="winFlag" aria-hidden="true">🏁</span>${safeDrv}</span>`;
-            }
-            return safeDrv;
-          }
-
-          return `(${safeNum})`;
+          out.push(
+            `<div class="pMeta driverLine" data-short="${escapeAttr(short)}">` +
+            (q ? `(${escapeHtml(q)}) ` : "") + nameHtml +
+            (fin ? ` - ${fin}` : "") +
+            `</div>`
+          );
         }
-
-        return [renderOne(n1, d1), renderOne(n2, d2)].filter(Boolean).join(", ");
+        return out.join("");
       }
 
-      const leftMeta  = metaHtml_(m.p1Drivers, m.p1Nums);
-      const rightMeta = metaHtml_(m.p2Drivers, m.p2Nums);
       const w = spoilersOn ? norm(m.winner) : "";
+      const showFins = !!w; // results published for this matchup
+      const leftMeta  = driverLinesHtml_(m.p1Drivers, m.p1Nums, m.p1Fins, showFins);
+      const rightMeta = driverLinesHtml_(m.p2Drivers, m.p2Nums, m.p2Fins, showFins);
       const p1Win = spoilersOn && w && w === norm(m.p1);
       const p2Win = spoilersOn && w && w === norm(m.p2);
       const p1AvgTxt = showPastAvgs ? fmtAvg(m.a1) : "";
@@ -1898,12 +1896,12 @@ await refreshAfterAdminChange_();
         <div class="matchupRow">
           <div class="side left">
             <div class="pName"><span class="nameWrap"><span class="nameText">${escapeHtml(p1Label)}</span>${p1Win ? `<span class="winPill">WIN</span>` : ``}</span></div>
-            ${leftMeta ? `<div class="pMeta">${leftMeta}</div>` : ``}
+            ${leftMeta}
           </div>
           <div class="vsBadge">VS</div>
           <div class="side right">
             <div class="pName"><span class="nameWrap"><span class="nameText">${escapeHtml(p2Label)}</span>${p2Win ? `<span class="winPill">WIN</span>` : ``}</span></div>
-            ${rightMeta ? `<div class="pMeta">${rightMeta}</div>` : ``}
+            ${rightMeta}
           </div>
        </div>
       `;
@@ -1911,6 +1909,7 @@ await refreshAfterAdminChange_();
     }
 
     applyYouRowsNow_();
+    requestAnimationFrame(() => fitDriverLines_(area));
   }
 
   function autoSizeRaceSelect_(sel){
@@ -3762,6 +3761,67 @@ async function loadHub_() {
   } catch (e) {
     newsBox.innerHTML = `<div class="muted">News unavailable.</div>`;
   }
+}
+
+// Shorten "Ricky Stenhouse Jr." -> "Stenhouse Jr.", "Shane van
+// Gisbergen" -> "van Gisbergen". Duplicate surnames in the same race
+// get a first initial ("A. Dillon" / "T. Dillon").
+let _drvDupSurnames = new Set();
+
+function surnameOf_(name) {
+  const SUFFIX = new Set(["jr", "jr.", "sr", "sr.", "ii", "iii", "iv"]);
+  const PARTICLE = new Set(["van", "von", "de", "der", "da", "di", "la"]);
+  const t = String(name || "").trim().split(/\s+/);
+  if (t.length <= 1) return String(name || "").trim();
+  let i = t.length - 1;
+  const parts = [t[i]];
+  if (SUFFIX.has(t[i].toLowerCase()) && i > 0) { i--; parts.unshift(t[i]); }
+  while (i > 1 && PARTICLE.has(t[i - 1].toLowerCase())) { i--; parts.unshift(t[i]); }
+  return parts.join(" ");
+}
+
+function markDuplicateSurnames_(matchups) {
+  const byLast = new Map();
+  for (const m of matchups || []) {
+    for (const d of [...(m.p1Drivers || []), ...(m.p2Drivers || [])]) {
+      const name = String(d || "").trim();
+      if (!name) continue;
+      const last = surnameOf_(name).toLowerCase();
+      if (!byLast.has(last)) byLast.set(last, new Set());
+      byLast.get(last).add(name[0].toUpperCase());
+    }
+  }
+  _drvDupSurnames = new Set(
+    [...byLast.entries()].filter(([, inits]) => inits.size > 1).map(([last]) => last)
+  );
+}
+
+function shortDriverName_(name) {
+  const full = String(name || "").trim();
+  if (!full) return "";
+  const last = surnameOf_(full);
+  if (_drvDupSurnames.has(last.toLowerCase())) {
+    return `${full[0].toUpperCase()}. ${last}`;
+  }
+  return last;
+}
+
+// Progressive fit: full name -> smaller font -> surname -> smallest
+// font. Only ever shrinks, never grows.
+function fitDriverLines_(root) {
+  root.querySelectorAll(".driverLine").forEach(el => {
+    const fits = () => el.scrollWidth <= el.clientWidth + 1;
+    if (fits()) return;
+    el.classList.add("fitSm");
+    if (fits()) return;
+    const dn = el.querySelector(".dn");
+    if (dn && el.dataset.short) {
+      dn.lastChild.textContent = el.dataset.short;
+    }
+    if (fits()) return;
+    el.classList.remove("fitSm");
+    el.classList.add("fitXs");
+  });
 }
 
 function normKey_(s) {

@@ -824,6 +824,16 @@ select, input{
   text-overflow:ellipsis;
 }
 
+/* One driver per line; progressive fit shrinks, never grows */
+.pMeta.driverLine{
+  white-space:nowrap;
+  overflow:hidden;
+  font-size:12px;
+  line-height:1.5;
+}
+.pMeta.driverLine.fitSm{ font-size:11px; }
+.pMeta.driverLine.fitXs{ font-size:10px; }
+
 .driverWinner{
   color: var(--winnerGreen);
   font-weight: 800;
