@@ -2933,8 +2933,7 @@ await refreshAfterAdminChange_();
         <div class="statsRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(r)}</div>
           <div class="statsName">${escapeHtml(name)}</div>
-          ${payout ? `<span class="miniPill payoutPill">${escapeHtml(payout)}</span>` : ""}
-          <div class="statsBadges">${badges}</div>
+          <div class="statsBadges">${payout ? `<span class="payoutTag">${escapeHtml(payout)}</span>` : ""}${badges}</div>
         </div>
       `;
     });
@@ -3829,16 +3828,20 @@ function shortDriverName_(name) {
 function fitDriverLines_(root) {
   root.querySelectorAll(".driverLine").forEach(el => {
     const fits = () => el.scrollWidth <= el.clientWidth + 1;
-    if (fits()) return;
+    if (fits()) return;                       // full name, normal size
     el.classList.add("fitSm");
-    if (fits()) return;
+    if (fits()) return;                       // full name, one size down
+    // shorten to surname and RESTORE normal size first
     const dn = el.querySelector(".dn");
     if (dn && el.dataset.short) {
       dn.lastChild.textContent = el.dataset.short;
+      el.classList.remove("fitSm");
+      if (fits()) return;                     // surname, normal size
+      el.classList.add("fitSm");
+      if (fits()) return;                     // surname, one size down
     }
-    if (fits()) return;
     el.classList.remove("fitSm");
-    el.classList.add("fitXs");
+    el.classList.add("fitXs");                // surname, smallest
   });
 }
 
