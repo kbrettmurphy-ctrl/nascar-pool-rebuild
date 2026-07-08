@@ -1866,6 +1866,7 @@ await refreshAfterAdminChange_();
           if (!drv && !q) continue;
 
           const isWinner = raceWinner && drv && norm(drv) === raceWinner;
+          const finShown = isWinner ? "" : fin; // flag already says 1st
           const short = shortDriverName_(drv);
           const nameHtml = drv
             ? `<span class="dn ${isWinner ? "driverWinner" : ""}">${isWinner ? `<span class="winFlag" aria-hidden="true">\ud83c\udfc1</span>` : ""}${escapeHtml(drv)}</span>`
@@ -1874,7 +1875,7 @@ await refreshAfterAdminChange_();
           out.push(
             `<div class="pMeta driverLine" data-short="${escapeAttr(short)}">` +
             (q ? `(${escapeHtml(q)}) ` : "") + nameHtml +
-            (fin ? ` - ${fin}` : "") +
+            (finShown ? ` - ${finShown}` : "") +
             `</div>`
           );
         }
@@ -2926,14 +2927,13 @@ await refreshAfterAdminChange_();
           ? `<span class="miniPill"><span class="k">Avg:</span> ${escapeHtml(padAvg_(avgVal))}</span>` : "",
         wpVal != null && String(wpVal).trim() !== ""
           ? `<span class="miniPill"><span class="k">W%:</span> ${escapeHtml(wpVal)}</span>` : "",
-        payout
-          ? `<span class="miniPill">${escapeHtml(payout)}</span>` : ""
       ].filter(Boolean).join("");
 
       html += `
         <div class="statsRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(r)}</div>
           <div class="statsName">${escapeHtml(name)}</div>
+          ${payout ? `<span class="miniPill payoutPill">${escapeHtml(payout)}</span>` : ""}
           <div class="statsBadges">${badges}</div>
         </div>
       `;
@@ -3144,27 +3144,38 @@ await refreshAfterAdminChange_();
         const counts = [...groups.keys()].sort((a, b) => b - a);
         out.innerHTML = counts.map(c => {
           const names = groups.get(c).filter(Boolean).sort();
-          const many = names.length > 5;
           const inline = names.map(escapeHtml).join(" \u00b7 ");
+          const list = names.map(n => `<span class="drvName">${escapeHtml(n)}</span>`).join("");
           return `
-            <div class="drvGroup ${many ? "collapsible" : ""}">
+            <div class="drvGroup">
               <div class="drvCount">${c}\u00d7</div>
               <div class="drvNames">
-                ${many
-                  ? `<span class="drvSummary">${names.length} drivers <span class="drvChev">\u25b8</span></span><span class="drvFull" hidden>${names.map(n => `<span class="drvName">${escapeHtml(n)}</span>`).join("")}</span>`
-                  : inline}
+                <span class="drvSummary" hidden>${names.length} drivers <span class="drvChev">\u25b8</span></span>
+                <span class="drvInline">${inline}</span>
+                <span class="drvFull" hidden>${list}</span>
               </div>
             </div>`;
         }).join("");
 
-        out.querySelectorAll(".drvGroup.collapsible").forEach(g => {
-          g.addEventListener("click", () => {
-            const summary = g.querySelector(".drvSummary");
-            const full = g.querySelector(".drvFull");
-            const opening = full.hidden;
-            summary.hidden = opening;
-            full.hidden = !opening;
+        // collapse any group whose inline run wraps past one line
+        requestAnimationFrame(() => {
+          out.querySelectorAll(".drvGroup").forEach(g => {
+            const inline = g.querySelector(".drvInline");
+            if (!inline || inline.offsetHeight <= 26) return;
+            g.classList.add("collapsible");
+            inline.hidden = true;
+            g.querySelector(".drvSummary").hidden = false;
           });
+        });
+
+        out.addEventListener("click", (e) => {
+          const g = e.target.closest(".drvGroup.collapsible");
+          if (!g) return;
+          const summary = g.querySelector(".drvSummary");
+          const full = g.querySelector(".drvFull");
+          const opening = full.hidden;
+          summary.hidden = opening;
+          full.hidden = !opening;
         });
       }catch(e){
         out.innerHTML = `<div class="muted">Driver usage failed to load.</div>`;
@@ -3632,12 +3643,19 @@ async function loadHub_() {
   const newsBox = document.getElementById("hubNews");
   if (!schedBox || !lineupBox || !newsBox) return;
 
+  function scrollSeasonToNext_() {
+    const pane = document.getElementById("hubPane-season");
+    const next = pane?.querySelector(".seasonRow.next");
+    if (pane && next) pane.scrollTop = Math.max(0, next.offsetTop - pane.offsetTop - 6);
+  }
+
   document.querySelectorAll("#hubSeg .segBtn").forEach(b => {
     b.onclick = () => {
       document.querySelectorAll("#hubSeg .segBtn").forEach(x =>
         x.classList.toggle("active", x === b));
       document.querySelectorAll(".hubPane").forEach(p =>
         p.classList.toggle("active", p.id === "hubPane-" + b.dataset.hubPane));
+      if (b.dataset.hubPane === "season") requestAnimationFrame(scrollSeasonToNext_);
     };
   });
 

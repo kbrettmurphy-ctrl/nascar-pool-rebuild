@@ -364,6 +364,16 @@ select, input{
 #duesStatus{ white-space: normal; }
 #standingsArea{ white-space: normal; }
 
+.appHeader{
+  position:sticky;
+  top:calc(env(safe-area-inset-top, 0px) + 4px);
+  z-index:500;
+  background:var(--bg);
+  margin:0 calc(-1 * var(--pad));
+  padding:0 var(--pad) 8px;
+  border-bottom:1px solid var(--lineSoft);
+}
+
 .titleRow{
   display:flex;
   align-items:center;
@@ -828,6 +838,8 @@ select, input{
 .pMeta.driverLine{
   white-space:nowrap;
   overflow:hidden;
+  text-overflow:clip;
+  max-width:100%;
   font-size:12px;
   line-height:1.5;
 }
@@ -1436,7 +1448,7 @@ select, input{
 }
 .drvFull .drvName:last-child{ border-bottom:none; }
 .drvChev{ font-size:10px; }
-.drvFull[hidden], .drvSummary[hidden]{ display:none; }
+.drvFull[hidden], .drvSummary[hidden], .drvInline[hidden]{ display:none; }
 
 .statsControls{
   display:flex;
@@ -1474,6 +1486,12 @@ select, input{
 }
 
 .statsRow.paidRow{ box-shadow: inset 3px 0 0 var(--greenfade); }
+
+.payoutPill{
+  background:rgba(22,163,74,.14) !important;
+  border-color:rgba(22,163,74,.40) !important;
+  color:var(--winnerGreen) !important;
+}
 .statsRow.youRow{
   background: var(--glassBlue14);
   border-radius: 10px;
@@ -1650,7 +1668,14 @@ select, input{
 }
 
 .hubPane{ display:none; }
-.hubPane.active{ display:block; }
+.hubPane.active{
+  display:block;
+  position:relative;
+  max-height:calc(100dvh - 350px);
+  min-height:220px;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
 
 .hubHeading{
   font-size: var(--big);

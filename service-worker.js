@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v45";
+const CACHE_NAME = "nascar-pool-pwa-v46";
 
 const STATIC_ASSETS = [
   "/",

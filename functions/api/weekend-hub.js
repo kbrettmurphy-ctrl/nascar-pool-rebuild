@@ -80,7 +80,7 @@ export async function onRequestGet(context) {
 
     const seriesDefs = [
       { key: "series_3", label: "Craftsman Truck" },
-      { key: "series_2", label: "Xfinity" },
+      { key: "series_2", label: "O\u2019Reilly" },
       { key: "series_1", label: "Cup" },
     ];
 
