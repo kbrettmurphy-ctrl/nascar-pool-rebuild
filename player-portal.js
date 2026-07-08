@@ -3828,20 +3828,11 @@ function shortDriverName_(name) {
 function fitDriverLines_(root) {
   root.querySelectorAll(".driverLine").forEach(el => {
     const fits = () => el.scrollWidth <= el.clientWidth + 1;
-    if (fits()) return;                       // full name, normal size
-    el.classList.add("fitSm");
-    if (fits()) return;                       // full name, one size down
-    // shorten to surname and RESTORE normal size first
+    if (fits()) return;                 // full name fits
     const dn = el.querySelector(".dn");
     if (dn && el.dataset.short) {
-      dn.lastChild.textContent = el.dataset.short;
-      el.classList.remove("fitSm");
-      if (fits()) return;                     // surname, normal size
-      el.classList.add("fitSm");
-      if (fits()) return;                     // surname, one size down
+      dn.lastChild.textContent = el.dataset.short;  // surname, same size
     }
-    el.classList.remove("fitSm");
-    el.classList.add("fitXs");                // surname, smallest
   });
 }
 

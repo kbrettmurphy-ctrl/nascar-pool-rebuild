@@ -843,9 +843,6 @@ select, input{
   font-size:12px;
   line-height:1.5;
 }
-.pMeta.driverLine.fitSm{ font-size:11px; }
-.pMeta.driverLine.fitXs{ font-size:10px; }
-
 .driverWinner{
   color: var(--winnerGreen);
   font-weight: 800;
@@ -1498,9 +1495,6 @@ select, input{
   background: var(--glassBlue14);
   border-radius: 10px;
   border-bottom-color: transparent;
-  padding-left:8px;
-  padding-right:8px;
-  margin:0 -4px;
 }
 
 /* ==========================================================
@@ -1676,6 +1670,7 @@ select, input{
   max-height:calc(100dvh - var(--navH) - env(safe-area-inset-bottom, 0px) - 340px);
   min-height:200px;
   overflow-y:auto;
+  overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
 }
 
@@ -1767,7 +1762,6 @@ select, input{
   background:var(--glassBlue14);
   border-radius:10px;
   border-bottom-color:transparent;
-  margin:0 -6px;
   padding-left:6px;
   padding-right:6px;
 }
