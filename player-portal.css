@@ -843,6 +843,7 @@ select, input{
   font-size:12px;
   line-height:1.5;
 }
+.driverLine .dq{ font-size:11px; }
 .driverWinner{
   color: var(--winnerGreen);
   font-weight: 800;
@@ -1482,7 +1483,7 @@ select, input{
   .statsModes{ flex-wrap: nowrap !important; overflow-x:auto !important; }
 }
 
-.statsRow.paidRow{ box-shadow: inset 3px 0 0 var(--greenfade); }
+
 
 .payoutTag{
   align-self:center;
@@ -1495,6 +1496,12 @@ select, input{
   background: var(--glassBlue14);
   border-radius: 10px;
   border-bottom-color: transparent;
+}
+
+/* the money line: everything above it is getting paid (NASCAR
+   playoff cut-line style) */
+.statsRow.cutRow{
+  border-bottom: 2px solid var(--winnerGreen) !important;
 }
 
 /* ==========================================================

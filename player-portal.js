@@ -1874,8 +1874,8 @@ await refreshAfterAdminChange_();
 
           out.push(
             `<div class="pMeta driverLine" data-short="${escapeAttr(short)}">` +
-            (q ? `(${escapeHtml(q)}) ` : "") + nameHtml +
-            (finShown ? ` - ${finShown}` : "") +
+            (q ? `<span class="dq">(${escapeHtml(q)})</span> ` : "") + nameHtml +
+            (finShown ? `<span class="dq"> - ${finShown}</span>` : "") +
             `</div>`
           );
         }
@@ -2930,7 +2930,7 @@ await refreshAfterAdminChange_();
       ].filter(Boolean).join("");
 
       html += `
-        <div class="statsRow ${isPaid ? "paidRow" : ""} ${isYou ? "youRow" : ""}">
+        <div class="statsRow ${r === 4 && items.length > 4 ? "cutRow" : ""} ${isYou ? "youRow" : ""}">
           <div class="rankBadge">${escapeHtml(r)}</div>
           <div class="statsName">${escapeHtml(name)}</div>
           <div class="statsBadges">${payout ? `<span class="payoutTag">${escapeHtml(payout)}</span>` : ""}${badges}</div>
