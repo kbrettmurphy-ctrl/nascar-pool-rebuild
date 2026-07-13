@@ -4202,6 +4202,42 @@ async function adminSendPushForm_() {
   }
 }
 
+// One-time fix: today's misfiled uploads move soft -> spicier.
+// Dry-runs first so the count gets eyeballed before anything moves.
+async function migrateBuschToday_() {
+  const status = document.getElementById("buschUploadStatus");
+  const say = (m) => { if (status) status.textContent = m; };
+  const args = { from: "soft", to: "spicier", since: "2026-07-13T00:00:00-04:00" };
+
+  try {
+    say("Checking\u2026");
+    const dry = await adminFetch_("/api/migrate-buschgirls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...args, dryRun: true })
+    });
+
+    if (!dry.count) { say("Nothing to move \u2014 no soft uploads since today."); return; }
+
+    if (!confirm(`Move ${dry.count} photos (soft \u2192 spicier) uploaded since today?\nSample: ${(dry.sample || []).join(", ")}`)) {
+      say("Cancelled.");
+      return;
+    }
+
+    say(`Moving ${dry.count} photos\u2026`);
+    const res = await adminFetch_("/api/migrate-buschgirls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...args, dryRun: false })
+    });
+
+    say(`Moved ${res.moved}, failed ${res.failedCount}.` +
+      (res.failedCount ? ` First failures: ${res.failed.map(f => f.filename).join(", ")}` : ""));
+  } catch (e) {
+    say("Error: " + (e.message || e));
+  }
+}
+
 async function loadBuschRatings_() {
   const box = document.getElementById("buschRatingsList");
   if (!box) return;
@@ -5246,6 +5282,7 @@ function initAdminControls_() {
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
+  document.getElementById("buschMigrateBtn")?.addEventListener("click", migrateBuschToday_);
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 
