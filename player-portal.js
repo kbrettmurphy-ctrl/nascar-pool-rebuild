@@ -1563,17 +1563,9 @@ await refreshAfterAdminChange_();
     if (area) {
       area.innerHTML = `
         <div class="microBox" style="margin-top:10px;">
-          <div class="microTitle">Back to the future?</div>
+          <div class="microTitle">Not yet, speed racer.</div>
           <div class="microMeta" style="color: var(--muted); font-weight:700;">
-            This race ain’t even fuckin’ started, you mouth-breathin’ dipshit.<br><br>
-            The haulers are still sittin’ in the lot, tires ain’t even warm, drivers are prolly still
-            scratchin’ their balls and arguin’ over who gets the last Moon Pie, and your dumb redneck
-            ass is already hollerin’ for lap times like a coonhound that just seen a squirrel.<br><br>
-            The goddamn sun ain’t even set on yesterday’s bullshit and you’re out here demandin’
-            results like you think time bends over for your broke-ass attention span.<br><br>
-            Go choke on a chicken bone, slam another Natty Light, and sit your impatient hillbilly
-            carcass down. The checkered flag don’t give a rat’s ass about your toddler tantrum.<br><br>
-            We’ll let ya know when the real men start racin’. Until then… shut the entire fuck up.
+            This one hasn't run. Green flag times are in the Hub.
           </div>
         </div>
       `;
@@ -1798,14 +1790,10 @@ await refreshAfterAdminChange_();
     if (!spoilersOn && isCurrentRace){
       area.innerHTML = `
         <div class="microBox" style="margin-top:10px;">
-          <div class="microTitle">Spoilers are OFF, you fragile fantasy princess.</div>
+          <div class="microTitle">Spoilers are off.</div>
           <div class="microMeta" style="color: var(--muted); font-weight:700;">
-            Current matchups? Hidden like a crew chief's real strategy sheet.<br><br>
-            This is the current race, dipshit—pick a race that's already wrecked, finished, and posted from the dropdown if you want to see who your drivers are up against.<br><br>
-            We're not spoiling the live action just because Justin DVR'd the race or was too busy pretending to catch bad guys taller than him to watch the Big One turn the field into scrap metal.<br><br>
-            Some of us still like the thrill of not knowing if your pick survived the restart carnage or got parked on lap 12 thanks to fuel mileage roulette.<br><br>
-            Quit hammering refresh like it's going to magically un-hide the results. Go select a completed race, or sit tight and pretend the caution didn't just fuck your entire lineup.<br><br>
-            The checkered flag drops when it drops. Not when your patience does.
+            Current matchups stay hidden so nobody ruins Justin's DVR night.
+            Pick a finished race from the dropdown, or flip spoilers on.
           </div>
         </div>
       `;
@@ -2112,7 +2100,7 @@ await refreshAfterAdminChange_();
     const name = sel ? String(sel.value || "").trim() : "";
 
     if (!name) {
-      out.textContent = "Pick your damn name first, you anonymous ghost. No name, no stats, no dues, no glory. Click a name already.";
+      out.textContent = "Pick your name up top. The leaderboard doesn\u2019t wait for anonymous cowards.";
       return;
     }
 
@@ -2339,13 +2327,9 @@ await refreshAfterAdminChange_();
     if (!spoilersOn_()){
       out.innerHTML = `
         <div class="microBox" style="margin-top:6px;">
-          <div class="microTitle">Turn off spoilers to see this, you broke-ass crybaby. Spoilers off = dues visible. Simple as that, dipshit.<br><br></div>
+          <div class="microTitle">Dues are hiding with the spoilers.</div>
           <div class="microMeta" style="color: var(--muted); font-weight:700;">
-            It’s literally dues—money you owe because your fantasy picks wrecked harder than a backmarker on pit road.<br><br>
-            We’re not flashing your overdue balance while the race is live just so you can whine in the chat that “the Big One cost me everything” before the checkered even drops.<br><br>
-            Some of us are still pretending the caution didn’t fuck the entire playoff chase and your wallet at the same time.<br><br>
-            Flip the spoiler switch, see how much you’re bleeding cash, pay up like a grown-ass adult, and quit acting like seeing your own tab is worse than watching your driver get turned on a restart.<br><br>
-            You’ll live. Your bank account might not, but that’s between you and Venmo.
+            Flip spoilers on to see how much you're bleeding.
           </div>
         </div>
       `;
@@ -2672,14 +2656,10 @@ await refreshAfterAdminChange_();
       if (!spoilersOn_()){
         area.innerHTML = `
           <div class="microBox" style="margin-top:6px;">
-            <div class="microTitle">Spoilers are OFF</div>
+            <div class="microTitle">Standings are hidden.</div>
             <div class="microMeta" style="color: var(--muted); font-weight:700;">
-              Because apparently some of you can't handle the truth without crying to the group chat.<br><br>
-              Standings? Tourney ranks? Head-to-head? Wins? All buried deeper than a wrecked car in the Turn 4 wall after the Big One.<br><br>
-              Humans can't behave—someone always screenshots the leaderboard, spoils the playoff bubble for the guy (Justin) who DVR'd the race, or ruins the surprise that your driver's stage points just got wiped out by a caution-lap bullshit fest.<br><br>
-              Driver usage is still here because knowing who the field picked doesn't ruin the magic of watching your fantasy lineup get fucked on a late-race restart.<br><br>
-              If you're that desperate to see how badly you're losing, pick a completed race from the dropdown like the rest of us. Until then, enjoy the ignorance—it's the only thing keeping half this pool from rage-quitting.<br><br>
-              The checkered flag doesn't care about your fragile feelings. Neither do we.
+              Somebody always screenshots the leaderboard. Flip spoilers on
+              \u2014 or stay blissfully ignorant. Driver usage still works below.
             </div>
           </div>
           <div class="statsPanel" id="statsPanel" style="margin-top:10px;"></div>
