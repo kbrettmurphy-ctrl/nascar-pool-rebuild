@@ -2189,7 +2189,8 @@ await refreshAfterAdminChange_();
             const k = others.length;
             const exact = k <= MAX_EXACT;
             const iters = exact ? (1 << k) : 8192;
-            const ranks = [];
+            const mids = [];
+            let best = Infinity, worst = -Infinity;
 
             for (let mask = 0; mask < iters; mask++) {
               const rec = new Map();
@@ -2200,14 +2201,17 @@ await refreshAfterAdminChange_();
                 bumpRecord_(rec, p1won ? a : c, true);
                 bumpRecord_(rec, p1won ? c : a, false);
               }
-              const r = rankFromRecords_(rec, me);
-              if (r) ranks.push(r);
+              const span = rankSpanFromRecords_(rec, me);
+              if (!span) continue;
+              if (span.best < best) best = span.best;
+              if (span.worst > worst) worst = span.worst;
+              mids.push((span.best + span.worst) / 2);
             }
-            ranks.sort((a, b) => a - b);
-            return ranks.length ? {
-              best: ranks[0],
-              worst: ranks[ranks.length - 1],
-              median: ranks[Math.floor(ranks.length / 2)]
+            mids.sort((a, b) => a - b);
+            return mids.length ? {
+              best,
+              worst,
+              median: Math.round(mids[Math.floor(mids.length / 2)])
             } : null;
           };
 
@@ -2229,7 +2233,7 @@ await refreshAfterAdminChange_();
               <div class="muted" style="font-size:11px; margin-bottom:4px;">Where you'd place in ${escapeHtml(tLabel)} \u2014 the live bracket that pays out.</div>
               <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 ${fmt(win)}</div>
               <div class="whatIf" style="margin-top:2px;">Lose \u2192 ${fmt(lose)}</div>
-              <div class="muted" style="font-size:11px; margin-top:4px;">Likely placement, with the best\u2013worst range across every way the rest of the round could go.</div>
+              <div class="muted" style="font-size:11px; margin-top:4px;">Likely placement, with the best\u2013worst range across every way the rest of the round \u2014 and the avg-finish tiebreakers \u2014 could land.</div>
             </div>`;
           }
         }
@@ -3876,6 +3880,26 @@ function sortedRecords_(rec) {
 function rankFromRecords_(rec, name) {
   const i = sortedRecords_(rec).findIndex(([k]) => k === name);
   return i < 0 ? null : i + 1;
+}
+
+// Rank span for a PROJECTED standings map. Record decides the order;
+// ties fall to avg finish, and the race being projected moves every
+// avg by an unknown amount (round 1 of a tournament has no avgs at
+// all). So a projected tie is a toss-up: best = every tie breaks for
+// `name`, worst = every tie breaks against them.
+function rankSpanFromRecords_(rec, name) {
+  const mine = rec.get(name);
+  if (!mine) return null;
+  const pct = r => (r.w + r.l) ? r.w / (r.w + r.l) : 0;
+  const p = pct(mine);
+  let above = 0, tied = 0;
+  for (const [k, r] of rec) {
+    if (k === name) continue;
+    const q = pct(r);
+    if (q > p) above++;
+    else if (q === p) tied++;
+  }
+  return { best: above + 1, worst: above + tied + 1 };
 }
 
 function topRankedName_(rec) {
