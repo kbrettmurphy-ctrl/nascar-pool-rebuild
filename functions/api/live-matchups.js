@@ -30,11 +30,17 @@ export async function onRequestGet(context) {
       expectedNascarRaceId,
       liveRaceName,
       expectedRaceName,
-      isCorrectCupRace
+      isCorrectCupRace,
+      runType
     } = liveContext;
 
+    // Practice and qualifying run on the SAME live feed with the same
+    // race_id (see _green-flag.js). Only run_type 3 is the race - anything
+    // else would paint practice running order as live matchup scoring.
+    const isLiveRaceSession = isCorrectCupRace && Number(runType) === 3;
+
     const vehicles =
-      isCorrectCupRace && Array.isArray(liveJson?.vehicles)
+      isLiveRaceSession && Array.isArray(liveJson?.vehicles)
         ? liveJson.vehicles
         : [];
 
@@ -90,7 +96,7 @@ export async function onRequestGet(context) {
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
 
-          if (isCorrectCupRace && !found) {
+          if (isLiveRaceSession && !found) {
             unresolvedDrivers.push({
               matchup: `${m.p1} vs ${m.p2}`,
               side: "p1",
@@ -110,7 +116,7 @@ export async function onRequestGet(context) {
         .map(d => {
           const found = resolveDriverPosition(d, driverPositions);
 
-          if (isCorrectCupRace && !found) {
+          if (isLiveRaceSession && !found) {
             unresolvedDrivers.push({
               matchup: `${m.p1} vs ${m.p2}`,
               side: "p2",
@@ -163,15 +169,15 @@ export async function onRequestGet(context) {
       race: {
         name: currentRace.race_name,
 
-        lap: isCorrectCupRace
+        lap: isLiveRaceSession
           ? liveJson?.lap_number ?? null
           : null,
 
-        lapsToGo: isCorrectCupRace
+        lapsToGo: isLiveRaceSession
           ? liveJson?.laps_to_go ?? null
           : null,
 
-        flag: isCorrectCupRace
+        flag: isLiveRaceSession
           ? liveJson?.flag_state ?? null
           : null,
 
@@ -179,6 +185,8 @@ export async function onRequestGet(context) {
         liveRaceId,
         expectedNascarRaceId,
         isCorrectCupRace,
+        runType: Number.isFinite(Number(runType)) ? Number(runType) : null,
+        isLiveRaceSession,
 
         startTime:
           nascarRace?.race_date ||
