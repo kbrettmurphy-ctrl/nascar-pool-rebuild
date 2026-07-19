@@ -2222,9 +2222,16 @@ await refreshAfterAdminChange_();
             const s = ["th", "st", "nd", "rd"], v = n % 100;
             return n + (s[(v - 20) % 10] || s[v] || s[0]);
           };
-          const fmt = (r) => r.best === r.worst
-            ? `<b>${ord(r.best)}</b>`
-            : `<b>${ord(r.median)}</b> <span class="muted" style="font-weight:500;">(${ord(r.best)}\u2013${ord(r.worst)})</span>`;
+          // A bold point estimate reads as precision we don't have.
+          // When the median is just the midpoint of the span (pure
+          // toss-up, e.g. round 1 ties), show only the range.
+          const fmt = (r) => {
+            if (r.best === r.worst) return `<b>${ord(r.best)}</b>`;
+            const mid = Math.round((r.best + r.worst) / 2);
+            return r.median === mid
+              ? `<b>${ord(r.best)}\u2013${ord(r.worst)}</b>`
+              : `<b>${ord(r.median)}</b> <span class="muted" style="font-weight:500;">(${ord(r.best)}\u2013${ord(r.worst)})</span>`;
+          };
 
           if (win && lose) {
             const tLabel = Number.isFinite(curT) ? `Tournament ${curT}` : "this tournament";
@@ -2233,7 +2240,7 @@ await refreshAfterAdminChange_();
               <div class="muted" style="font-size:11px; margin-bottom:4px;">Where you'd place in ${escapeHtml(tLabel)} \u2014 the live bracket that pays out.</div>
               <div class="whatIf">Beat ${escapeHtml(oppName)} \u2192 ${fmt(win)}</div>
               <div class="whatIf" style="margin-top:2px;">Lose \u2192 ${fmt(lose)}</div>
-              <div class="muted" style="font-size:11px; margin-top:4px;">Likely placement, with the best\u2013worst range across every way the rest of the round \u2014 and the avg-finish tiebreakers \u2014 could land.</div>
+              <div class="muted" style="font-size:11px; margin-top:4px;">The range covers every way the rest of the round \u2014 and the avg-finish tiebreakers \u2014 could go. A single bold number means that's your likely spot.</div>
             </div>`;
           }
         }
