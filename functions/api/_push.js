@@ -89,7 +89,7 @@ async function sendEncryptedWebPush(subscription, payload, env) {
   return fetch(endpoint, {
     method: "POST",
     headers: {
-      TTL: "60",
+      TTL: "86400",
       Urgency: "normal",
       "Content-Encoding": "aes128gcm",
       "Content-Type": "application/octet-stream",
