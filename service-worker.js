@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v53";
+const CACHE_NAME = "nascar-pool-pwa-v54";
 
 const STATIC_ASSETS = [
   "/",
@@ -43,6 +43,14 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
+
+  // Never intercept non-GET requests. Re-dispatching a Request that carries
+  // a body (fetch(req) below) drops/corrupts multipart FormData bodies on
+  // iOS Safari, which broke photo uploads with "No initial boundary string".
+  // Letting the browser handle POST/PUT/etc. natively avoids that entirely.
+  if (req.method !== "GET") {
+    return;
+  }
 
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(req));
