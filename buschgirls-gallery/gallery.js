@@ -30,7 +30,7 @@
       $("pageLabel").textContent=`${data.page} / ${data.totalPages}`;
       $("previousPage").disabled=data.page<=1; $("nextPage").disabled=data.page>=data.totalPages;
       $("status").textContent=data.photos.length
-        ? (data.unindexedCount ? `Historical backfill not run: showing existing originals for ${data.unindexedCount.toLocaleString()} pending item(s).` : "")
+        ? (data.unindexedCount ? `Using originals · ${data.unindexedCount.toLocaleString()} awaiting thumbnails` : "")
         : "No photos in this folder.";
     } catch(error) { handleError(error); }
   }
