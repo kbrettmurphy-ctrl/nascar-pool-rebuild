@@ -24,16 +24,20 @@
       state.photos=data.photos; state.total=data.total; state.totalPages=data.totalPages;
       if (state.page>state.totalPages) { state.page=state.totalPages; return loadPage(); }
       renderGrid();
-      $("itemCount").textContent=`${data.total.toLocaleString()} items (${data.unindexedCount.toLocaleString()} pending)`;
-      $("pageLabel").textContent=`Page ${data.page} of ${data.totalPages}`;
+      $("itemCount").textContent=data.total.toLocaleString();
+      $("itemCount").setAttribute("aria-label",`${data.total.toLocaleString()} filtered items`);
+      $("itemCount").title=`${data.total.toLocaleString()} filtered items`;
+      $("pageLabel").textContent=`${data.page} / ${data.totalPages}`;
       $("previousPage").disabled=data.page<=1; $("nextPage").disabled=data.page>=data.totalPages;
-      $("status").textContent=data.photos.length ? "" : "No photos in this folder.";
+      $("status").textContent=data.photos.length
+        ? (data.unindexedCount ? `Historical backfill not run: showing existing originals for ${data.unindexedCount.toLocaleString()} pending item(s).` : "")
+        : "No photos in this folder.";
     } catch(error) { handleError(error); }
   }
   function renderGrid() {
     const grid=$("galleryGrid"); grid.replaceChildren();
     state.photos.forEach((photo,index) => {
-      const button=document.createElement("button"); button.type="button"; button.className=`tile${photo.thumbnailReady ? "" : " pending"}`;
+      const button=document.createElement("button"); button.type="button"; button.className="tile";
       button.setAttribute("aria-label",`Open image ${index+1}`); button.dataset.index=String(index);
       if (photo.thumbnailUrl) {
         const img=document.createElement("img"); img.src=photo.thumbnailUrl; img.alt=""; img.loading="lazy"; img.decoding="async";
@@ -58,7 +62,7 @@
   async function permanentDelete(photo) {
     const path=`${photo.folder}/${photo.filename}`;
     if(!confirm(`Permanently delete ${path}?\n\nThis action cannot be undone.`))return;
-    try { await api("/api/delete-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id})}); closeMenu(); closeViewer(); state.photos=state.photos.filter(item=>item.id!==photo.id); state.total=Math.max(0,state.total-1); renderGrid(); $("itemCount").textContent=`${state.total.toLocaleString()} items`; $("status").textContent=`Permanently deleted ${path}.`; if(!state.photos.length&&state.page>1){state.page--;await loadPage();} } catch(error){ handleError(error); }
+    try { await api("/api/delete-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id})}); closeMenu(); closeViewer(); state.photos=state.photos.filter(item=>item.id!==photo.id); state.total=Math.max(0,state.total-1); renderGrid(); $("itemCount").textContent=state.total.toLocaleString(); $("status").textContent=`Permanently deleted ${path}.`; if(!state.photos.length&&state.page>1){state.page--;await loadPage();} } catch(error){ handleError(error); }
   }
 
   async function makeThumbnail(blob) {

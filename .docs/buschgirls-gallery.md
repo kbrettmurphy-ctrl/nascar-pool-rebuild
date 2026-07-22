@@ -14,7 +14,9 @@ The existing `buschgirls` originals bucket remains public because the player pop
 
 Migration: `supabase/migrations/20260721000000_buschgirls_gallery.sql`
 
-It adds nullable `sha256`, `thumbnail_path`, and `indexed_at` columns; a partial normal SHA-256 index; a folder/upload-date pagination index; a case-insensitive unique folder/filename index; and the private `buschgirls-thumbnails` bucket. It creates no public Storage policy.
+It adds nullable `sha256`, `thumbnail_path`, and `indexed_at` columns; a partial normal SHA-256 index; a folder/upload-date pagination index; a case-insensitive unique folder/filename index; and the private `buschgirls-thumbnails` bucket. It creates no public Storage policy. It is safe to apply before August 9: it does not read originals, calculate hashes, generate thumbnails, or start the backfill. Existing rows remain unchanged with null indexing fields.
+
+Before the historical backfill, the gallery still lists every existing row and uses its existing original `url` as the thumbnail-grid source for the current paginated page. Once a private thumbnail exists, the API uses its short-lived signed URL instead. Folder filtering, pagination, viewing, menus, and deletion do not require indexing.
 
 Endpoints:
 
@@ -33,7 +35,7 @@ Soft removal (`/api/remove-buschgirl`) only sets `active=false` and remains unch
 
 ## Manual Supabase setup
 
-Do not run these steps until the change has been reviewed and a deployment window is approved.
+The migration may be applied now. Only the historical image-processing backfill must wait until August 9, 2026.
 
 1. In Supabase SQL Editor, run the preflight query included at the top of `20260721000000_buschgirls_gallery.sql`. It must return zero rows. Resolve duplicate paths before proceeding; do not remove the unique index from the migration.
 2. Paste and run the complete migration file manually. Do not run unrelated migrations.

@@ -1,4 +1,7 @@
 -- BuschGirls administrator gallery metadata and private thumbnails.
+-- Safe to apply before the historical image backfill. This migration does not
+-- read or download originals, calculate hashes, generate thumbnails, or start
+-- any background work. Existing rows intentionally retain NULL gallery fields.
 --
 -- Preflight before applying:
 -- SELECT lower(folder), lower(filename), count(*)

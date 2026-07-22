@@ -38,16 +38,23 @@ export async function onRequestGet({ request, env }) {
     const text = await listResponse.text();
     if (!listResponse.ok) throw new Error(text || "Gallery query failed");
     const rows = text ? JSON.parse(text) : [];
-    const photos = await Promise.all(rows.map(async row => ({
-      id: row.id,
-      folder: row.folder,
-      filename: row.filename,
-      url: row.url,
-      uploaded_at: row.uploaded_at,
-      active: row.active,
-      thumbnailUrl: row.thumbnail_path ? await signThumbnail(env, row.thumbnail_path) : null,
-      thumbnailReady: Boolean(row.thumbnail_path)
-    })));
+    const photos = await Promise.all(rows.map(async row => {
+      const signedThumbnail = row.thumbnail_path
+        ? await signThumbnail(env, row.thumbnail_path)
+        : null;
+      return {
+        id: row.id,
+        folder: row.folder,
+        filename: row.filename,
+        url: row.url,
+        uploaded_at: row.uploaded_at,
+        active: row.active,
+        // Existing rows remain usable before the historical backfill. Only the
+        // current page's originals are used as display fallbacks.
+        thumbnailUrl: signedThumbnail || row.url,
+        thumbnailReady: Boolean(signedThumbnail)
+      };
+    }));
     return privateJson({ ok: true, photos, page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)), unindexedCount });
   } catch (error) {
     return privateJson({ ok: false, error: error.message || String(error) }, 500);

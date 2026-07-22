@@ -9,14 +9,16 @@
 </head>
 <body>
   <header class="toolbar">
-    <button id="backBtn" type="button">Back to Admin</button>
+    <button id="backBtn" type="button">← Admin</button>
     <h1>BuschGirls Gallery</h1>
-    <label>Folder <select id="folderFilter"><option value="all">All</option><option>soft</option><option>old</option><option>spicy</option><option>spicier</option></select></label>
+    <label class="folder-control"><span>Folder</span><select id="folderFilter" aria-label="Folder"><option value="all">All</option><option>soft</option><option>old</option><option>spicy</option><option>spicier</option></select></label>
     <span id="itemCount" aria-live="polite">— items</span>
-    <span id="pageLabel">Page —</span>
-    <button id="previousPage" type="button" aria-label="Previous page">Previous</button>
-    <button id="nextPage" type="button" aria-label="Next page">Next</button>
-    <button id="maintenanceBtn" class="quiet" type="button">Maintenance</button>
+    <div class="pagination" aria-label="Gallery pagination">
+      <button id="previousPage" type="button" aria-label="Previous page">‹</button>
+      <span id="pageLabel" aria-live="polite">— / —</span>
+      <button id="nextPage" type="button" aria-label="Next page">›</button>
+    </div>
+    <button id="maintenanceBtn" class="icon-button quiet" type="button" aria-label="Gallery maintenance" title="Maintenance">⚙</button>
   </header>
   <main>
     <div id="status" class="status" role="status"></div>
@@ -46,7 +48,7 @@
     <section>
       <h2 id="maintenanceTitle">Build thumbnails &amp; duplicate index</h2>
       <p>This manual job will process approximately 2,605 originals and download approximately 683 MB once. It may take several minutes, can be paused and resumed, and the tab should remain open while a batch is active. Do not run it before August 9, 2026.</p>
-      <div id="maintenanceProgress" aria-live="polite">Stopped. Nothing starts automatically.</div>
+      <div id="maintenanceProgress" aria-live="polite">Historical backfill has not been run. Existing originals remain visible. Nothing starts automatically.</div>
       <progress id="maintenanceBar" max="100" value="0"></progress>
       <div class="modal-actions"><button id="startBackfill" type="button">Start after confirmation</button><button id="pauseBackfill" type="button" disabled>Pause</button><button id="resumeBackfill" type="button" disabled>Resume</button><button id="stopBackfill" type="button" disabled>Stop</button><button id="retryBackfill" type="button" disabled>Retry failures</button><button id="reviewDuplicates" type="button">Review duplicates</button><button id="closeMaintenance" type="button">Close</button></div>
       <div id="failureList" class="failures"></div><div id="duplicateList" class="duplicates"></div>
