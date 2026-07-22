@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v54";
+const CACHE_NAME = "nascar-pool-pwa-v55";
 
 const STATIC_ASSETS = [
   "/",
@@ -49,6 +49,22 @@ self.addEventListener("fetch", (event) => {
   // iOS Safari, which broke photo uploads with "No initial boundary string".
   // Letting the browser handle POST/PUT/etc. natively avoids that entirely.
   if (req.method !== "GET") {
+    return;
+  }
+
+  // The administrator gallery, its assets, APIs, signed thumbnails, and
+  // full-size images must always go directly to the network and must never
+  // receive the public app's offline index fallback.
+  if (url.pathname === "/buschgirls-gallery" ||
+      url.pathname.startsWith("/buschgirls-gallery/") ||
+      url.pathname.startsWith("/api/admin-buschgirls-gallery") ||
+      url.pathname.startsWith("/api/admin-buschgirls-backfill") ||
+      url.pathname.startsWith("/api/admin-buschgirls-duplicates") ||
+      url.pathname.startsWith("/api/index-buschgirl") ||
+      url.pathname.startsWith("/api/delete-buschgirl") ||
+      url.pathname.includes("/storage/v1/object/sign/buschgirls-thumbnails/") ||
+      url.pathname.includes("/storage/v1/object/buschgirls-thumbnails/")) {
+    event.respondWith(fetch(req));
     return;
   }
 

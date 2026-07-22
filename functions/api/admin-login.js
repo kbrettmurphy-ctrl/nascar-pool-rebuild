@@ -1,4 +1,4 @@
-import { createAdminToken, json } from "./_admin-auth";
+import { createAdminCookie, createAdminToken, json } from "./_admin-auth";
 
 export async function onRequestPost(context) {
   try {
@@ -35,11 +35,14 @@ export async function onRequestPost(context) {
 
     const token = await createAdminToken(env);
 
-    return json({
+    const response = json({
       ok: true,
       token,
       expiresInMinutes: 45
     });
+    response.headers.set("Set-Cookie", await createAdminCookie(env));
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }

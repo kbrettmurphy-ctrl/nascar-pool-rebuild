@@ -395,6 +395,15 @@ if (liveCard) {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
   }
 
+  async function logoutAdmin_() {
+    clearAdminToken_();
+    try {
+      await fetch("/api/admin-logout", { method: "POST", cache: "no-store" });
+    } catch {}
+    _adminContext = null;
+    closeAdminOverlay_();
+  }
+
   async function adminFetch_(url, options = {}) {
     const token = getAdminToken_();
     const headers = {
@@ -406,7 +415,10 @@ if (liveCard) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || data?.message || `Request failed: ${res.status}`);
+      const error = new Error(data?.error || data?.message || `Request failed: ${res.status}`);
+      error.status = res.status;
+      error.data = data;
+      throw error;
     }
 
     return data;
@@ -1324,20 +1336,34 @@ await refreshAfterAdminChange_();
 
     setAdminStatus_("buschUploadStatus", `Uploading ${files.length} photo(s)...`);
 
+    let uploaded = 0;
+    let duplicates = 0;
+    let failed = 0;
+    const duplicateDetails = [];
     try {
       for (let i = 0; i < files.length; i++) {
         const form = new FormData();
         form.append("folder", folder);
         form.append("file", files[i]);
 
-        await adminFetch_("/api/upload-buschgirl", {
-          method: "POST",
-          body: form
-        });
+        try {
+          const thumbnail = await createBuschThumbnail_(files[i]);
+          form.append("thumbnail", thumbnail, `${files[i].name}.webp`);
+          await adminFetch_("/api/upload-buschgirl", { method: "POST", body: form });
+          uploaded++;
+        } catch (err) {
+          if (err.status === 409 && err.data?.duplicate) {
+            duplicates++;
+            const d = err.data.duplicate;
+            duplicateDetails.push(`${d.folder}/${d.filename} (${new Date(d.uploaded_at).toLocaleString()})`);
+          } else {
+            failed++;
+          }
+        }
 
         setAdminStatus_(
           "buschUploadStatus",
-          `Uploaded ${i + 1} of ${files.length}...`
+          `Processed ${i + 1} of ${files.length}...`
         );
       }
 
@@ -1346,9 +1372,46 @@ await refreshAfterAdminChange_();
       buschQueue = [];
       await loadBuschGirls();
 
-      setAdminStatus_("buschUploadStatus", `Uploaded ${files.length} photo(s).`);
+      const details = duplicateDetails.length ? ` Duplicates: ${duplicateDetails.join("; ")}` : "";
+      setAdminStatus_("buschUploadStatus", `Uploaded ${uploaded}; duplicate/skipped ${duplicates}; failed ${failed}.${details}`, failed > 0);
     } catch (err) {
       setAdminStatus_("buschUploadStatus", err.message || String(err), true);
+    }
+  }
+
+  async function createBuschThumbnail_(file) {
+    const decoded = await decodeBuschImage_(file);
+    try {
+      const scale = Math.min(1, 460 / Math.max(decoded.width, decoded.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(decoded.width * scale));
+      canvas.height = Math.max(1, Math.round(decoded.height * scale));
+      canvas.getContext("2d").drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
+      return await new Promise((resolve, reject) => canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error("Thumbnail generation failed")),
+        "image/webp",
+        0.68
+      ));
+    } finally {
+      decoded.release();
+    }
+  }
+
+  async function decodeBuschImage_(blob) {
+    if (typeof createImageBitmap === "function") {
+      const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+      return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = objectUrl;
+      await image.decode();
+      return { source: image, width: image.naturalWidth, height: image.naturalHeight, release: () => URL.revokeObjectURL(objectUrl) };
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl);
+      throw error;
     }
   }
 
@@ -5251,11 +5314,7 @@ function initAdminControls_() {
 
   if (lockBtn && !lockBtn.dataset.bound) {
     lockBtn.dataset.bound = "1";
-    lockBtn.addEventListener("click", () => {
-      clearAdminToken_();
-      _adminContext = null;
-      closeAdminOverlay_();
-    });
+    lockBtn.addEventListener("click", logoutAdmin_);
   }
 
   document.querySelectorAll(".adminTab").forEach(btn => {
@@ -5312,6 +5371,7 @@ function initAdminControls_() {
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
+  document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
   document.getElementById("buschMigrateBtn")?.addEventListener("click", migrateBuschToday_);
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);

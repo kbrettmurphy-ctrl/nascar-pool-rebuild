@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>BuschGirls Gallery</title>
+  <link rel="stylesheet" href="/buschgirls-gallery/gallery.css">
+</head>
+<body>
+  <header class="toolbar">
+    <button id="backBtn" type="button">Back to Admin</button>
+    <h1>BuschGirls Gallery</h1>
+    <label>Folder <select id="folderFilter"><option value="all">All</option><option>soft</option><option>old</option><option>spicy</option><option>spicier</option></select></label>
+    <span id="itemCount" aria-live="polite">— items</span>
+    <span id="pageLabel">Page —</span>
+    <button id="previousPage" type="button" aria-label="Previous page">Previous</button>
+    <button id="nextPage" type="button" aria-label="Next page">Next</button>
+    <button id="maintenanceBtn" class="quiet" type="button">Maintenance</button>
+  </header>
+  <main>
+    <div id="status" class="status" role="status"></div>
+    <section id="expired" class="expired" hidden>
+      <h2>Admin session expired</h2>
+      <p>Return to the NASCAR app and unlock admin again.</p>
+      <button class="returnBtn" type="button">Back to main application</button>
+    </section>
+    <section id="galleryGrid" class="gallery-grid" aria-label="Photo gallery"></section>
+  </main>
+
+  <div id="contextMenu" class="context-menu" role="menu" hidden>
+    <div id="contextPath" class="context-path"></div><div id="contextDate" class="context-date"></div>
+    <button type="button" data-action="view" role="menuitem">View Full Size</button>
+    <button type="button" data-action="delete" class="danger" role="menuitem">Permanently Delete</button>
+  </div>
+
+  <div id="viewer" class="viewer" role="dialog" aria-modal="true" aria-labelledby="viewerTitle" hidden>
+    <button id="viewerClose" class="viewer-close" type="button" aria-label="Close full-size viewer">×</button>
+    <button id="viewerPrevious" class="viewer-nav previous" type="button" aria-label="Previous image">‹</button>
+    <figure><img id="viewerImage" alt=""><figcaption><strong id="viewerTitle"></strong><span id="viewerMeta"></span></figcaption></figure>
+    <button id="viewerNext" class="viewer-nav next" type="button" aria-label="Next image">›</button>
+    <button id="viewerDelete" class="viewer-delete danger" type="button">Permanently Delete</button>
+  </div>
+
+  <div id="maintenance" class="modal" role="dialog" aria-modal="true" aria-labelledby="maintenanceTitle" hidden>
+    <section>
+      <h2 id="maintenanceTitle">Build thumbnails &amp; duplicate index</h2>
+      <p>This manual job will process approximately 2,605 originals and download approximately 683 MB once. It may take several minutes, can be paused and resumed, and the tab should remain open while a batch is active. Do not run it before August 9, 2026.</p>
+      <div id="maintenanceProgress" aria-live="polite">Stopped. Nothing starts automatically.</div>
+      <progress id="maintenanceBar" max="100" value="0"></progress>
+      <div class="modal-actions"><button id="startBackfill" type="button">Start after confirmation</button><button id="pauseBackfill" type="button" disabled>Pause</button><button id="resumeBackfill" type="button" disabled>Resume</button><button id="stopBackfill" type="button" disabled>Stop</button><button id="retryBackfill" type="button" disabled>Retry failures</button><button id="reviewDuplicates" type="button">Review duplicates</button><button id="closeMaintenance" type="button">Close</button></div>
+      <div id="failureList" class="failures"></div><div id="duplicateList" class="duplicates"></div>
+    </section>
+  </div>
+  <script src="/buschgirls-gallery/gallery.js" defer></script>
+</body>
+</html>
