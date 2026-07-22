@@ -1,8 +1,12 @@
 (() => {
   "use strict";
   const TOKEN_KEY = "nascar_pool_admin_token";
-  const state = { page:1, pageSize:80, folder:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, backfill:null, failures:[] };
+  const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", indexingState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, backfill:null, failures:[], requestId:0 };
   const $ = id => document.getElementById(id);
+  const validFolders = new Set(["all","soft","old","spicy","spicier"]);
+  const validSorts = new Set(["newest","oldest","filename_asc","filename_desc"]);
+  const validActiveStates = new Set(["all","active","inactive"]);
+  const validIndexingStates = new Set(["all","ready","needs_indexing"]);
 
   class ApiError extends Error { constructor(message,status,data){ super(message); this.status=status; this.data=data; } }
   async function api(url, options={}) {
@@ -17,22 +21,58 @@
   function showExpired() { $("galleryGrid").replaceChildren(); $("expired").hidden=false; $("status").textContent=""; }
   function handleError(error) { if (error.status===401) showExpired(); else $("status").textContent=error.message || String(error); }
 
-  async function loadPage() {
+  function restoreQueryState() {
+    const params=new URLSearchParams(location.search);
+    const page=Number(params.get("page"));
+    const folder=String(params.get("folder")||"all").toLowerCase();
+    const sort=String(params.get("sort")||"newest").toLowerCase();
+    const active=String(params.get("activeState")||"all").toLowerCase();
+    const indexing=String(params.get("indexingState")||"all").toLowerCase();
+    state.page=Number.isInteger(page)&&page>0?page:1;
+    state.folder=validFolders.has(folder)?folder:"all";
+    state.search=String(params.get("search")||"").trim().slice(0,100);
+    state.sort=validSorts.has(sort)?sort:"newest";
+    state.activeState=validActiveStates.has(active)?active:"all";
+    state.indexingState=validIndexingStates.has(indexing)?indexing:"all";
+    state.duplicateState=params.get("duplicateState")==="exact"?"exact":"all";
+  }
+  function syncQueryState() {
+    const params=new URLSearchParams();
+    if(state.page>1)params.set("page",String(state.page));
+    if(state.folder!=="all")params.set("folder",state.folder);
+    if(state.search)params.set("search",state.search);
+    if(state.sort!=="newest")params.set("sort",state.sort);
+    if(state.activeState!=="all")params.set("activeState",state.activeState);
+    if(state.indexingState!=="all")params.set("indexingState",state.indexingState);
+    if(state.duplicateState!=="all")params.set("duplicateState",state.duplicateState);
+    const query=params.toString();history.replaceState(null,"",`${location.pathname}${query?`?${query}`:""}`);
+  }
+  function countGridColumns() { const tracks=getComputedStyle($("galleryGrid")).gridTemplateColumns; return tracks&&tracks!=="none"?tracks.split(/\s+/).filter(Boolean).length:1; }
+  function pageSizeForColumns(columns) { const safe=Math.max(1,Math.min(100,Number(columns)||1)); const lower=Math.max(safe,Math.floor(80/safe)*safe); const candidate=Math.ceil(80/safe)*safe; const upper=candidate<=100?candidate:lower; return Math.abs(80-lower)<=Math.abs(upper-80)?lower:upper; }
+  function scrollToResults() { const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches; requestAnimationFrame(()=>requestAnimationFrame(()=>$("galleryGrid").scrollIntoView({block:"start",behavior:reduced?"auto":"smooth"}))); }
+  function advancedFilterCount(){return Number(state.activeState!=="all")+Number(state.indexingState!=="all")+Number(state.duplicateState!=="all");}
+  function paintFilterBadges(){const count=advancedFilterCount();document.querySelectorAll(".filter-badge").forEach(badge=>{badge.hidden=!count;badge.title=count?`${count} active filters`:"";});}
+
+  async function loadPage({scroll=false}={}) {
+    const requestId=++state.requestId;
     $("expired").hidden=true; $("status").textContent="Loading…"; closeMenu();
     try {
-      const data=await api(`/api/admin-buschgirls-gallery?page=${state.page}&pageSize=${state.pageSize}&folder=${encodeURIComponent(state.folder)}`);
-      state.photos=data.photos; state.total=data.total; state.totalPages=data.totalPages;
-      if (state.page>state.totalPages) { state.page=state.totalPages; return loadPage(); }
+      const query=new URLSearchParams({page:String(state.page),pageSize:String(state.pageSize),folder:state.folder,search:state.search,sort:state.sort,activeState:state.activeState,indexingState:state.indexingState,duplicateState:state.duplicateState});
+      const data=await api(`/api/admin-buschgirls-gallery?${query}`);
+      if(requestId!==state.requestId)return;
+      if(!data.duplicateFilterAvailable&&state.duplicateState==="exact"){state.duplicateState="all";$("duplicateState").value="all";return loadPage({scroll});}
+      state.page=data.page; state.photos=data.photos; state.total=data.total; state.totalPages=data.totalPages;
       renderGrid();
       $("itemCount").textContent=data.total.toLocaleString();
       $("itemCount").setAttribute("aria-label",`${data.total.toLocaleString()} filtered items`);
       $("itemCount").title=`${data.total.toLocaleString()} filtered items`;
-      $("pageLabel").textContent=`${data.page} / ${data.totalPages}`;
+      $("pageInput").value=String(data.page); $("pageInput").max=String(data.totalPages); $("totalPages").textContent=String(data.totalPages);
       $("previousPage").disabled=data.page<=1; $("nextPage").disabled=data.page>=data.totalPages;
-      $("status").textContent=data.photos.length
-        ? (data.unindexedCount ? `Using originals · ${data.unindexedCount.toLocaleString()} awaiting thumbnails` : "")
-        : "No photos in this folder.";
-    } catch(error) { handleError(error); }
+      $("exactDuplicatesOption").disabled=!data.duplicateFilterAvailable; $("duplicateHint").hidden=data.duplicateFilterAvailable;
+      $("status").textContent=data.photos.length ? (data.unindexedCount ? `Using originals · ${data.unindexedCount.toLocaleString()} awaiting thumbnails` : "") : "No photos match the current search and filters.";
+      syncQueryState(); paintFilterBadges();
+      if(scroll)scrollToResults();
+    } catch(error) { if(requestId===state.requestId)handleError(error); }
   }
   function renderGrid() {
     const grid=$("galleryGrid"); grid.replaceChildren();
@@ -62,7 +102,7 @@
   async function permanentDelete(photo) {
     const path=`${photo.folder}/${photo.filename}`;
     if(!confirm(`Permanently delete ${path}?\n\nThis action cannot be undone.`))return;
-    try { await api("/api/delete-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id})}); closeMenu(); closeViewer(); state.photos=state.photos.filter(item=>item.id!==photo.id); state.total=Math.max(0,state.total-1); renderGrid(); $("itemCount").textContent=state.total.toLocaleString(); $("status").textContent=`Permanently deleted ${path}.`; if(!state.photos.length&&state.page>1){state.page--;await loadPage();} } catch(error){ handleError(error); }
+    try { await api("/api/delete-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id})}); closeMenu(); closeViewer(); await loadPage(); $("status").textContent=`Permanently deleted ${path}.`; } catch(error){ handleError(error); }
   }
 
   async function makeThumbnail(blob) {
@@ -86,13 +126,35 @@
   async function startBackfill(){ const allowed=Date.now()>=new Date("2026-08-09T00:00:00-04:00").getTime(); if(!allowed){alert("Do not run this production backfill before August 9, 2026.");return;} if(!confirm("Start the manual thumbnail and SHA-256 backfill? Approximately 2,605 originals / 683 MB will be downloaded once. Keep this tab open while a batch runs."))return; state.failures=[];state.backfill={completed:0,failed:0,total:0,paused:false,stopped:false,duplicateGroups:new Set()};paintProgress("Starting.");await runBackfill(); }
   async function reviewDuplicates(){ try{const data=await api("/api/admin-buschgirls-duplicates");const box=$("duplicateList");box.replaceChildren();const title=document.createElement("p");title.textContent=`${data.totalGroups} exact duplicate hash group(s). No files were changed.`;box.append(title);data.groups.forEach(group=>{const p=document.createElement("p");p.textContent=group.photos.map(x=>`${x.folder}/${x.filename}`).join(" ↔ ");box.append(p);});}catch(error){handleError(error);} }
 
+  function resetResultsAndLoad(){state.page=1;loadPage({scroll:true});}
+  function commitPageInput(){const input=$("pageInput");const raw=String(input.value||"").trim();const number=Number(raw);if(!raw||!Number.isFinite(number)){input.value=String(state.page);return;}const target=Math.max(1,Math.min(state.totalPages,Math.trunc(number)));input.value=String(target);if(target===state.page)return;state.page=target;loadPage({scroll:true});}
+  function setFilterPanel(open){$("filterPanel").hidden=!open;document.querySelectorAll(".filter-button").forEach(button=>button.setAttribute("aria-expanded",String(open)));if(open)$("activeState").focus();}
+  function initializeControls(){
+    restoreQueryState();
+    $("folderFilter").value=state.folder;$("filenameSearch").value=state.search;$("sortSelect").value=state.sort;$("activeState").value=state.activeState;$("indexingState").value=state.indexingState;$("duplicateState").value=state.duplicateState;$("clearSearch").hidden=!state.search;
+    state.columns=countGridColumns();state.pageSize=pageSizeForColumns(state.columns);
+  }
+
+  let searchTimer=null;
+  function applySearch(){clearTimeout(searchTimer);const value=$("filenameSearch").value.trim();$("clearSearch").hidden=!value;if(value===state.search)return;state.search=value;resetResultsAndLoad();}
+  let resizeTimer=null;
+  const resizeObserver=new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{const columns=countGridColumns();if(columns===state.columns)return;const oldOffset=(state.page-1)*state.pageSize;const pageSize=pageSizeForColumns(columns);state.columns=columns;if(pageSize===state.pageSize)return;state.pageSize=pageSize;state.page=Math.floor(oldOffset/pageSize)+1;loadPage();},220);});
+
   function goBack(){ try{const ref=document.referrer?new URL(document.referrer):null;if(ref&&ref.origin===location.origin&&history.length>1){history.back();return;}}catch{} location.assign("/"); }
   $("backBtn").addEventListener("click",goBack); document.querySelectorAll(".returnBtn").forEach(button=>button.addEventListener("click",()=>location.assign("/")));
-  $("folderFilter").addEventListener("change",event=>{state.folder=event.target.value;state.page=1;loadPage();}); $("previousPage").addEventListener("click",()=>{if(state.page>1){state.page--;loadPage();}}); $("nextPage").addEventListener("click",()=>{if(state.page<state.totalPages){state.page++;loadPage();}});
+  $("folderFilter").addEventListener("change",event=>{state.folder=event.target.value;resetResultsAndLoad();});
+  $("sortSelect").addEventListener("change",event=>{state.sort=event.target.value;resetResultsAndLoad();});
+  $("previousPage").addEventListener("click",()=>{if(state.page>1){state.page--;loadPage({scroll:true});}}); $("nextPage").addEventListener("click",()=>{if(state.page<state.totalPages){state.page++;loadPage({scroll:true});}});
+  $("pageInput").addEventListener("focus",event=>event.target.select());$("pageInput").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();commitPageInput();}});$("pageInput").addEventListener("blur",commitPageInput);
+  $("filenameSearch").addEventListener("input",()=>{clearTimeout(searchTimer);$("clearSearch").hidden=!$("filenameSearch").value;searchTimer=setTimeout(applySearch,300);});$("filenameSearch").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();applySearch();}});$("clearSearch").addEventListener("click",()=>{$("filenameSearch").value="";applySearch();$("filenameSearch").focus();});
+  $("searchToggle").addEventListener("click",()=>{const open=!$("toolbar").classList.contains("search-open");$("toolbar").classList.toggle("search-open",open);$("searchToggle").setAttribute("aria-expanded",String(open));if(open)$("filenameSearch").focus();});
+  document.querySelectorAll(".filter-button").forEach(button=>button.addEventListener("click",()=>setFilterPanel($("filterPanel").hidden)));
+  ["activeState","indexingState","duplicateState"].forEach(id=>$(id).addEventListener("change",event=>{state[id]=event.target.value;resetResultsAndLoad();}));
+  $("clearFilters").addEventListener("click",()=>{state.activeState="all";state.indexingState="all";state.duplicateState="all";$("activeState").value="all";$("indexingState").value="all";$("duplicateState").value="all";resetResultsAndLoad();});$("closeFilters").addEventListener("click",()=>setFilterPanel(false));
   $("contextMenu").addEventListener("click",event=>{const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
   $("viewerClose").addEventListener("click",closeViewer); $("viewerPrevious").addEventListener("click",()=>moveViewer(-1)); $("viewerNext").addEventListener("click",()=>moveViewer(1)); $("viewerDelete").addEventListener("click",()=>{const photo=state.photos[state.viewerIndex];if(photo)permanentDelete(photo);});
-  document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();}); addEventListener("scroll",closeMenu,{passive:true,capture:true});
-  document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("viewer").hidden)closeViewer();else if(!$("maintenance").hidden)$("maintenance").hidden=true;}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});
+  document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();if(!$("filterPanel").hidden&&!$("filterPanel").contains(event.target)&&!event.target.closest(".filter-button"))setFilterPanel(false);}); addEventListener("scroll",closeMenu,{passive:true,capture:true});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("filterPanel").hidden)setFilterPanel(false);else if($("toolbar").classList.contains("search-open")){$("toolbar").classList.remove("search-open");$("searchToggle").setAttribute("aria-expanded","false");$("searchToggle").focus();}else if(!$("viewer").hidden)closeViewer();else if(!$("maintenance").hidden)$("maintenance").hidden=true;}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});
   $("maintenanceBtn").addEventListener("click",()=>{$("maintenance").hidden=false;$("closeMaintenance").focus();}); $("closeMaintenance").addEventListener("click",()=>{$("maintenance").hidden=true;}); $("startBackfill").addEventListener("click",startBackfill); $("pauseBackfill").addEventListener("click",()=>{state.backfill.paused=true;paintProgress("Pausing after active batch.");}); $("resumeBackfill").addEventListener("click",()=>{state.backfill.paused=false;paintProgress("Resuming from database state.");runBackfill();}); $("stopBackfill").addEventListener("click",()=>{state.backfill.stopped=true;paintProgress("Stopped.");}); $("retryBackfill").addEventListener("click",async()=>{const photos=state.failures.map(x=>x.photo);state.failures=[];state.backfill={completed:0,failed:0,total:photos.length,paused:false,stopped:false,duplicateGroups:new Set()};await runBackfill(photos);state.backfill.stopped=true;paintProgress("Retry complete.");}); $("reviewDuplicates").addEventListener("click",reviewDuplicates);
-  loadPage();
+  initializeControls();resizeObserver.observe($("galleryGrid"));loadPage();
 })();

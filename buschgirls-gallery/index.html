@@ -8,17 +8,35 @@
   <link rel="stylesheet" href="/buschgirls-gallery/gallery.css">
 </head>
 <body>
-  <header class="toolbar">
+  <header id="toolbar" class="toolbar">
     <div class="toolbar-brand">
       <button id="backBtn" class="toolbar-icon back-button" type="button" aria-label="Back to Admin">←</button>
       <h1>BuschGirls Gallery</h1>
+      <button id="searchToggle" class="toolbar-icon mobile-action" type="button" aria-label="Search filenames" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 19-4.4-4.4a7.5 7.5 0 1 0-1.5 1.5l4.4 4.4 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"/></svg>
+      </button>
+      <button class="toolbar-icon filter-button mobile-action" type="button" aria-label="Open filters" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm3 6h12v2H6v-2Zm4 6h4v2h-4v-2Z"/></svg><span class="filter-badge" hidden></span>
+      </button>
     </div>
     <div class="toolbar-controls">
+      <div class="search-control">
+        <label class="visually-hidden" for="filenameSearch">Search filenames</label>
+        <input id="filenameSearch" type="search" maxlength="100" placeholder="Filename" autocomplete="off">
+        <button id="clearSearch" type="button" aria-label="Clear filename search" hidden>×</button>
+      </div>
       <label class="folder-control"><span>Folder</span><select id="folderFilter" aria-label="Folder"><option value="all">All</option><option>soft</option><option>old</option><option>spicy</option><option>spicier</option></select></label>
+      <label class="sort-control"><span>Sort</span><select id="sortSelect" aria-label="Sort photos"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="filename_asc">Filename A–Z</option><option value="filename_desc">Filename Z–A</option></select></label>
+      <button class="toolbar-icon filter-button desktop-filter" type="button" aria-label="Open filters" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm3 6h12v2H6v-2Zm4 6h4v2h-4v-2Z"/></svg><span class="filter-badge" hidden></span>
+      </button>
       <span id="itemCount" class="item-count" aria-live="polite">—</span>
       <div class="pagination" aria-label="Gallery pagination">
         <button id="previousPage" type="button" aria-label="Previous page">‹</button>
-        <span id="pageLabel" aria-live="polite">— / —</span>
+        <label class="visually-hidden" for="pageInput">Page number</label>
+        <input id="pageInput" type="number" min="1" max="1" inputmode="numeric" aria-label="Page number">
+        <span aria-hidden="true">/</span>
+        <span id="totalPages">—</span>
         <button id="nextPage" type="button" aria-label="Next page">›</button>
       </div>
     </div>
@@ -26,6 +44,13 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm8.1 5.18v-2.86l-2.16-.75a6.2 6.2 0 0 0-.49-1.17l1-2.06-2.03-2.03-2.06 1a6.2 6.2 0 0 0-1.17-.49L12.43 2H9.57l-.75 2.16a6.2 6.2 0 0 0-1.17.49l-2.06-1-2.03 2.03 1 2.06a6.2 6.2 0 0 0-.49 1.17L2 9.57v2.86l2.16.75c.12.41.28.8.49 1.17l-1 2.06 2.03 2.03 2.06-1c.37.21.76.37 1.17.49L9.57 22h2.86l.75-2.16c.41-.12.8-.28 1.17-.49l2.06 1 2.03-2.03-1-2.06c.21-.37.37-.76.49-1.17l2.17-.66Z"/></svg>
     </button>
   </header>
+  <div id="filterPanel" class="filter-panel" role="dialog" aria-label="Gallery filters" hidden>
+    <label>Rotation<select id="activeState"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+    <label>Indexing<select id="indexingState"><option value="all">All</option><option value="ready">Ready</option><option value="needs_indexing">Needs indexing</option></select></label>
+    <label>Exact hash<select id="duplicateState"><option value="all">All</option><option id="exactDuplicatesOption" value="exact">Exact duplicates only</option></select></label>
+    <p id="duplicateHint" class="filter-hint" hidden>No hashes are available yet. Run the historical backfill after August 9.</p>
+    <div class="filter-actions"><button id="clearFilters" type="button">Clear Filters</button><button id="closeFilters" type="button">Done</button></div>
+  </div>
   <main>
     <div id="status" class="status" role="status"></div>
     <section id="expired" class="expired" hidden>
