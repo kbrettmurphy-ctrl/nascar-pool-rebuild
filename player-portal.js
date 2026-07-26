@@ -304,21 +304,36 @@ if (liveCard) {
       }
     }
 
+    // Live drivers arrive as {name, position}; the shared surname helpers
+    // expect plain name arrays.
+    markDuplicateSurnames_(matchups.map(m => ({
+      p1Drivers: (m.p1Drivers || []).map(d => String(d?.name || "")),
+      p2Drivers: (m.p2Drivers || []).map(d => String(d?.name || ""))
+    })));
+
     box.innerHTML = matchups.map(m => {
 
+      // One driver per line so fitDriverLines_ can drop the first name
+      // when "Name P##" would otherwise wrap onto a second line.
       function driverLine(d){
         if(!d) return "";
-        if(d.position == null) return `${escapeHtml(d.name || "")}`;
-        return `${escapeHtml(d.name || "")} <span class="microMeta">P${d.position}</span>`;
+        const name = String(d.name || "").trim();
+        if(!name) return "";
+        const pos = d.position == null
+          ? ""
+          : ` <span class="microMeta">P${escapeHtml(String(d.position))}</span>`;
+        return `<div class="pMeta driverLine" data-short="${escapeAttr(shortDriverName_(name))}">` +
+                 `<span class="dn">${escapeHtml(name)}</span>${pos}` +
+               `</div>`;
       }
 
       const p1Drivers = (m.p1Drivers || []).length
-        ? (m.p1Drivers || []).map(driverLine).join("<br>")
-        : `<span class="microMeta">No drivers yet</span>`;
+        ? (m.p1Drivers || []).map(driverLine).join("")
+        : `<div class="pMeta"><span class="microMeta">No drivers yet</span></div>`;
 
       const p2Drivers = (m.p2Drivers || []).length
-        ? (m.p2Drivers || []).map(driverLine).join("<br>")
-        : `<span class="microMeta">No drivers yet</span>`;
+        ? (m.p2Drivers || []).map(driverLine).join("")
+        : `<div class="pMeta"><span class="microMeta">No drivers yet</span></div>`;
 
       const leaderLine =
         m.leader
@@ -345,7 +360,7 @@ if (liveCard) {
                   <span class="nameText">${escapeHtml(m.p1 || "")}</span>
                 </span>
               </div>
-              <div class="pMeta">${p1Drivers}</div>
+              ${p1Drivers}
               <div class="pMeta"><strong>Avg:</strong> ${m.p1Avg ?? "-"}</div>
             </div>
 
@@ -357,7 +372,7 @@ if (liveCard) {
                   <span class="nameText">${escapeHtml(m.p2 || "")}</span>
                 </span>
               </div>
-              <div class="pMeta">${p2Drivers}</div>
+              ${p2Drivers}
               <div class="pMeta"><strong>Avg:</strong> ${m.p2Avg ?? "-"}</div>
             </div>
           </div>
@@ -371,6 +386,16 @@ if (liveCard) {
     }).join("");
 
     applyYouRowsNow_();
+    requestAnimationFrame(() => {
+      fitDriverLines_(box);
+      // On very narrow phones even the surname can overrun. Ellipsize the
+      // name rather than let the P## fall off the end of the line. Same 1px
+      // tolerance as fitDriverLines_ - a hair of overhang is invisible and
+      // not worth spending an ellipsis (and several letters) to avoid.
+      box.querySelectorAll(".driverLine").forEach(el => {
+        if (el.scrollWidth > el.clientWidth + 1) el.classList.add("dnClip");
+      });
+    });
 
   }
   catch(err){
