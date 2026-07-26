@@ -844,6 +844,22 @@ select, input{
   line-height:1.5;
 }
 .driverLine .dq{ font-size:11px; }
+
+/* Applied only to lines still too long after the surname swap: the name
+   ellipsizes so the position stays visible. Added after measuring, so it
+   never hides overflow from the fit pass. */
+.driverLine.dnClip{
+  display:flex;
+  align-items:baseline;
+  gap:4px;
+}
+.driverLine.dnClip .dn{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.driverLine.dnClip .microMeta,
+.driverLine.dnClip .dq{ flex:0 0 auto; }
 .driverWinner{
   color: var(--winnerGreen);
   font-weight: 800;
