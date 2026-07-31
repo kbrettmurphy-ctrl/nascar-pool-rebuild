@@ -27,15 +27,20 @@ export async function onRequestPost({ request, env }) {
     const thumbnail = form.get("thumbnail");
     if (!BUSCH_FOLDERS.has(folder)) return privateJson({ ok: false, error: "Invalid folder" }, 400);
     if (!file || typeof file.arrayBuffer !== "function") return privateJson({ ok: false, error: "File is required" }, 400);
-    if (!thumbnail || typeof thumbnail.arrayBuffer !== "function" || thumbnail.type !== "image/webp") {
-      return privateJson({ ok: false, error: "WebP thumbnail is required" }, 400);
+    // Accept WebP or JPEG: Safari's canvas can't encode WebP, so mobile/desktop
+    // Safari clients send a JPEG thumbnail instead.
+    const thumbType = String(thumbnail?.type || "");
+    if (!thumbnail || typeof thumbnail.arrayBuffer !== "function" || (thumbType !== "image/webp" && thumbType !== "image/jpeg")) {
+      return privateJson({ ok: false, error: "WebP or JPEG thumbnail is required" }, 400);
     }
 
     const bytes = await file.arrayBuffer();
     const thumbBytes = await thumbnail.arrayBuffer();
     if (!isRecognizedImage(bytes, String(file.type || ""))) return privateJson({ ok: false, error: "Unsupported image file" }, 415);
     const tb = new Uint8Array(thumbBytes);
-    if (String.fromCharCode(...tb.slice(0, 4)) !== "RIFF" || String.fromCharCode(...tb.slice(8, 12)) !== "WEBP") return privateJson({ ok: false, error: "Invalid WebP thumbnail" }, 415);
+    const isWebpThumb = String.fromCharCode(...tb.slice(0, 4)) === "RIFF" && String.fromCharCode(...tb.slice(8, 12)) === "WEBP";
+    const isJpegThumb = tb[0] === 0xff && tb[1] === 0xd8 && tb[2] === 0xff;
+    if (!isWebpThumb && !isJpegThumb) return privateJson({ ok: false, error: "Invalid thumbnail image" }, 415);
     if (thumbBytes.byteLength > 2_000_000) return privateJson({ ok: false, error: "Thumbnail is too large" }, 413);
     const hashBytes = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
     const sha256 = Array.from(hashBytes, b => b.toString(16).padStart(2, "0")).join("");
@@ -51,7 +56,7 @@ export async function onRequestPost({ request, env }) {
     const id = crypto.randomUUID();
     const filename = String(file.name || "upload.jpg").replace(/[^\w.\-]+/g, "_");
     const originalPath = `${folder}/${filename}`;
-    const thumbnailPath = `${folder}/${id}.webp`;
+    const thumbnailPath = `${folder}/${id}.${isWebpThumb ? "webp" : "jpg"}`;
     const originalUpload = await fetch(storageObjectUrl(env, "buschgirls", originalPath), {
       method: "POST",
       headers: serviceHeaders(env, { "Content-Type": file.type, "x-upsert": "false" }),
@@ -61,7 +66,7 @@ export async function onRequestPost({ request, env }) {
 
     const thumbUpload = await fetch(storageObjectUrl(env, "buschgirls-thumbnails", thumbnailPath), {
       method: "POST",
-      headers: serviceHeaders(env, { "Content-Type": "image/webp", "x-upsert": "false" }),
+      headers: serviceHeaders(env, { "Content-Type": thumbType, "x-upsert": "false" }),
       body: thumbBytes
     });
     if (!thumbUpload.ok) {

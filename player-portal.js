@@ -1384,7 +1384,8 @@ await refreshAfterAdminChange_();
 
         try {
           const thumbnail = await createBuschThumbnail_(files[i]);
-          form.append("thumbnail", thumbnail, `${files[i].name}.webp`);
+          const thumbExt = thumbnail.type === "image/webp" ? "webp" : "jpg";
+          form.append("thumbnail", thumbnail, `${files[i].name}.${thumbExt}`);
           await adminFetch_("/api/upload-buschgirl", { method: "POST", body: form });
           uploaded++;
         } catch (err) {
@@ -1420,6 +1421,10 @@ await refreshAfterAdminChange_();
     }
   }
 
+  function canvasToBlob_(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(blob => resolve(blob), type, quality));
+  }
+
   async function createBuschThumbnail_(file) {
     const decoded = await decodeBuschImage_(file);
     try {
@@ -1428,11 +1433,15 @@ await refreshAfterAdminChange_();
       canvas.width = Math.max(1, Math.round(decoded.width * scale));
       canvas.height = Math.max(1, Math.round(decoded.height * scale));
       canvas.getContext("2d").drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
-      return await new Promise((resolve, reject) => canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error("Thumbnail generation failed")),
-        "image/webp",
-        0.68
-      ));
+      // Prefer WebP, but Safari's canvas can't encode it — it silently returns a
+      // PNG, which the server rejects. Detect that and fall back to JPEG, which
+      // every browser can produce and the server also accepts.
+      let blob = await canvasToBlob_(canvas, "image/webp", 0.68);
+      if (!blob || blob.type !== "image/webp") {
+        blob = await canvasToBlob_(canvas, "image/jpeg", 0.82);
+      }
+      if (!blob) throw new Error("Thumbnail generation failed");
+      return blob;
     } finally {
       decoded.release();
     }
