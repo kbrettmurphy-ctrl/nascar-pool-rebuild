@@ -1,5 +1,5 @@
 import { verifyAdminRequest } from "./_admin-auth";
-import { BUSCH_FOLDERS, privateJson, serviceHeaders, signThumbnail } from "./_buschgirls-admin";
+import { BUSCH_FOLDERS, privateJson, publicThumbnailUrl, serviceHeaders } from "./_buschgirls-admin";
 
 const SORTS = {
   newest: "uploaded_at.desc.nullslast,id.desc",
@@ -91,15 +91,15 @@ export async function onRequestGet({ request, env }) {
     );
     if (!listResponse.ok) throw new Error("Gallery list query failed");
     const rows = await listResponse.json().catch(() => []);
-    const photos = await Promise.all(rows.map(async row => {
-      const signedThumbnail = row.thumbnail_path ? await signThumbnail(env, row.thumbnail_path) : null;
+    const photos = rows.map(row => {
+      const thumbnailUrl = row.thumbnail_path ? publicThumbnailUrl(env, row.thumbnail_path) : null;
       return {
         id: row.id, folder: row.folder, filename: row.filename, url: row.url,
         uploaded_at: row.uploaded_at, active: row.active,
-        thumbnailUrl: signedThumbnail || row.url,
-        thumbnailReady: Boolean(signedThumbnail)
+        thumbnailUrl: thumbnailUrl || row.url,
+        thumbnailReady: Boolean(thumbnailUrl)
       };
-    }));
+    });
     return privateJson({
       ok: true, photos, page: safePage, pageSize, total, totalPages,
       unindexedCount, hashCount, duplicateFilterAvailable: hashCount > 0
