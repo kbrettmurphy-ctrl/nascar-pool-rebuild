@@ -33,18 +33,8 @@ export async function supabaseRows(env, path, options = {}) {
   return { data, response };
 }
 
-export async function signThumbnail(env, path, expiresIn = 300) {
-  const response = await fetch(
-    `${env.SUPABASE_URL}/storage/v1/object/sign/buschgirls-thumbnails/${path.split("/").map(encodeURIComponent).join("/")}`,
-    {
-      method: "POST",
-      headers: serviceHeaders(env, { "Content-Type": "application/json" }),
-      body: JSON.stringify({ expiresIn })
-    }
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.signedURL) return null;
-  return data.signedURL.startsWith("http") ? data.signedURL : `${env.SUPABASE_URL}/storage/v1${data.signedURL}`;
+export function publicThumbnailUrl(env, path) {
+  return `${env.SUPABASE_URL}/storage/v1/object/public/buschgirls-thumbnails/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 export function storageObjectUrl(env, bucket, path) {

@@ -52,7 +52,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // The administrator gallery, its assets, APIs, signed thumbnails, and
+  // The administrator gallery, its assets, APIs, thumbnails, and
   // full-size images must always go directly to the network and must never
   // receive the public app's offline index fallback.
   if (url.pathname === "/buschgirls-gallery" ||
@@ -62,6 +62,7 @@ self.addEventListener("fetch", (event) => {
       url.pathname.startsWith("/api/admin-buschgirls-duplicates") ||
       url.pathname.startsWith("/api/index-buschgirl") ||
       url.pathname.startsWith("/api/delete-buschgirl") ||
+      url.pathname.includes("/storage/v1/object/public/buschgirls-thumbnails/") ||
       url.pathname.includes("/storage/v1/object/sign/buschgirls-thumbnails/") ||
       url.pathname.includes("/storage/v1/object/buschgirls-thumbnails/")) {
     event.respondWith(fetch(req));
