@@ -2326,9 +2326,12 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 .adminField input[type="file"]::-webkit-file-upload-button{
   -webkit-appearance:none;
+  box-sizing:border-box;
+  height:29px;
   margin:5px 10px 5px 0;
-  padding:5px 12px;
+  padding:0 12px;
   font:inherit;
+  line-height:27px;
   color:var(--text);
   background:var(--chip);
   border:1px solid var(--line);
@@ -2337,9 +2340,12 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 .adminField input[type="file"]::file-selector-button{
   appearance:none;
+  box-sizing:border-box;
+  height:29px;
   margin:5px 10px 5px 0;
-  padding:5px 12px;
+  padding:0 12px;
   font:inherit;
+  line-height:27px;
   color:var(--text);
   background:var(--chip);
   border:1px solid var(--line);
