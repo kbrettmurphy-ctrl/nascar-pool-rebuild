@@ -323,7 +323,11 @@
 
         <div class="adminField">
           <label for="buschUploadInput">Photos</label>
-          <input id="buschUploadInput" type="file" accept="image/*" multiple>
+          <label class="fileControl" for="buschUploadInput">
+            <span class="fileControlBtn">Choose Files</span>
+            <span class="fileControlText" id="buschUploadText">No files selected</span>
+          </label>
+          <input id="buschUploadInput" class="fileHidden" type="file" accept="image/*" multiple>
         </div>
 
         <button id="buschUploadBtn" class="primary" type="button">Upload Photos</button>

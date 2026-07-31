@@ -1342,6 +1342,16 @@ await refreshAfterAdminChange_();
     }
   }
 
+  function updateBuschFileText_() {
+    const input = document.getElementById("buschUploadInput");
+    const text = document.getElementById("buschUploadText");
+    if (!input || !text) return;
+    const n = input.files?.length || 0;
+    text.textContent = n === 0
+      ? "No files selected"
+      : n === 1 ? input.files[0].name : `${n} files selected`;
+  }
+
   async function uploadBuschGirls_() {
     const folder = String(document.getElementById("buschFolderSelect")?.value || "").trim();
     const input = document.getElementById("buschUploadInput");
@@ -1397,6 +1407,7 @@ await refreshAfterAdminChange_();
       }
 
       input.value = "";
+      updateBuschFileText_();
       buschGirls = [];
       buschQueue = [];
       await loadBuschGirls();
@@ -5377,6 +5388,7 @@ function initAdminControls_() {
   document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
+  document.getElementById("buschUploadInput")?.addEventListener("change", updateBuschFileText_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);

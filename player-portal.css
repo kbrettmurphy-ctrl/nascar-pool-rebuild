@@ -2311,46 +2311,53 @@ a.newsCard:last-child{ border-bottom:none; }
   margin: 0 0 0 0;
 }
 
-/* Match the file input's height to the folder <select>. Safari ignores
-   height on a native file input unless -webkit-appearance is reset, so strip
-   the native chrome first, then compact the "Choose Files" button. Both the
-   standard and legacy WebKit button pseudo-elements are styled in separate
-   rules (a grouped selector with an unknown pseudo is dropped whole in some
-   browsers). */
-.adminField input[type="file"]{
-  -webkit-appearance:none;
-  appearance:none;
-  height:41px;
-  padding:0 12px;
-  line-height:39px;
+/* File picker: native <input type=file> can't be sized consistently (Safari
+   ignores height even with appearance reset), so the real input is visually
+   hidden and a styled .fileControl label stands in. Being a plain element it
+   renders identically across browsers and matches the .adminField select box. */
+.adminField input.fileHidden{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  border:0;
+  opacity:0;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
 }
-.adminField input[type="file"]::-webkit-file-upload-button{
-  -webkit-appearance:none;
+.adminField .fileControl{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
   box-sizing:border-box;
-  height:29px;
-  margin:5px 10px 5px 0;
-  padding:0 12px;
-  font:inherit;
-  line-height:27px;
-  color:var(--text);
-  background:var(--chip);
+  padding:6px 12px;
+  border-radius:12px;
   border:1px solid var(--line);
-  border-radius:8px;
+  background:var(--glassBlue14);
+  color:var(--text);
+  font-size:14px;
   cursor:pointer;
 }
-.adminField input[type="file"]::file-selector-button{
-  appearance:none;
+.adminField .fileControlBtn{
+  flex:0 0 auto;
   box-sizing:border-box;
-  height:29px;
-  margin:5px 10px 5px 0;
+  height:28px;
+  line-height:26px;
   padding:0 12px;
-  font:inherit;
-  line-height:27px;
-  color:var(--text);
-  background:var(--chip);
-  border:1px solid var(--line);
   border-radius:8px;
-  cursor:pointer;
+  border:1px solid var(--line);
+  background:var(--chip);
+  color:var(--text);
+}
+.adminField .fileControlText{
+  flex:1 1 auto;
+  min-width:0;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 
