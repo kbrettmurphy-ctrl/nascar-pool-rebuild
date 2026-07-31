@@ -2314,9 +2314,9 @@ a.newsCard:last-child{ border-bottom:none; }
 /* Match the file input's height to the folder <select>: strip the stacked
    vertical padding and give the native "Choose Files" button a compact box. */
 .adminField input[type="file"]{
-  height:38px;
+  height:41px;
   padding:0 12px;
-  line-height:36px;
+  line-height:39px;
 }
 .adminField input[type="file"]::file-selector-button{
   margin:5px 10px 5px 0;
