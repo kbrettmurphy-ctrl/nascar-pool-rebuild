@@ -9,18 +9,22 @@ export async function onRequestPost({ request, env }) {
     const sha256 = String(form.get("sha256") || "").trim().toLowerCase();
     const thumbnail = form.get("thumbnail");
     if (!UUID_RE.test(id) || !/^[0-9a-f]{64}$/.test(sha256)) return privateJson({ ok: false, error: "Invalid indexing data" }, 400);
-    if (!thumbnail || thumbnail.type !== "image/webp" || typeof thumbnail.arrayBuffer !== "function") return privateJson({ ok: false, error: "WebP thumbnail is required" }, 400);
+    // Accept WebP or JPEG: Safari's canvas can't encode WebP and sends JPEG.
+    const thumbType = String(thumbnail?.type || "");
+    if (!thumbnail || typeof thumbnail.arrayBuffer !== "function" || (thumbType !== "image/webp" && thumbType !== "image/jpeg")) return privateJson({ ok: false, error: "WebP or JPEG thumbnail is required" }, 400);
     const rowRes = await fetch(`${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${id}&select=id,folder,filename&limit=1`, { headers: serviceHeaders(env) });
     const rows = await rowRes.json().catch(() => []);
     if (!rowRes.ok) throw new Error("Photo lookup failed");
     if (!rows[0]) return privateJson({ ok: false, error: "Photo not found" }, 404);
-    const thumbnailPath = `${rows[0].folder}/${id}.webp`;
     const bytes = await thumbnail.arrayBuffer();
     if (bytes.byteLength > 2_000_000) return privateJson({ ok: false, error: "Thumbnail is too large" }, 413);
     const signature = new Uint8Array(bytes);
-    if (String.fromCharCode(...signature.slice(0, 4)) !== "RIFF" || String.fromCharCode(...signature.slice(8, 12)) !== "WEBP") return privateJson({ ok: false, error: "Invalid WebP thumbnail" }, 415);
+    const isWebpThumb = String.fromCharCode(...signature.slice(0, 4)) === "RIFF" && String.fromCharCode(...signature.slice(8, 12)) === "WEBP";
+    const isJpegThumb = signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
+    if (!isWebpThumb && !isJpegThumb) return privateJson({ ok: false, error: "Invalid thumbnail image" }, 415);
+    const thumbnailPath = `${rows[0].folder}/${id}.${isWebpThumb ? "webp" : "jpg"}`;
     const upload = await fetch(storageObjectUrl(env, "buschgirls-thumbnails", thumbnailPath), {
-      method: "POST", headers: serviceHeaders(env, { "Content-Type": "image/webp", "x-upsert": "true" }), body: bytes
+      method: "POST", headers: serviceHeaders(env, { "Content-Type": thumbType, "x-upsert": "true" }), body: bytes
     });
     if (!upload.ok) throw new Error(await upload.text() || "Thumbnail upload failed");
     const update = await fetch(`${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${id}`, {
