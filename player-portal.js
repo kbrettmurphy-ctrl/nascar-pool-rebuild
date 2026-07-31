@@ -1365,6 +1365,7 @@ await refreshAfterAdminChange_();
     let duplicates = 0;
     let failed = 0;
     const duplicateDetails = [];
+    const failureDetails = [];
     try {
       for (let i = 0; i < files.length; i++) {
         const form = new FormData();
@@ -1383,6 +1384,9 @@ await refreshAfterAdminChange_();
             duplicateDetails.push(`${d.folder}/${d.filename} (${new Date(d.uploaded_at).toLocaleString()})`);
           } else {
             failed++;
+            if (failureDetails.length < 3) {
+              failureDetails.push(`${files[i].name}: ${err.message || String(err)}`);
+            }
           }
         }
 
@@ -1398,7 +1402,8 @@ await refreshAfterAdminChange_();
       await loadBuschGirls();
 
       const details = duplicateDetails.length ? ` Duplicates: ${duplicateDetails.join("; ")}` : "";
-      setAdminStatus_("buschUploadStatus", `Uploaded ${uploaded}; duplicate/skipped ${duplicates}; failed ${failed}.${details}`, failed > 0);
+      const errors = failureDetails.length ? ` First errors — ${failureDetails.join("; ")}` : "";
+      setAdminStatus_("buschUploadStatus", `Uploaded ${uploaded}; duplicate/skipped ${duplicates}; failed ${failed}.${details}${errors}`, failed > 0);
     } catch (err) {
       setAdminStatus_("buschUploadStatus", err.message || String(err), true);
     }
@@ -4525,34 +4530,11 @@ function refillQueue() {
     return;
   }
 
-  function uploadWeight_(p) {
-    const t = Date.parse(p.uploadedAt || "");
-    if (!Number.isFinite(t)) return 1;
-
-    const ageDays = (Date.now() - t) / (1000 * 60 * 60 * 24);
-
-    if (ageDays <= 7) return 8;
-    if (ageDays <= 30) return 3;
-    return 1;
-  }
-
-  const eligibleMain = [
+  const main = shuffle_([
     ...spicy,
     ...spicier,
     ...soft.filter(p => !warmupUrls.has(p.url))
-  ];
-
-  const weightedMain = [];
-
-  eligibleMain.forEach(p => {
-    const weight = uploadWeight_(p);
-
-    for (let i = 0; i < weight; i++) {
-      weightedMain.push(p);
-    }
-  });
-
-  const main = shuffle_(weightedMain);
+  ]);
 
   buschQueue = [...warmup, ...main];
 }
