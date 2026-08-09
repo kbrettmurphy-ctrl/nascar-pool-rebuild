@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v62";
+const CACHE_NAME = "nascar-pool-pwa-v63";
 
 const STATIC_ASSETS = [
   "/",
@@ -88,7 +88,11 @@ self.addEventListener("fetch", (event) => {
     "/player-portal.js",
     "/player-portal.css",
     "/index.html",
-    "/manifest.webmanifest"
+    "/manifest.webmanifest",
+    "/buschgirls-gallery/",
+    "/buschgirls-gallery/index.html",
+    "/buschgirls-gallery/gallery.js",
+    "/buschgirls-gallery/gallery.css"
   ]);
 
   if (url.origin === location.origin && NETWORK_FIRST.has(url.pathname)) {

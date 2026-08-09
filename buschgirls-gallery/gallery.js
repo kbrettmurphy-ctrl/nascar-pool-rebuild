@@ -92,10 +92,28 @@
   }
   function startLongPress(event,photo) { if(event.pointerType==="mouse")return; cancelLongPress(); const x=event.clientX,y=event.clientY; state.longPressTimer=setTimeout(()=>{state.suppressClick=true;openMenu(photo,x,y);},550); }
   function cancelLongPress(){ clearTimeout(state.longPressTimer); state.longPressTimer=null; }
-  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; $("contextPath").textContent=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
+  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; markFolderChips("contextMove",photo.folder); $("contextPath").textContent=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
+  function markFolderChips(containerId,folder){ const box=$(containerId); if(!box)return; box.querySelectorAll("button[data-move]").forEach(b=>{ const isCurrent=b.dataset.move===folder; b.classList.toggle("current",isCurrent); b.disabled=isCurrent; }); }
+
+  async function movePhoto(photo,folder) {
+    if(!photo||!folder||folder===photo.folder)return;
+    const from=photo.folder; const label=`${from}/${photo.filename}`;
+    $("status").textContent=`Moving ${label} to ${folder}...`;
+    try {
+      const result=await api("/api/move-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id,toFolder:folder})});
+      photo.folder=folder; if(result?.url)photo.url=result.url;
+      closeMenu();
+      const viewing=!$("viewer").hidden&&state.photos[state.viewerIndex]?.id===photo.id;
+      if(viewing){ $("viewerImage").src=photo.url; $("viewerMeta").textContent=`${photo.folder} \u00b7 ${formatDate(photo.uploaded_at)}`; markFolderChips("viewerMove",folder); }
+      $("status").textContent=`Moved ${photo.filename} from ${from} to ${folder}.`;
+      // if a folder filter is active the photo no longer belongs here
+      if(state.folder!=="all"&&state.folder!==folder){ closeViewer(); await loadPage(); }
+    } catch(error){ handleError(error); }
+  }
+
   function closeMenu(){ $("contextMenu").hidden=true; state.selected=null; }
 
-  function openViewer(index,origin) { closeMenu(); const photo=state.photos[index]; if(!photo)return; state.viewerIndex=index; state.origin=origin || document.activeElement; $("viewerImage").src=photo.url; $("viewerImage").alt=photo.filename; $("viewerTitle").textContent=photo.filename; $("viewerMeta").textContent=`${photo.folder} · ${formatDate(photo.uploaded_at)}`; $("viewerPrevious").disabled=index===0; $("viewerNext").disabled=index===state.photos.length-1; $("viewer").hidden=false; document.body.style.overflow="hidden"; $("viewerClose").focus(); }
+  function openViewer(index,origin) { closeMenu(); const photo=state.photos[index]; if(!photo)return; state.viewerIndex=index; state.origin=origin || document.activeElement; $("viewerImage").src=photo.url; $("viewerImage").alt=photo.filename; $("viewerTitle").textContent=photo.filename; $("viewerMeta").textContent=`${photo.folder} · ${formatDate(photo.uploaded_at)}`; markFolderChips("viewerMove",photo.folder); $("viewerPrevious").disabled=index===0; $("viewerNext").disabled=index===state.photos.length-1; $("viewer").hidden=false; document.body.style.overflow="hidden"; $("viewerClose").focus(); }
   function closeViewer(){ if($("viewer").hidden)return; $("viewer").hidden=true; $("viewerImage").removeAttribute("src"); document.body.style.overflow=""; const origin=state.origin; state.viewerIndex=-1; state.origin=null; origin?.focus?.(); }
   function moveViewer(delta){ const next=state.viewerIndex+delta; if(next>=0&&next<state.photos.length)openViewer(next,state.origin); }
   function trapViewerFocus(event){ const controls=Array.from($("viewer").querySelectorAll("button:not(:disabled)")); if(!controls.length)return; const first=controls[0],last=controls.at(-1); if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();} }
@@ -165,7 +183,8 @@
   document.querySelectorAll(".filter-button").forEach(button=>button.addEventListener("click",()=>setFilterPanel($("filterPanel").hidden)));
   ["activeState","indexingState","duplicateState"].forEach(id=>$(id).addEventListener("change",event=>{state[id]=event.target.value;resetResultsAndLoad();}));
   $("clearFilters").addEventListener("click",()=>{state.activeState="all";state.indexingState="all";state.duplicateState="all";$("activeState").value="all";$("indexingState").value="all";$("duplicateState").value="all";resetResultsAndLoad();});$("closeFilters").addEventListener("click",()=>setFilterPanel(false));
-  $("contextMenu").addEventListener("click",event=>{const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
+  $("contextMenu").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo){movePhoto(state.selected,moveTo);return;}const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
+  $("viewerMove").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo)movePhoto(state.photos[state.viewerIndex],moveTo);});
   $("viewerClose").addEventListener("click",closeViewer); $("viewerPrevious").addEventListener("click",()=>moveViewer(-1)); $("viewerNext").addEventListener("click",()=>moveViewer(1)); $("viewerDelete").addEventListener("click",()=>{const photo=state.photos[state.viewerIndex];if(photo)permanentDelete(photo);});
   document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();if(!$("filterPanel").hidden&&!$("filterPanel").contains(event.target)&&!event.target.closest(".filter-button"))setFilterPanel(false);}); addEventListener("scroll",closeMenu,{passive:true,capture:true});
   document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("filterPanel").hidden)setFilterPanel(false);else if($("toolbar").classList.contains("search-open")){$("toolbar").classList.remove("search-open");$("searchToggle").setAttribute("aria-expanded","false");$("searchToggle").focus();}else if(!$("viewer").hidden)closeViewer();else if(!$("maintenance").hidden)$("maintenance").hidden=true;}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});

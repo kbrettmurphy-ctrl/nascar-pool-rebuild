@@ -4861,53 +4861,6 @@ async function deleteBuschPhoto_(info, allowRetry = true) {
   }
 }
 
-async function moveBuschPhoto_(info, folder, allowRetry = true) {
-  if (!info?.id) {
-    alert("Could not find this photo in the active gallery.");
-    return;
-  }
-  if (String(folder) === String(info.folder)) return;
-
-  let unlocked = false;
-  try {
-    unlocked = await unlockAdminForPhotoDelete_("move this photo");
-  } catch (err) {
-    alert(err.message || String(err));
-    return;
-  }
-  if (!unlocked) return;
-
-  try {
-    const res = await adminFetch_("/api/move-buschgirl", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photoId: info.id, toFolder: folder })
-    });
-
-    // storage key changed, so refresh every local reference to it
-    const newUrl = res?.url || info.url;
-    const oldClean = String(info.url || "").split("?")[0];
-
-    const entry = buschGirls.find(p => p.id === info.id);
-    if (entry) { entry.folder = folder; entry.url = newUrl; }
-    buschQueue.forEach(p => {
-      if (p.id === info.id) { p.folder = folder; p.url = newUrl; }
-    });
-    buschSeenUrls.delete(oldClean);
-    buschSeenUrls.add(newUrl);
-    buschHistory = buschHistory.map(src =>
-      String(src || "").split("?")[0] === oldClean ? newUrl : src);
-    if (popupImg) popupImg.src = newUrl;
-  } catch (err) {
-    if (allowRetry && /unauthorized|expired/i.test(err.message || "")) {
-      clearAdminToken_();
-      await moveBuschPhoto_(info, folder, false);
-      return;
-    }
-    alert(err.message || String(err));
-  }
-}
-
 // shared placement for the photo menu and its folder submenu
 function placePhotoMenu_(menu, x, y) {
   const panel = menu.querySelector(".buschPhotoMenuPanel");
@@ -4918,41 +4871,6 @@ function placePhotoMenu_(menu, x, y) {
   const top = Math.min(Math.max(preferredTop, pad), window.innerHeight - rect.height - pad);
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
-}
-
-function showBuschFolderMenu_(x, y, info) {
-  closePhotoMenu_();
-
-  const folders = ["soft", "old", "spicy", "spicier"];
-  const menu = document.createElement("div");
-  menu.className = "buschPhotoMenu";
-  menu.innerHTML = `
-    <div class="buschPhotoMenuPanel" role="menu" aria-label="Move photo to folder">
-      ${folders.map(f => `
-        <button type="button" role="menuitem" class="folderItem" data-folder="${f}">
-          ${f === info.folder ? "\u2713 " : ""}${f}
-        </button>`).join("")}
-    </div>
-  `;
-
-  document.body.appendChild(menu);
-  placePhotoMenu_(menu, x, y);
-
-  menu.addEventListener("pointerdown", (e) => {
-    if (!e.target.closest(".buschPhotoMenuPanel")) closePhotoMenu_();
-  });
-
-  menu.querySelectorAll("button").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const folder = btn.dataset.folder;
-      closePhotoMenu_();
-      await moveBuschPhoto_(info, folder);
-    });
-  });
-
-  buschPhotoMenuEl = menu;
 }
 
 function showBuschPhotoMenu_(x, y) {
@@ -4968,7 +4886,6 @@ function showBuschPhotoMenu_(x, y) {
       <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
       <button type="button" role="menuitem" data-action="save">Save Image</button>
       <button type="button" role="menuitem" data-action="info">Get Info</button>
-      <button type="button" role="menuitem" data-action="move">Move to Folder\u2026</button>
       <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
     </div>
   `;
@@ -4992,7 +4909,6 @@ function showBuschPhotoMenu_(x, y) {
       if (action === "view") window.open(info.url, "_blank", "noopener");
       else if (action === "save") await saveBuschPhotoImage_(info);
       else if (action === "info") showBuschPhotoInfo_();
-      else if (action === "move") showBuschFolderMenu_(x, y, info);
       else if (action === "delete") await deleteBuschPhoto_(info);
     });
   });

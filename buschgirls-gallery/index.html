@@ -64,6 +64,8 @@
   <div id="contextMenu" class="context-menu" role="menu" hidden>
     <div id="contextPath" class="context-path"></div><div id="contextDate" class="context-date"></div>
     <button type="button" data-action="view" role="menuitem">View Full Size</button>
+    <div class="context-move-label">Move to folder</div>
+    <div id="contextMove" class="folder-move"><button type="button" class="folder-chip" data-move="soft" role="menuitem">soft</button><button type="button" class="folder-chip" data-move="old" role="menuitem">old</button><button type="button" class="folder-chip" data-move="spicy" role="menuitem">spicy</button><button type="button" class="folder-chip" data-move="spicier" role="menuitem">spicier</button></div>
     <button type="button" data-action="delete" class="danger" role="menuitem">Permanently Delete</button>
   </div>
 
@@ -72,7 +74,10 @@
     <button id="viewerPrevious" class="viewer-nav previous" type="button" aria-label="Previous image">‹</button>
     <figure><img id="viewerImage" alt=""><figcaption><strong id="viewerTitle"></strong><span id="viewerMeta"></span></figcaption></figure>
     <button id="viewerNext" class="viewer-nav next" type="button" aria-label="Next image">›</button>
-    <button id="viewerDelete" class="viewer-delete danger" type="button">Permanently Delete</button>
+    <div class="viewer-tools">
+      <div id="viewerMove" class="folder-move" aria-label="Move to folder"><button type="button" class="folder-chip" data-move="soft">soft</button><button type="button" class="folder-chip" data-move="old">old</button><button type="button" class="folder-chip" data-move="spicy">spicy</button><button type="button" class="folder-chip" data-move="spicier">spicier</button></div>
+      <button id="viewerDelete" class="danger" type="button">Permanently Delete</button>
+    </div>
   </div>
 
   <div id="maintenance" class="modal" role="dialog" aria-modal="true" aria-labelledby="maintenanceTitle" hidden>
