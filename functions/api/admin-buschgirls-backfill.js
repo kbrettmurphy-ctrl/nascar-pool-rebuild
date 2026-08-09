@@ -5,6 +5,10 @@ function totalFrom(response) {
   return Number((response.headers.get("content-range") || "").split("/")[1] || 0);
 }
 
+class UpstreamError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
 export async function onRequestGet({ request, env }) {
   try {
     if (!(await verifyAdminRequest(request, env))) return privateJson({ ok: false, error: "Unauthorized" }, 401);
@@ -18,9 +22,9 @@ export async function onRequestGet({ request, env }) {
       headers: serviceHeaders(env, { Prefer: "count=exact", Range: `0-${limit - 1}` })
     });
     const text = await response.text();
-    if (!response.ok) throw new Error(text || "Backfill query failed");
+    if (!response.ok) throw new UpstreamError(response.status, text || "Backfill query failed");
     return privateJson({ ok: true, photos: JSON.parse(text || "[]"), remaining: totalFrom(response) });
   } catch (error) {
-    return privateJson({ ok: false, error: error.message || String(error) }, 500);
+    return privateJson({ ok: false, error: error.message || String(error) }, error.status || 500);
   }
 }

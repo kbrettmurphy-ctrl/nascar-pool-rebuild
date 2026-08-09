@@ -65,7 +65,7 @@ For a preview, push `feature/buschgirls-gallery`, open the Cloudflare Pages bran
 
 ## Manual backfill — only after August 9, 2026
 
-Do not start the production backfill before August 9, 2026. After that date, unlock admin, open the gallery, choose **Maintenance**, read the 2,605-file / 683-MB warning, and explicitly confirm **Start**. Four items are processed concurrently. **Pause** stops after the active small group; **Resume** queries missing database state, so reloads do not repeat completed rows. **Stop** ends the loop. **Retry failures** retries the capped visible failure set. If authentication expires, processing stops and admin must be unlocked again.
+Do not start the production backfill before August 9, 2026. After that date, unlock admin, open the gallery, choose **Maintenance**, read the 2,605-file / 683-MB warning, and explicitly confirm **Start**. Two items are processed concurrently, with a short delay between groups. Transient HTTP 429, `too_many_connections`, and `SlowDown` failures are retried three times with exponential backoff. **Pause** stops after the active small group; **Resume** queries missing database state, so reloads do not repeat completed rows. **Stop** ends the loop. **Retry failures** retries the capped visible failure set. If authentication expires, processing stops and admin must be unlocked again.
 
 Use **Review duplicates** to inspect exact hash groups. It never merges, deletes, changes votes, or changes active state. After completion, confirm the gallery reports zero pending items and run:
 
