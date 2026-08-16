@@ -1,5 +1,5 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
-import { sendPlayerNotification } from "./_push";
+import { sendBatchNotifications } from "./_push";
 
 export async function onRequestPost(context) {
   try {
@@ -602,6 +602,8 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
     4: 20
   };
 
+  const pending = [];
+
   for (const m of matchups || []) {
     const p1 = Number(m.player1_id);
     const p2 = Number(m.player2_id);
@@ -624,85 +626,101 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
         Number.isFinite(myAvg) && Number.isFinite(oppAvg)
           ? ` ${myAvg.toFixed(1)}-${oppAvg.toFixed(1)}`
           : "";
-      try {
-        if (roundNumber === 4) {
-          const standing = tournamentRankByPlayerId.get(playerId);
-          const rank = Number(standing?.rank || 0);
-          const payout = payoutByRank[rank] || 0;
-          const tournamentRaceBonus = tournamentRaceBonusByPlayerId.get(playerId) || 0;
-          const totalTournamentWinnings = payout + tournamentRaceBonus;
 
-          const lines = [
-            `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
-          ];
+      if (roundNumber === 4) {
+        const standing = tournamentRankByPlayerId.get(playerId);
+        const rank = Number(standing?.rank || 0);
+        const payout = payoutByRank[rank] || 0;
+        const tournamentRaceBonus = tournamentRaceBonusByPlayerId.get(playerId) || 0;
+        const totalTournamentWinnings = payout + tournamentRaceBonus;
 
-          if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
-            lines.push(`${winningDriverName} won ${raceLabel} for an extra $25.`);
-          }
+        const lines = [
+          `You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}.`
+        ];
 
-          if (rank) {
-            lines.push(
-              payout
-                ? `You placed ${ordinal_(rank)} overall for $${payout}.`
-                : `You placed ${ordinal_(rank)} overall.`
-            );
-          }
+        if (raceWinnerPlayerIds.has(playerId) && winningDriverName) {
+          lines.push(`${winningDriverName} won ${raceLabel} for an extra $25.`);
+        }
 
-          if (totalTournamentWinnings > 0) {
-            lines.push(`Tournament winnings: $${totalTournamentWinnings}.`);
-          }
+        if (rank) {
+          lines.push(
+            payout
+              ? `You placed ${ordinal_(rank)} overall for $${payout}.`
+              : `You placed ${ordinal_(rank)} overall.`
+          );
+        }
 
-          const push = await sendPlayerNotification(env, playerName, {
+        if (totalTournamentWinnings > 0) {
+          lines.push(`Tournament winnings: $${totalTournamentWinnings}.`);
+        }
+
+        pending.push({
+          type: "tournamentCompleteCombined",
+          playerName,
+          rank,
+          payload: {
             title: `Tournament ${tournamentId} Complete`,
             body: lines.join(" "),
             url: "/"
-          });
+          }
+        });
 
-          pushResults.push({
-            type: "tournamentCompleteCombined",
-            playerName,
-            rank,
-            ...push
-          });
+      } else {
+        const nextOpponentId = nextOpponentByPlayerId.get(playerId);
+        const nextOpponentName = nameById.get(nextOpponentId);
 
-        } else {
-          const nextOpponentId = nextOpponentByPlayerId.get(playerId);
-          const nextOpponentName = nameById.get(nextOpponentId);
+        const winnerText =
+          raceWinnerPlayerIds.has(playerId) && winningDriverName
+            ? `🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\n`
+            : "";
 
-          const winnerText =
-            raceWinnerPlayerIds.has(playerId) && winningDriverName
-              ? `🏁 RACE WINNER 🏁\n${winningDriverName} won you $25!\n`
-              : "";
+        const nextText =
+          nextRoundNumber <= 4 && nextOpponentName
+            ? ` Round ${nextRoundNumber} is against ${nextOpponentName}.`
+            : "";
 
-          const nextText =
-            nextRoundNumber <= 4 && nextOpponentName
-              ? ` Round ${nextRoundNumber} is against ${nextOpponentName}.`
-              : "";
+        const roast = won ? pickRoast_(WIN_LINES_) : pickRoast_(LOSS_LINES_);
 
-          const roast = won ? pickRoast_(WIN_LINES_) : pickRoast_(LOSS_LINES_);
-
-          const push = await sendPlayerNotification(env, playerName, {
+        pending.push({
+          type: "result",
+          playerName,
+          payload: {
             title: "Results Posted",
             body: `${winnerText}You ${won ? "beat" : "lost to"} ${opponentName}${scoreText}. ${roast}${nextText}`,
             url: "/"
-          });
-
-          pushResults.push({
-            type: "result",
-            playerName,
-            ...push
-          });
-        }
-      } catch (err) {
-        pushResults.push({
-          type: roundNumber === 4 ? "tournamentCompleteCombined" : "result",
-          playerName,
-          sent: 0,
-          failed: 1,
-          error: err.message || String(err)
+          }
         });
       }
     }
+  }
+
+  let sendResultsByPlayerName = new Map();
+
+  try {
+    sendResultsByPlayerName = await sendBatchNotifications(env, pending);
+  } catch (err) {
+    const error = err.message || String(err);
+    for (const p of pending) {
+      pushResults.push({
+        type: p.type,
+        playerName: p.playerName,
+        ...(p.type === "tournamentCompleteCombined" ? { rank: p.rank } : {}),
+        sent: 0,
+        failed: 1,
+        error
+      });
+    }
+    return pushResults;
+  }
+
+  for (const p of pending) {
+    const send = sendResultsByPlayerName.get(p.playerName) || { sent: 0, failed: 0, results: [] };
+    pushResults.push({
+      type: p.type,
+      playerName: p.playerName,
+      ...(p.type === "tournamentCompleteCombined" ? { rank: p.rank } : {}),
+      ...send
+    });
   }
 
   /*if (roundNumber !== 4 && winningDriverName) {
@@ -1011,6 +1029,10 @@ async function syncPlayerFinancialWinnings(env) {
   let updatedCount = 0;
   let createdCount = 0;
 
+  // One bulk upsert instead of one PATCH/POST per player — same subrequest-budget
+  // problem as the push loop above (up to 16 sequential writes on the same request).
+  const rowsToWrite = [];
+
   for (const p of players || []) {
     const playerId = Number(p.id);
     const winnings = Number(winningsByPlayerId.get(playerId) || 0);
@@ -1020,39 +1042,37 @@ async function syncPlayerFinancialWinnings(env) {
       const currentWinnings = Number(existing.winnings || 0);
       if (currentWinnings === winnings) continue;
 
-      const patchRes = await fetch(
-        `${env.SUPABASE_URL}/rest/v1/player_financials?player_id=eq.${playerId}`,
-        {
-          method: "PATCH",
-          headers: writeHeaders,
-          body: JSON.stringify({ winnings }),
-        }
-      );
-
-      const patchText = await patchRes.text();
-      if (!patchRes.ok) {
-        throw new Error(`Failed to update winnings for player ${playerId}: ${patchText}`);
-      }
-
+      // Every row in a bulk upsert must share the same keys, so carry the
+      // player's existing paid/paidout through unchanged rather than omitting them.
+      rowsToWrite.push({
+        player_id: playerId,
+        paid: Number(existing.paid || 0),
+        winnings,
+        paidout: Number(existing.paidout || 0),
+      });
       updatedCount += 1;
     } else if (winnings > 0) {
-      const postRes = await fetch(`${env.SUPABASE_URL}/rest/v1/player_financials`, {
-        method: "POST",
-        headers: writeHeaders,
-        body: JSON.stringify([{
-          player_id: playerId,
-          paid: 0,
-          winnings,
-          paidout: 0,
-        }]),
-      });
-
-      const postText = await postRes.text();
-      if (!postRes.ok) {
-        throw new Error(`Failed to create winnings row for player ${playerId}: ${postText}`);
-      }
-
+      rowsToWrite.push({ player_id: playerId, paid: 0, winnings, paidout: 0 });
       createdCount += 1;
+    }
+  }
+
+  if (rowsToWrite.length) {
+    const upsertRes = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/player_financials?on_conflict=player_id`,
+      {
+        method: "POST",
+        headers: {
+          ...writeHeaders,
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(rowsToWrite),
+      }
+    );
+
+    if (!upsertRes.ok) {
+      const upsertText = await upsertRes.text();
+      throw new Error(`Failed to sync player winnings: ${upsertText}`);
     }
   }
 

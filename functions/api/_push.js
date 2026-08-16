@@ -9,6 +9,83 @@ export async function sendAllNotifications(env, payload) {
   return sendPushWhere(env, "", payload);
 }
 
+// One subscriptions query + parallel sends for many players at once, instead of
+// one query per player. Cuts subrequest count roughly in half on a full-roster
+// notification (e.g. results/tournament-complete pushes), which was blowing
+// past Cloudflare's per-request subrequest limit partway through the player
+// list on tournament-complete rounds.
+export async function sendBatchNotifications(env, notifications) {
+  const headers = {
+    apikey: env.SUPABASE_SECRET_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
+  };
+
+  const payloadByPlayerName = new Map();
+  for (const n of notifications || []) {
+    const name = String(n?.playerName || "").trim();
+    if (!name || !n?.payload) continue;
+    payloadByPlayerName.set(name, n.payload);
+  }
+
+  const uniqueNames = [...payloadByPlayerName.keys()];
+  const resultsByPlayerName = new Map(
+    uniqueNames.map((name) => [name, { sent: 0, failed: 0, results: [] }])
+  );
+
+  if (!uniqueNames.length) return resultsByPlayerName;
+
+  const inList = uniqueNames.join(",");
+  const res = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/push_subscriptions?select=id,player_name,subscription&player_name=in.(${encodeURIComponent(inList)})&paused=eq.false`,
+    { headers }
+  );
+
+  const rows = await res.json().catch(() => []);
+
+  if (!res.ok) {
+    throw new Error("Failed to load push subscriptions");
+  }
+
+  const deadIds = [];
+
+  await Promise.all(
+    (rows || []).map(async (row) => {
+      const name = String(row.player_name || "").trim();
+      const payload = payloadByPlayerName.get(name);
+      if (!payload) return;
+
+      const bucket = resultsByPlayerName.get(name);
+
+      try {
+        const pushRes = await sendEncryptedWebPush(row.subscription, payload, env);
+
+        bucket.results.push({ id: row.id, status: pushRes.status, ok: pushRes.ok });
+        if (pushRes.ok) {
+          bucket.sent += 1;
+        } else {
+          bucket.failed += 1;
+        }
+
+        if (pushRes.status === 404 || pushRes.status === 410) {
+          deadIds.push(row.id);
+        }
+      } catch (err) {
+        bucket.failed += 1;
+        bucket.results.push({ id: row.id, ok: false, error: err.message || String(err) });
+      }
+    })
+  );
+
+  if (deadIds.length) {
+    await fetch(
+      `${env.SUPABASE_URL}/rest/v1/push_subscriptions?id=in.(${deadIds.join(",")})`,
+      { method: "DELETE", headers }
+    );
+  }
+
+  return resultsByPlayerName;
+}
+
 async function sendPushWhere(env, filter, payload) {
   const headers = {
     apikey: env.SUPABASE_SECRET_KEY,
