@@ -48,6 +48,25 @@ async function memberRoster(env) {
   };
 }
 
+async function createSetupLink(env, email, redirectTo) {
+  const data = await serviceJson(
+    env,
+    `/auth/v1/admin/generate_link?redirect_to=${encodeURIComponent(redirectTo)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "magiclink", email })
+    }
+  );
+  const setupLink = String(data?.action_link || "");
+  if (!setupLink.startsWith("https://")) {
+    const error = new Error("Supabase did not return a setup link");
+    error.status = 502;
+    throw error;
+  }
+  return setupLink;
+}
+
 export async function onRequestGet({ request, env }) {
   try {
     const admin = await getVerifiedAdminRequest(request, env);
@@ -81,6 +100,24 @@ export async function onRequestPost({ request, env }) {
       });
       if (!Array.isArray(rows) || !rows.length) return json({ ok: false, error: "Member not found" }, 404);
       return json({ ok: true, memberId, isAdmin });
+    }
+
+    if (action === "setup-link") {
+      const memberId = String(body?.memberId || "");
+      if (!UUID_RE.test(memberId)) return json({ ok: false, error: "Invalid member" }, 400);
+      const rows = await serviceJson(
+        env,
+        `/rest/v1/pool_members?id=eq.${encodeURIComponent(memberId)}&active=eq.true&select=id,email&limit=1`
+      );
+      const member = rows?.[0];
+      if (!member?.email) return json({ ok: false, error: "Member not found" }, 404);
+      const redirectTo = `${new URL(request.url).origin}/?memberAuth=recovery`;
+      const setupLink = await createSetupLink(env, String(member.email).toLowerCase(), redirectTo);
+      return json({
+        ok: true,
+        setupLink,
+        message: `Setup link created for ${String(member.email).toLowerCase()}`
+      });
     }
 
     if (action === "invite") {
@@ -120,11 +157,22 @@ export async function onRequestPost({ request, env }) {
       }
 
       const redirectTo = `${new URL(request.url).origin}/`;
-      await serviceJson(env, `/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
+      try {
+        await serviceJson(env, `/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+      } catch (error) {
+        if (error.status !== 429 && !/email rate limit/i.test(error.message || "")) throw error;
+        const setupLink = await createSetupLink(env, email, `${redirectTo}?memberAuth=recovery`);
+        return json({
+          ok: true,
+          invitationSent: false,
+          setupLink,
+          message: `Supabase's email limit was reached. ${email} is saved—copy and send the setup link below.`
+        });
+      }
       return json({ ok: true, message: `Invitation sent to ${email}` });
     }
 

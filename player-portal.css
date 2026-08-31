@@ -2376,6 +2376,42 @@ a.newsCard:last-child{ border-bottom:none; }
   font-size:12px;
 }
 
+.adminSetupLinkBtn{
+  margin-top:6px;
+  padding:6px 9px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--chip);
+  color:var(--text);
+  font-size:11px;
+  font-weight:700;
+}
+
+.adminSetupLink{
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+}
+
+.adminSetupLink input{
+  flex:1 1 auto;
+  min-width:0;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--glassBlue14);
+  color:var(--text);
+  font-size:12px;
+}
+
+.adminSetupLink button{
+  flex:0 0 auto;
+  padding:8px 12px;
+  border-radius:9px;
+  font-size:12px;
+  font-weight:700;
+}
+
 .adminRoleToggle{
   display:flex;
   align-items:center;

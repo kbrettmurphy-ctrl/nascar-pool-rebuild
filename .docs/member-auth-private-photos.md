@@ -16,6 +16,7 @@ This rollout is intentionally split so the live photo rotation is never broken b
 - Administrator access is a server-managed member role; guests and ordinary members cannot open admin tools.
 - Signed-in admins open the portal without a second PIN.
 - Admins can invite players and temporarily grant or revoke admin access from the Members tab.
+- Signed-out visitors see the login prompt on every page load; choosing Guest applies only to that visit.
 
 ## Required Cloudflare Pages variables
 
@@ -120,6 +121,11 @@ open **Members**. Choose an unlinked player, enter the player's email, and
 choose **Send invitation**. Supabase sends the account/password setup link.
 After the member accepts the invitation and signs in, reload the Members tab
 to make the Admin toggle available if temporary administrator access is needed.
+
+Supabase's shared mail service can rate-limit invitation emails. If that occurs,
+the member remains safely allowlisted and the admin screen returns a private
+setup link to copy and send directly. Every pending member also has a **Create
+setup link** button, so a failed or lost email does not block account setup.
 
 Admin roles are stored in `public.pool_members.is_admin`, never browser-editable
 user metadata. Every protected admin request re-checks that the member is still

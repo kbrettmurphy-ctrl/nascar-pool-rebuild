@@ -544,6 +544,38 @@ if (liveCard) {
     el.style.color = isError ? "var(--red)" : "var(--muted)";
   }
 
+  function showMemberSetupLink_(message, setupLink) {
+    const status = document.getElementById("adminMembersStatus");
+    if (!status || !setupLink) return;
+    status.replaceChildren();
+    status.style.color = "var(--muted)";
+
+    const explanation = document.createElement("div");
+    explanation.textContent = message || "Copy and send this private account setup link.";
+    const share = document.createElement("div");
+    share.className = "adminSetupLink";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.readOnly = true;
+    input.value = setupLink;
+    input.setAttribute("aria-label", "Member setup link");
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "Copy link";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(setupLink);
+        copy.textContent = "Copied";
+      } catch {
+        input.focus();
+        input.select();
+        copy.textContent = "Select and copy";
+      }
+    });
+    share.append(input, copy);
+    status.append(explanation, share);
+  }
+
   function setAdminTab_(tabName) {
     document.querySelectorAll(".adminTab").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.adminTab === tabName);
@@ -614,8 +646,32 @@ if (liveCard) {
         name.textContent = member.playerName || "Unknown player";
         const email = document.createElement("div");
         email.className = "adminMemberEmail muted";
-        email.textContent = `${member.email}${member.hasAccount ? "" : " · invitation pending"}`;
+        email.textContent = `${member.email}${member.hasAccount ? "" : " · account setup pending"}`;
         identity.append(name, email);
+
+        if (!member.hasAccount) {
+          const setupButton = document.createElement("button");
+          setupButton.type = "button";
+          setupButton.className = "adminSetupLinkBtn";
+          setupButton.textContent = "Create setup link";
+          setupButton.addEventListener("click", async () => {
+            setupButton.disabled = true;
+            setAdminStatus_("adminMembersStatus", `Creating a setup link for ${member.playerName}…`);
+            try {
+              const result = await adminFetch_("/api/admin-members", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "setup-link", memberId: member.id })
+              });
+              showMemberSetupLink_(result.message, result.setupLink);
+            } catch (error) {
+              setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+            } finally {
+              setupButton.disabled = false;
+            }
+          });
+          identity.append(setupButton);
+        }
 
         const label = document.createElement("label");
         label.className = "adminRoleToggle";
@@ -677,8 +733,10 @@ if (liveCard) {
       });
       if (emailInput) emailInput.value = "";
       await loadAdminMembers_();
-      setAdminStatus_("adminMembersStatus", data.message || "Invitation sent.");
+      if (data.setupLink) showMemberSetupLink_(data.message, data.setupLink);
+      else setAdminStatus_("adminMembersStatus", data.message || "Invitation sent.");
     } catch (error) {
+      await loadAdminMembers_();
       setAdminStatus_("adminMembersStatus", error.message || String(error), true);
     } finally {
       if (button) button.disabled = false;

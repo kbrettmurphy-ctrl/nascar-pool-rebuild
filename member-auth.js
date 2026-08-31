@@ -1,7 +1,6 @@
 (function () {
   "use strict";
 
-  const GUEST_KEY = "nascar_pool_guest_mode";
   let client = null;
   let member = null;
   let enabled = false;
@@ -15,18 +14,6 @@
     if (!status) return;
     status.textContent = message || "";
     status.classList.toggle("error", Boolean(isError));
-  }
-
-  function rememberGuest(on) {
-    try {
-      if (on) localStorage.setItem(GUEST_KEY, "1");
-      else localStorage.removeItem(GUEST_KEY);
-    } catch {}
-  }
-
-  function isRememberedGuest() {
-    try { return localStorage.getItem(GUEST_KEY) === "1"; }
-    catch { return false; }
   }
 
   function setPanel(name) {
@@ -89,7 +76,6 @@
       throw new Error(data?.error || "This account is not an active pool member.");
     }
     member = data.member;
-    rememberGuest(false);
     const label = byId("memberAccountIdentity");
     if (label) label.textContent = `${member.playerName} · ${member.email}`;
     emit();
@@ -169,7 +155,6 @@
 
   function continueAsGuest() {
     member = null;
-    rememberGuest(true);
     hideModal();
     emit();
   }
@@ -177,7 +162,6 @@
   async function signOut() {
     await client?.auth.signOut().catch(() => {});
     member = null;
-    rememberGuest(false);
     emit();
     showModal("signin");
   }
@@ -239,9 +223,6 @@
         } catch (error) {
           await rejectUnapprovedSession(error?.message || "This account is not an active pool member.");
         }
-      } else if (isRememberedGuest()) {
-        hideModal();
-        emit();
       } else {
         showModal("signin");
         emit();
@@ -249,7 +230,6 @@
     } catch (error) {
       enabled = false;
       member = null;
-      rememberGuest(true);
       hideModal();
       paintAccountButton();
       emit();
