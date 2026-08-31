@@ -67,6 +67,15 @@ async function createSetupLink(env, email, redirectTo) {
   return setupLink;
 }
 
+async function findPendingAuthUser(env, email) {
+  const data = await serviceJson(env, "/auth/v1/admin/users?page=1&per_page=1000");
+  const user = (data?.users || []).find(candidate =>
+    String(candidate?.email || "").trim().toLowerCase() === email
+  );
+  if (!user?.id) return null;
+  return user.invited_at && !user.last_sign_in_at ? user : null;
+}
+
 export async function onRequestGet({ request, env }) {
   try {
     const admin = await getVerifiedAdminRequest(request, env);
@@ -118,6 +127,36 @@ export async function onRequestPost({ request, env }) {
         setupLink,
         message: `Setup link created for ${String(member.email).toLowerCase()}`
       });
+    }
+
+    if (action === "cancel-invite") {
+      const memberId = String(body?.memberId || "");
+      if (!UUID_RE.test(memberId)) return json({ ok: false, error: "Invalid member" }, 400);
+      if (memberId === admin.memberId) {
+        return json({ ok: false, error: "You cannot remove your own member account" }, 400);
+      }
+      const rows = await serviceJson(
+        env,
+        `/rest/v1/pool_members?id=eq.${encodeURIComponent(memberId)}&select=id,email,auth_user_id&limit=1`
+      );
+      const member = rows?.[0];
+      if (!member?.email) return json({ ok: false, error: "Invitation not found" }, 404);
+      if (member.auth_user_id) {
+        return json({ ok: false, error: "Active member accounts cannot be removed as invitations" }, 409);
+      }
+
+      const email = String(member.email).trim().toLowerCase();
+      const pendingUser = await findPendingAuthUser(env, email);
+      if (pendingUser) {
+        await serviceJson(env, `/auth/v1/admin/users/${encodeURIComponent(pendingUser.id)}`, {
+          method: "DELETE"
+        });
+      }
+      await serviceJson(env, `/rest/v1/pool_members?id=eq.${encodeURIComponent(memberId)}`, {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" }
+      });
+      return json({ ok: true, message: `Invitation canceled for ${email}` });
     }
 
     if (action === "invite") {

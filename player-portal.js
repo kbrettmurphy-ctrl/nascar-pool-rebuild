@@ -650,6 +650,8 @@ if (liveCard) {
         identity.append(name, email);
 
         if (!member.hasAccount) {
+          const pendingActions = document.createElement("div");
+          pendingActions.className = "adminPendingActions";
           const setupButton = document.createElement("button");
           setupButton.type = "button";
           setupButton.className = "adminSetupLinkBtn";
@@ -670,7 +672,35 @@ if (liveCard) {
               setupButton.disabled = false;
             }
           });
-          identity.append(setupButton);
+
+          const cancelButton = document.createElement("button");
+          cancelButton.type = "button";
+          cancelButton.className = "adminCancelInviteBtn";
+          cancelButton.textContent = "Cancel invitation";
+          cancelButton.addEventListener("click", async () => {
+            const confirmed = window.confirm(
+              `Cancel the invitation for ${member.playerName} (${member.email})? Their setup link will stop working.`
+            );
+            if (!confirmed) return;
+            setupButton.disabled = true;
+            cancelButton.disabled = true;
+            setAdminStatus_("adminMembersStatus", `Canceling ${member.playerName}'s invitation…`);
+            try {
+              const result = await adminFetch_("/api/admin-members", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "cancel-invite", memberId: member.id })
+              });
+              await loadAdminMembers_();
+              setAdminStatus_("adminMembersStatus", result.message || "Invitation canceled.");
+            } catch (error) {
+              setupButton.disabled = false;
+              cancelButton.disabled = false;
+              setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+            }
+          });
+          pendingActions.append(setupButton, cancelButton);
+          identity.append(pendingActions);
         }
 
         const label = document.createElement("label");

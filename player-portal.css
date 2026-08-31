@@ -2376,8 +2376,15 @@ a.newsCard:last-child{ border-bottom:none; }
   font-size:12px;
 }
 
-.adminSetupLinkBtn{
+.adminPendingActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
   margin-top:6px;
+}
+
+.adminSetupLinkBtn,
+.adminCancelInviteBtn{
   padding:6px 9px;
   border:1px solid var(--line);
   border-radius:8px;
@@ -2385,6 +2392,11 @@ a.newsCard:last-child{ border-bottom:none; }
   color:var(--text);
   font-size:11px;
   font-weight:700;
+}
+
+.adminCancelInviteBtn{
+  border-color:var(--red);
+  color:var(--redText);
 }
 
 .adminSetupLink{

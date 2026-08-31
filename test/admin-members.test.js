@@ -90,3 +90,62 @@ test("email rate limit falls back to a setup link without losing the member", as
   assert.equal(body.invitationSent, false);
   assert.match(body.setupLink, /fallback/);
 });
+
+test("pending invitation can be canceled and its Auth user is deleted", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const pendingUserId = "44444444-4444-4444-8444-444444444444";
+  let authUserDeleted = false;
+  let memberDeleted = false;
+  globalThis.fetch = async (input, options = {}) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/pool_members?") && url.includes("is_admin=eq.true")) return json([{ id: admin.id }]);
+    if (url.includes(`/rest/v1/pool_members?id=eq.${pendingMemberId}`) && options.method !== "DELETE") {
+      return json([{ id: pendingMemberId, email: "wrong@example.com", auth_user_id: null }]);
+    }
+    if (url.includes("/auth/v1/admin/users?page=1")) {
+      return json({ users: [{ id: pendingUserId, email: "wrong@example.com", invited_at: "2026-08-31T00:00:00Z", last_sign_in_at: null }] });
+    }
+    if (url.endsWith(`/auth/v1/admin/users/${pendingUserId}`) && options.method === "DELETE") {
+      authUserDeleted = true;
+      return json({});
+    }
+    if (url.includes(`/rest/v1/pool_members?id=eq.${pendingMemberId}`) && options.method === "DELETE") {
+      assert.equal(authUserDeleted, true, "Auth invitation should be invalidated before the roster row is removed");
+      memberDeleted = true;
+      return new Response(null, { status: 204 });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const response = await postAdminMembers({
+    request: await adminRequest({ action: "cancel-invite", memberId: pendingMemberId }),
+    env
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(authUserDeleted, true);
+  assert.equal(memberDeleted, true);
+});
+
+test("established member account cannot be canceled as an invitation", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (input, options = {}) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/pool_members?") && url.includes("is_admin=eq.true")) return json([{ id: admin.id }]);
+    if (url.includes(`/rest/v1/pool_members?id=eq.${pendingMemberId}`) && options.method !== "DELETE") {
+      return json([{ id: pendingMemberId, email: "member@example.com", auth_user_id: "55555555-5555-4555-8555-555555555555" }]);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const response = await postAdminMembers({
+    request: await adminRequest({ action: "cancel-invite", memberId: pendingMemberId }),
+    env
+  });
+  const body = await response.json();
+  assert.equal(response.status, 409);
+  assert.match(body.error, /Active member accounts/);
+});
