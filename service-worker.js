@@ -1,10 +1,12 @@
-const CACHE_NAME = "nascar-pool-pwa-v64";
+const CACHE_NAME = "nascar-pool-pwa-v65";
 
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/player-portal.css",
   "/player-portal.js",
+  "/member-auth.js",
+  "/vendor/supabase-2.112.4.js",
   "/manifest.webmanifest",
   "/img/icon-192.png",
   "/img/icon-512.png",
@@ -64,7 +66,10 @@ self.addEventListener("fetch", (event) => {
       url.pathname.startsWith("/api/delete-buschgirl") ||
       url.pathname.includes("/storage/v1/object/public/buschgirls-thumbnails/") ||
       url.pathname.includes("/storage/v1/object/sign/buschgirls-thumbnails/") ||
-      url.pathname.includes("/storage/v1/object/buschgirls-thumbnails/")) {
+      url.pathname.includes("/storage/v1/object/buschgirls-thumbnails/") ||
+      url.pathname.includes("/storage/v1/object/public/buschgirls/") ||
+      url.pathname.includes("/storage/v1/object/sign/buschgirls/") ||
+      url.pathname.includes("/storage/v1/object/buschgirls/")) {
     event.respondWith(fetch(req));
     return;
   }

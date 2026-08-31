@@ -56,10 +56,67 @@
     </button>
 
     <div class="headerActions">
+      <button class="iconBtn" id="memberAccountBtn" type="button" aria-label="Member sign in" title="Member sign in">👤</button>
       <button class="iconBtn" id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
       <button class="iconBtn" onclick="refreshActiveView()" type="button" aria-label="Refresh">🔄</button>
       <button class="iconBtn" id="enableNotificationsBtn" type="button" aria-label="Enable notifications">🔔</button>
     </div>
+  </div>
+
+  <div id="memberAuthBackdrop" class="memberAuthBackdrop" hidden>
+    <section class="memberAuthCard" role="dialog" aria-modal="true" aria-labelledby="memberAuthTitle">
+      <div data-member-panel="signin">
+        <div class="memberAuthMark">NASCAR '26</div>
+        <h1 id="memberAuthTitle">Member sign in</h1>
+        <p class="muted">Members stay signed in on this device. Portfolio visitors can continue in guest mode.</p>
+        <form id="memberSignInForm" class="memberAuthForm">
+          <label for="memberEmail">Email</label>
+          <input id="memberEmail" name="email" type="email" inputmode="email" autocomplete="username" required>
+          <label for="memberPassword">Password</label>
+          <input id="memberPassword" name="password" type="password" autocomplete="current-password" required>
+          <button id="memberSignInBtn" class="primary" type="submit">Sign in</button>
+        </form>
+        <button id="memberForgotBtn" class="memberAuthLink" type="button">Forgot password?</button>
+        <div class="memberAuthDivider"><span>or</span></div>
+        <button id="memberGuestBtn" class="memberGuestBtn" type="button">Continue as guest</button>
+      </div>
+
+      <div data-member-panel="reset" hidden>
+        <div class="memberAuthMark">Account recovery</div>
+        <h1>Reset password</h1>
+        <p class="muted">We'll email a secure reset link to an approved member account.</p>
+        <form id="memberResetForm" class="memberAuthForm">
+          <label for="memberResetEmail">Email</label>
+          <input id="memberResetEmail" name="email" type="email" inputmode="email" autocomplete="username" required>
+          <button id="memberResetBtn" class="primary" type="submit">Send reset email</button>
+        </form>
+        <button class="memberAuthLink" data-member-back type="button">Back to sign in</button>
+      </div>
+
+      <div data-member-panel="password" hidden>
+        <div class="memberAuthMark">Member account</div>
+        <h1>Choose a password</h1>
+        <p class="muted">Your phone or password manager can create and save a strong password.</p>
+        <form id="memberPasswordForm" class="memberAuthForm">
+          <label for="memberNewPassword">New password</label>
+          <input id="memberNewPassword" name="new-password" type="password" minlength="8" autocomplete="new-password" required>
+          <label for="memberConfirmPassword">Confirm password</label>
+          <input id="memberConfirmPassword" name="confirm-password" type="password" minlength="8" autocomplete="new-password" required>
+          <button id="memberPasswordBtn" class="primary" type="submit">Save password</button>
+        </form>
+        <button class="memberAuthLink" data-member-back type="button">Cancel</button>
+      </div>
+
+      <div data-member-panel="account" hidden>
+        <button id="memberAccountCloseBtn" class="memberAuthClose" type="button" aria-label="Close">×</button>
+        <div class="memberAuthMark">Signed in</div>
+        <h1>Member account</h1>
+        <p id="memberAccountIdentity" class="memberAccountIdentity"></p>
+        <button id="memberChangePasswordBtn" class="memberGuestBtn" type="button">Change password</button>
+        <button id="memberSignOutBtn" class="memberAuthLink dangerText" type="button">Sign out</button>
+      </div>
+      <div id="memberAuthStatus" class="memberAuthStatus" aria-live="polite"></div>
+    </section>
   </div>
 
   <div id="gfGlobal"></div>
@@ -410,6 +467,8 @@
       })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/ios-haptics@latest/dist/ios-haptics.min.js"></script>
+    <script src="/vendor/supabase-2.112.4.js"></script>
+    <script src="/member-auth.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

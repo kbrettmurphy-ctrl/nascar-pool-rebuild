@@ -80,14 +80,14 @@ export async function onRequestPost({ request, env }) {
     const insertRes = await fetch(`${env.SUPABASE_URL}/rest/v1/buschgirls_photos`, {
       method: "POST",
       headers: serviceHeaders(env, { "Content-Type": "application/json", Prefer: "return=representation" }),
-      body: JSON.stringify([{ id, folder, filename, url: publicUrl, active: true, sort_order: Number(maxRows?.[0]?.sort_order || 0) + 1, sha256, thumbnail_path: thumbnailPath, indexed_at: new Date().toISOString() }])
+      body: JSON.stringify([{ id, folder, filename, storage_path: originalPath, url: publicUrl, active: true, sort_order: Number(maxRows?.[0]?.sort_order || 0) + 1, sha256, thumbnail_path: thumbnailPath, indexed_at: new Date().toISOString() }])
     });
     const insertText = await insertRes.text();
     if (!insertRes.ok) {
       await Promise.all([removeObject(env, "buschgirls", originalPath), removeObject(env, "buschgirls-thumbnails", thumbnailPath)]);
       return privateJson({ ok: false, error: insertText || "Database insert failed" }, 500);
     }
-    return privateJson({ ok: true, id, folder, filename, url: publicUrl, sha256, thumbnailReady: true });
+    return privateJson({ ok: true, id, folder, filename, sha256, thumbnailReady: true });
   } catch (error) {
     return privateJson({ ok: false, error: error.message || String(error) }, 500);
   }

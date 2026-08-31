@@ -1,7 +1,7 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
 
 // One-time-ish admin tool: move photos between folders in the
-// buschgirls bucket and fix their DB rows (folder + url).
+// buschgirls bucket and fix their DB rows (folder + canonical path).
 // POST { from, to, since, dryRun } - dryRun returns the hit list
 // without touching anything.
 export async function onRequestPost(context) {
@@ -80,7 +80,7 @@ export async function onRequestPost(context) {
           {
             method: "PATCH",
             headers: { ...sb, "Content-Type": "application/json", Prefer: "return=minimal" },
-            body: JSON.stringify({ folder: to, url: newUrl }),
+            body: JSON.stringify({ folder: to, storage_path: `${to}/${filename}`, url: newUrl }),
           }
         );
         if (!up.ok) {

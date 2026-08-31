@@ -445,6 +445,129 @@ select, input{
   flex:0 0 auto;
 }
 .iconBtn:hover{ background: var(--chipHover); }
+.iconBtn.memberActive{
+  color:var(--greenText);
+  border-color:color-mix(in srgb, var(--green) 55%, transparent);
+  background:color-mix(in srgb, var(--green) 14%, var(--chip));
+}
+
+/* ==========================================================
+   Member authentication
+   ========================================================== */
+
+.memberAuthBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  place-items:center;
+  padding:calc(20px + env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom));
+  background:var(--overlayBg);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.memberAuthBackdrop[hidden]{ display:none; }
+.memberAuthCard{
+  position:relative;
+  width:min(100%, 390px);
+  max-height:calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow:auto;
+  padding:24px;
+  border:1px solid var(--line);
+  border-radius:22px;
+  background:var(--sheetBg);
+  color:var(--text);
+  box-shadow:var(--popShadow);
+}
+.memberAuthCard h1{
+  margin:4px 0 8px;
+  font-size:24px;
+  line-height:1.15;
+  letter-spacing:-.5px;
+}
+.memberAuthMark{
+  color:var(--yellowText);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+}
+.memberAuthForm{
+  display:grid;
+  gap:7px;
+  margin-top:16px;
+}
+.memberAuthForm label{ margin:3px 0 0; }
+.memberAuthForm input{
+  width:100%;
+  height:44px;
+  padding:9px 11px;
+  background:var(--chip);
+}
+.memberAuthForm .primary{
+  width:100%;
+  min-height:44px;
+  margin-top:8px;
+}
+.memberAuthLink,
+.memberGuestBtn{
+  width:100%;
+  min-height:42px;
+  margin-top:10px;
+}
+.memberAuthLink{
+  border:0;
+  background:transparent;
+  color:var(--blueText);
+}
+.memberAuthLink:hover{ background:var(--chip); }
+.memberGuestBtn{
+  background:var(--chip);
+  border-color:var(--chipBorder);
+}
+.memberAuthDivider{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0 0;
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+}
+.memberAuthDivider::before,
+.memberAuthDivider::after{
+  content:"";
+  flex:1;
+  height:1px;
+  background:var(--lineSoft);
+}
+.memberAuthStatus{
+  min-height:20px;
+  margin-top:12px;
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+}
+.memberAuthStatus.error{ color:var(--redText); }
+.memberAuthClose{
+  position:absolute;
+  top:12px;
+  right:12px;
+  width:34px;
+  height:34px;
+  padding:0;
+  border-radius:999px;
+  font-size:22px;
+  line-height:1;
+}
+.memberAccountIdentity{
+  padding:12px;
+  border:1px solid var(--lineSoft);
+  border-radius:12px;
+  background:var(--chip);
+  font-weight:700;
+}
+.dangerText{ color:var(--redText); }
 
 @media (max-width:380px){
   .spoilerToggle .label{ display:none; }
@@ -685,6 +808,10 @@ select, input{
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   user-select:none;
+}
+.buschLogoWrap.memberOnlyDisabled .buschLogoTrigger{
+  pointer-events:none;
+  cursor:default;
 }
 
 .sponsor-logo{

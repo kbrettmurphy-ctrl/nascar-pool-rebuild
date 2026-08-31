@@ -33,8 +33,27 @@ export async function supabaseRows(env, path, options = {}) {
   return { data, response };
 }
 
-export function publicThumbnailUrl(env, path) {
-  return `${env.SUPABASE_URL}/storage/v1/object/public/buschgirls-thumbnails/${path.split("/").map(encodeURIComponent).join("/")}`;
+export async function signStoragePaths(env, bucket, paths, expiresIn = 900) {
+  const cleanPaths = Array.from(new Set((paths || []).map(path => String(path || "").trim()).filter(Boolean)));
+  if (!cleanPaths.length) return new Map();
+  const signed = new Map();
+  for (let offset = 0; offset < cleanPaths.length; offset += 100) {
+    const batch = cleanPaths.slice(offset, offset + 100);
+    const response = await fetch(`${env.SUPABASE_URL}/storage/v1/object/sign/${encodeURIComponent(bucket)}`, {
+      method: "POST",
+      headers: serviceHeaders(env, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ expiresIn, paths: batch })
+    });
+    const data = await response.json().catch(() => []);
+    if (!response.ok || !Array.isArray(data)) throw new Error("Private photo signing failed");
+    data.forEach((item, index) => {
+      const path = String(item?.path || batch[index] || "");
+      const relative = String(item?.signedURL || item?.signedUrl || "");
+      if (!path || !relative) return;
+      signed.set(path, relative.startsWith("http") ? relative : `${env.SUPABASE_URL}/storage/v1${relative}`);
+    });
+  }
+  return signed;
 }
 
 export function storageObjectUrl(env, bucket, path) {

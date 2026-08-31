@@ -100,14 +100,14 @@
     const from=photo.folder; const label=`${from}/${photo.filename}`;
     $("status").textContent=`Moving ${label} to ${folder}...`;
     try {
-      const result=await api("/api/move-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id,toFolder:folder})});
-      photo.folder=folder; if(result?.url)photo.url=result.url;
+      await api("/api/move-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id,toFolder:folder})});
+      photo.folder=folder;
       closeMenu();
       const viewing=!$("viewer").hidden&&state.photos[state.viewerIndex]?.id===photo.id;
-      if(viewing){ $("viewerImage").src=photo.url; $("viewerMeta").textContent=`${photo.folder} \u00b7 ${formatDate(photo.uploaded_at)}`; markFolderChips("viewerMove",folder); }
+      if(viewing)closeViewer();
       $("status").textContent=`Moved ${photo.filename} from ${from} to ${folder}.`;
-      // if a folder filter is active the photo no longer belongs here
-      if(state.folder!=="all"&&state.folder!==folder){ closeViewer(); await loadPage(); }
+      // Refresh so the moved object receives a new short-lived signed URL.
+      await loadPage();
     } catch(error){ handleError(error); }
   }
 

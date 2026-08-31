@@ -33,6 +33,8 @@
   let _adminSeedWheel = null;
   let _adminLongPressTimer = null;
   let _adminLongPressTriggered = false;
+  let _memberIdentity = null;
+  let _wasMember = false;
   let _currentLoaded = false;
   let _standingsLoaded = false;
   let _duesLoaded = false;
@@ -1748,7 +1750,7 @@ await refreshAfterAdminChange_();
     gp.innerHTML = options;
 
     const ph = gp.querySelector("#playerPlaceholder");
-    const saved = loadPlayerName();
+    const saved = _memberIdentity?.playerName || loadPlayerName();
 
     if (saved) {
       gp.value = saved;
@@ -1762,6 +1764,8 @@ await refreshAfterAdminChange_();
     }
 
     autoSizePlayerSelect_(gp);
+    gp.disabled = Boolean(_memberIdentity);
+    gp.title = _memberIdentity ? "Your player is linked to your member account" : "Choose a player";
 
     gp.onchange = async () => {
       const name = String(gp.value || "").trim();
@@ -3661,6 +3665,9 @@ let buschGirls = [];
 let buschQueue = [];
 
 let buschSeenUrls = new Set();
+let _buschLoadPromise = null;
+let _buschInitialBatch = true;
+let _buschBatchExpiresAt = 0;
 
 const BUSCH_WARMUP_COUNT = 2;
 
@@ -4190,9 +4197,8 @@ function initBuschVotes_() {
     const p = currentPhoto_();
     if (!p || !p.id) return;
 
-    const name = loadPlayerName().trim();
-    if (!name) {
-      alert("Pick your name first so your vote counts.");
+    if (!window.MemberAuth?.isMember()) {
+      window.MemberAuth?.showSignIn();
       return;
     }
 
@@ -4202,11 +4208,12 @@ function initBuschVotes_() {
     paint_();
 
     try {
-      await fetch("/api/buschgirl-vote", {
+      const response = await window.MemberAuth.authorizedFetch("/api/buschgirl-vote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoId: p.id, playerName: name, vote: v })
+        body: JSON.stringify({ photoId: p.id, vote: v })
       });
+      if (!response.ok) throw new Error("Vote failed");
     } catch (e) {
       // vote stays reflected locally; server catches up next tap
     }
@@ -4487,31 +4494,50 @@ function preloadBuschImage_(src) {
 }
 
 async function loadBuschGirls() {
-  try {
-    const res = await fetch("/api/buschgirls", { cache: "no-store" });
-    const data = await res.json();
-
-    if (!res.ok || !data?.ok) {
-      throw new Error(data?.error || "Failed loading Busch Girls");
-    }
-
-    buschGirls = (data.photos || [])
-      .map(p => ({
-        id: String(p.id || ""),
-        url: String(p.url || "").trim(),
-        folder: String(p.folder || "").trim().toLowerCase(),
-        filename: String(p.filename || "").trim(),
-        uploadedAt: String(p.uploaded_at || "").trim()
-      }))
-      .filter(p => p.url && p.folder);
-    
-    refillQueue();
-    buschQueue.slice(0, 5).forEach(p => preloadBuschImage_(p.url));
-  } catch (err) {
-    console.error("Failed to load Busch Girls", err);
+  if (!window.MemberAuth?.isMember()) {
     buschGirls = [];
     buschQueue = [];
+    buschSeenUrls.clear();
+    return;
   }
+  if (_buschLoadPromise) return _buschLoadPromise;
+
+  _buschLoadPromise = (async () => {
+    try {
+      const excluded = buschGirls.map(photo => photo.id).filter(Boolean).slice(-200).join(",");
+      const query = new URLSearchParams();
+      if (excluded) query.set("exclude", excluded);
+      if (_buschInitialBatch) query.set("warmup", "1");
+      const res = await window.MemberAuth.authorizedFetch(`/api/buschgirls?${query}`, { cache: "no-store" });
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Failed loading Busch Girls");
+      }
+
+      const incoming = (data.photos || [])
+        .map(p => ({
+          id: String(p.id || ""),
+          url: String(p.url || "").trim(),
+          folder: String(p.folder || "").trim().toLowerCase(),
+          filename: String(p.filename || "").trim(),
+          uploadedAt: String(p.uploaded_at || "").trim()
+        }))
+        .filter(p => p.id && p.url && p.folder);
+      const existingIds = new Set(buschGirls.map(photo => photo.id));
+      buschGirls.push(...incoming.filter(photo => !existingIds.has(photo.id)));
+      const expiresAt = Date.parse(String(data.expiresAt || ""));
+      if (Number.isFinite(expiresAt)) _buschBatchExpiresAt = expiresAt;
+      _buschInitialBatch = false;
+      refillQueue();
+      buschQueue.slice(0, 5).forEach(p => preloadBuschImage_(p.url));
+    } catch (err) {
+      console.error("Failed to load Busch Girls", err);
+    }
+  })();
+
+  try { await _buschLoadPromise; }
+  finally { _buschLoadPromise = null; }
 }
 
 function shuffle_(arr) {
@@ -4571,20 +4597,13 @@ function getRandomBuschGirl() {
     const url = next?.url || "";
 
     if (!url) continue;
-    if (buschSeenUrls.has(url)) continue;
+    if (buschSeenUrls.has(String(next.id))) continue;
 
-    buschSeenUrls.add(url);
+    buschSeenUrls.add(String(next.id));
     return url;
   }
 
-  // If we somehow burned through everything, reset and start over.
-  buschSeenUrls.clear();
-  refillQueue();
-
-  const next = buschQueue.shift();
-  if (next?.url) buschSeenUrls.add(next.url);
-
-  return next?.url || null;
+  return null;
 }
 
 function initBuschLongPress_() {
@@ -4606,14 +4625,18 @@ function initBuschLongPress_() {
     }
   }
 
-  function nextBuschImage_() {
+  async function nextBuschImage_() {
     if (buschHistoryIndex < buschHistory.length - 1) {
       buschHistoryIndex += 1;
       showBuschImage_(buschHistory[buschHistoryIndex]);
       return;
     }
 
-    const nextImg = getRandomBuschGirl();
+    let nextImg = getRandomBuschGirl();
+    if (!nextImg) {
+      await loadBuschGirls();
+      nextImg = getRandomBuschGirl();
+    }
     if (!nextImg) return;
 
     buschHistory.push(nextImg);
@@ -4621,6 +4644,7 @@ function initBuschLongPress_() {
     showBuschImage_(nextImg);
 
     buschQueue.slice(0, 3).forEach(p => preloadBuschImage_(p.url));
+    if (buschQueue.length < 6) loadBuschGirls();
   }
 
   function prevBuschImage_() {
@@ -4845,7 +4869,7 @@ async function deleteBuschPhoto_(info, allowRetry = true) {
 
     buschGirls = buschGirls.filter(p => p.id !== info.id);
     buschQueue = buschQueue.filter(p => p.id !== info.id);
-    buschSeenUrls.delete(info.url);
+    buschSeenUrls.delete(String(info.id));
     buschHistory = buschHistory.filter(src => String(src || "").split("?")[0] !== String(info.url || "").split("?")[0]);
     buschHistoryIndex = Math.min(buschHistoryIndex, buschHistory.length - 1);
 
@@ -4916,8 +4940,13 @@ function showBuschPhotoMenu_(x, y) {
   buschPhotoMenuEl = menu;
 }
 
-  function openPopup() {
-    nextBuschImage_();
+  async function openPopup() {
+    if (!window.MemberAuth?.isMember()) {
+      window.MemberAuth?.showSignIn();
+      return;
+    }
+    await nextBuschImage_();
+    if (!popupImg?.src) return;
 
     triggerHaptic();
     if (navigator.vibrate) navigator.vibrate([8, 12]);
@@ -5412,6 +5441,79 @@ function initAdminControls_() {
 
 
   
+  function setBuschMemberAccess_(allowed) {
+    const wrap = document.querySelector(".buschLogoWrap");
+    const trigger = document.getElementById("buschLogoTrigger");
+    wrap?.classList.toggle("memberOnlyDisabled", !allowed);
+    if (trigger) {
+      trigger.setAttribute("aria-disabled", allowed ? "false" : "true");
+      trigger.title = allowed ? "Member photo rotation" : "Members only";
+    }
+  }
+
+  async function handleMemberAuthChange_(state) {
+    const member = state?.member || null;
+    _memberIdentity = member;
+    setBuschMemberAccess_(Boolean(member));
+
+    if (member) {
+      savePlayerName(member.playerName);
+      const select = document.getElementById("globalPlayer");
+      if (select) {
+        select.value = member.playerName;
+        select.disabled = true;
+        select.title = "Your player is linked to your member account";
+        autoSizePlayerSelect_(select);
+      }
+      if (!_wasMember) {
+        buschGirls = [];
+        buschQueue = [];
+        buschSeenUrls.clear();
+        _buschInitialBatch = true;
+        _buschBatchExpiresAt = 0;
+      }
+      _wasMember = true;
+      await loadBuschGirls();
+      setWelcome();
+      return;
+    }
+
+    if (_wasMember) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    }
+    _wasMember = false;
+    buschGirls = [];
+    buschQueue = [];
+    buschSeenUrls.clear();
+    _buschInitialBatch = true;
+    _buschBatchExpiresAt = 0;
+    const popup = document.getElementById("buschPopup");
+    const image = document.getElementById("buschPopupImg");
+    if (popup) popup.hidden = true;
+    if (image) image.removeAttribute("src");
+    document.body.style.overflow = "";
+    document.body.classList.remove("noSelect");
+    if (Array.isArray(_playerList)) populatePlayerDropdowns(_playerList);
+    setWelcome();
+  }
+
+  async function refreshExpiredBuschBatch_() {
+    if (!window.MemberAuth?.isMember()) return;
+    if (!_buschBatchExpiresAt || _buschBatchExpiresAt - Date.now() > 60_000) return;
+    buschGirls = [];
+    buschQueue = [];
+    buschSeenUrls.clear();
+    _buschInitialBatch = true;
+    _buschBatchExpiresAt = 0;
+    const popup = document.getElementById("buschPopup");
+    const image = document.getElementById("buschPopupImg");
+    if (popup) popup.hidden = true;
+    if (image) image.removeAttribute("src");
+    document.body.style.overflow = "";
+    document.body.classList.remove("noSelect");
+    await loadBuschGirls();
+  }
+
   async function forcePwaUpdate_() {
     if (!("serviceWorker" in navigator)) return;
 
@@ -5427,10 +5529,10 @@ function initAdminControls_() {
 
   window.onload = async () => {
     await forcePwaUpdate_();
+    await window.MemberAuth?.init({ onChange: handleMemberAuthChange_ });
     initPushNotifications_();
     initAdminControls_();
-    loadPlayersThenInit();
-    await loadBuschGirls();
+    await loadPlayersThenInit();
     initBuschLongPress_();
     initBuschVotes_();
     renderGreenFlagCountdown_();
@@ -5439,9 +5541,9 @@ function initAdminControls_() {
     startLivePolling_();
 
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && activeView === "live") {
-        loadLiveMatchups();
-      }
+      if (document.hidden) return;
+      refreshExpiredBuschBatch_();
+      if (activeView === "live") loadLiveMatchups();
     });
     
     window.addEventListener("pageshow", () => {

@@ -1,4 +1,15 @@
 {
   "name": "nascar-pool",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "vendor:supabase": "mkdir -p vendor && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js vendor/supabase-2.112.4.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.4"
+  },
+  "devDependencies": {
+    "wrangler": "4.127.1"
+  }
 }

@@ -1,7 +1,7 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
 
 // POST (admin): reassign one photo to a different folder.
-// Moves the storage object server-side, then patches folder + url.
+// Moves the storage object server-side, then patches its canonical path.
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
     };
 
     const readRes = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${encodeURIComponent(photoId)}&select=id,folder,filename,url`,
+      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?id=eq.${encodeURIComponent(photoId)}&select=id,folder,filename,url,storage_path`,
       { headers: sb }
     );
     const rows = await readRes.json().catch(() => []);
@@ -37,7 +37,7 @@ export async function onRequestPost(context) {
 
     const row = rows[0];
     const from = String(row.folder || "").trim().toLowerCase();
-    if (from === to) return json({ ok: true, moved: false, to, url: row.url });
+    if (from === to) return json({ ok: true, moved: false, to });
 
     const filename = String(row.filename || "");
     if (!filename) return json({ ok: false, error: "Row has no filename" }, 500);
@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
       {
         method: "PATCH",
         headers: { ...sb, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ folder: to, url: newUrl }),
+        body: JSON.stringify({ folder: to, storage_path: `${to}/${filename}`, url: newUrl }),
       }
     );
     if (!up.ok) {
@@ -74,7 +74,7 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: (t || "DB update failed").slice(0, 200) }, 500);
     }
 
-    return json({ ok: true, moved: true, from, to, url: newUrl });
+    return json({ ok: true, moved: true, from, to });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }

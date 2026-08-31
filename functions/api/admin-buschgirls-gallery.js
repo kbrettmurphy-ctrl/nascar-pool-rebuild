@@ -1,5 +1,5 @@
 import { verifyAdminRequest } from "./_admin-auth";
-import { BUSCH_FOLDERS, privateJson, publicThumbnailUrl, serviceHeaders } from "./_buschgirls-admin";
+import { BUSCH_FOLDERS, privateJson, serviceHeaders, signStoragePaths } from "./_buschgirls-admin";
 
 const SORTS = {
   newest: "uploaded_at.desc.nullslast,id.desc",
@@ -86,17 +86,24 @@ export async function onRequestGet({ request, env }) {
     const safePage = Math.min(page, totalPages);
     const rangeStart = (safePage - 1) * pageSize;
     const listResponse = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id,folder,filename,url,uploaded_at,active,thumbnail_path${filters}&order=${SORTS[sort]}`,
+      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path,uploaded_at,active,thumbnail_path${filters}&order=${SORTS[sort]}`,
       { headers: serviceHeaders(env, { Range: `${rangeStart}-${rangeStart + pageSize - 1}` }) }
     );
     if (!listResponse.ok) throw new Error("Gallery list query failed");
     const rows = await listResponse.json().catch(() => []);
+    const thumbnailPaths = rows.map(row => row.thumbnail_path).filter(Boolean);
+    const originalPaths = rows.map(row => row.storage_path || `${row.folder}/${row.filename}`);
+    const [signedThumbnails, signedOriginals] = await Promise.all([
+      signStoragePaths(env, "buschgirls-thumbnails", thumbnailPaths),
+      signStoragePaths(env, "buschgirls", originalPaths)
+    ]);
     const photos = rows.map(row => {
-      const thumbnailUrl = row.thumbnail_path ? publicThumbnailUrl(env, row.thumbnail_path) : null;
+      const storagePath = row.storage_path || `${row.folder}/${row.filename}`;
+      const thumbnailUrl = row.thumbnail_path ? signedThumbnails.get(row.thumbnail_path) : null;
       return {
-        id: row.id, folder: row.folder, filename: row.filename, url: row.url,
+        id: row.id, folder: row.folder, filename: row.filename, url: signedOriginals.get(storagePath) || thumbnailUrl,
         uploaded_at: row.uploaded_at, active: row.active,
-        thumbnailUrl: thumbnailUrl || row.url,
+        thumbnailUrl: thumbnailUrl || signedOriginals.get(storagePath) || null,
         thumbnailReady: Boolean(thumbnailUrl)
       };
     });

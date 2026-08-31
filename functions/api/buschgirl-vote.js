@@ -1,20 +1,20 @@
-import { verifyAdminRequest, json } from "./_admin-auth";
+import { verifyAdminRequest, json } from "./_admin-auth.js";
+import { memberAuthResponse, requirePoolMember } from "./_member-auth.js";
+import { signStoragePaths } from "./_buschgirls-admin.js";
 
-// POST: any player votes on a photo. { photoId, playerName, vote: 1 | -1 }
+// POST: an authenticated member votes. Player identity is server-derived.
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
+    const member = await requirePoolMember(request, env);
 
     const body = await request.json().catch(() => ({}));
     const photoId = String(body?.photoId || "").trim();
-    const playerName = String(body?.playerName || "").trim();
+    const playerName = member.playerName;
     const vote = Number(body?.vote);
 
     if (!photoId || photoId.length > 64) {
       return json({ ok: false, error: "photoId is required" }, 400);
-    }
-    if (!playerName) {
-      return json({ ok: false, error: "playerName is required" }, 400);
     }
     if (vote !== 1 && vote !== -1) {
       return json({ ok: false, error: "vote must be 1 or -1" }, 400);
@@ -45,6 +45,7 @@ export async function onRequestPost(context) {
 
     return json({ ok: true });
   } catch (err) {
+    if (err?.name === "MemberAuthError") return memberAuthResponse(err);
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
 }
@@ -72,7 +73,7 @@ export async function onRequestGet(context) {
 
     const [votes, photos] = await Promise.all([
       getJson(`/rest/v1/buschgirl_votes?select=photo_id,player_name,vote`),
-      getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,url&active=eq.true`)
+      getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path&active=eq.true`)
     ]);
 
     const tally = new Map();
@@ -97,7 +98,7 @@ export async function onRequestGet(context) {
         id: p.id,
         folder: p.folder,
         filename: p.filename,
-        url: p.url,
+        storagePath: p.storage_path || `${p.folder}/${p.filename}`,
         likes: t.likes,
         dislikes: t.dislikes,
         likedBy: t.likedBy.sort((a, b) => a.localeCompare(b)),
@@ -108,6 +109,11 @@ export async function onRequestGet(context) {
 
     // Least popular first so the cut list is on top.
     rows.sort((a, b) => a.net - b.net || b.dislikes - a.dislikes);
+    const signed = await signStoragePaths(env, "buschgirls", rows.map(row => row.storagePath), 900);
+    rows.forEach(row => {
+      row.url = signed.get(row.storagePath) || "";
+      delete row.storagePath;
+    });
 
     return json({ ok: true, photos: rows, totalVotes: (votes || []).length });
   } catch (err) {

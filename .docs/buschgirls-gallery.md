@@ -8,7 +8,7 @@ The existing login still returns the 45-minute bearer token stored in `sessionSt
 
 Gallery pages, assets, and responses use `private, no-store`, same-origin referrers, and no-index headers. The service worker bypasses the gallery and its APIs and does not provide the public app shell as an offline fallback.
 
-The existing `buschgirls` originals bucket remains public because the player popup uses public URLs. The application does not expose gallery inventory or browse metadata without admin access, and the private `buschgirls-thumbnails` bucket is read with short-lived signed URLs. Someone who already knows an exact original URL can still reach it. Making the popup or whole pool member-only is a separate project requiring member authentication and signed/authenticated original delivery.
+The original gallery rollout left `buschgirls` public because the player popup used public URLs. The member-authentication rollout in [`member-auth-private-photos.md`](member-auth-private-photos.md) replaces that delivery path with short-lived signed URLs and includes a staged cutover that makes both originals and thumbnails private. Until that final cutover is applied, someone who knows an exact original public URL can still reach it.
 
 ## Data and endpoints
 
@@ -16,7 +16,7 @@ Migration: `supabase/migrations/20260721000000_buschgirls_gallery.sql`
 
 It adds nullable `sha256`, `thumbnail_path`, and `indexed_at` columns; a partial normal SHA-256 index; a folder/upload-date pagination index; a case-insensitive unique folder/filename index; and the private `buschgirls-thumbnails` bucket. It creates no public Storage policy. It is safe to apply before August 9: it does not read originals, calculate hashes, generate thumbnails, or start the backfill. Existing rows remain unchanged with null indexing fields.
 
-Before the historical backfill, the gallery still lists every existing row and uses its existing original `url` as the thumbnail-grid source for the current paginated page. Once a private thumbnail exists, the API uses its short-lived signed URL instead. Folder filtering, pagination, viewing, menus, and deletion do not require indexing.
+Before the historical backfill, the gallery still lists every existing row. The current gallery API bulk-signs original and thumbnail paths for the requested page, so it continues to work after either bucket becomes private. Folder filtering, pagination, viewing, menus, and deletion do not require indexing.
 
 Endpoints:
 
