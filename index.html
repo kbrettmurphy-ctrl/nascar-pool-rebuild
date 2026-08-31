@@ -227,22 +227,6 @@
   </div>
 </div>
 
-  <div id="adminPinBackdrop" class="adminBackdrop" hidden>
-    <div class="adminPinModal">
-      <div class="adminModalTitle">Admin Access</div>
-      <div class="muted">Enter PIN</div>
-      <input
-        id="adminPinInput"
-        type="password"
-        inputmode="numeric"
-        placeholder="PIN"
-        maxlength="10"
-        autocomplete="off"
-      />
-      <div id="adminPinStatus" class="adminStatus"></div>
-    </div>
-  </div>
-
   <div id="adminOverlay" class="adminOverlay" hidden>
     <div class="adminSheet">
       <div class="adminSticky">
@@ -273,6 +257,7 @@
         <button class="adminTab" data-admin-tab="funds" type="button">Funds</button>
         <button class="adminTab" data-admin-tab="push" type="button">Push</button>
         <button class="adminTab" data-admin-tab="buschgirls" type="button">Photos</button>
+        <button class="adminTab" data-admin-tab="members" type="button">Members</button>
       </div>
       </div>
 
@@ -398,6 +383,27 @@
           <button id="buschMigrateBtn" class="primary" type="button">🚚 Fix Today's Uploads</button>
         </div>
         <div id="buschRatingsList" class="buschRatingsList"></div>
+      </div>
+
+      <div id="adminTab-members" class="adminTabPane">
+        <div class="adminSectionTitle">Invite a member</div>
+        <div class="muted">Choose the player identity this email should use. Supabase will send the password setup link.</div>
+        <div class="adminMemberInvite">
+          <div class="adminField">
+            <label for="adminInvitePlayer">Player</label>
+            <select id="adminInvitePlayer"></select>
+          </div>
+          <div class="adminField">
+            <label for="adminInviteEmail">Email</label>
+            <input id="adminInviteEmail" type="email" inputmode="email" autocomplete="email" placeholder="member@example.com">
+          </div>
+          <button id="adminInviteBtn" class="primary" type="button">Send invitation</button>
+        </div>
+
+        <div class="adminSectionTitle" style="margin-top:18px;">Administrator access</div>
+        <div class="muted">Admins can open these tools while signed in—no PIN required. You cannot remove your own access.</div>
+        <div id="adminMemberList" class="adminMemberList muted">Loading…</div>
+        <div id="adminMembersStatus" class="adminStatus"></div>
       </div>
     </div>
   </div>

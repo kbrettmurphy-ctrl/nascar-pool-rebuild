@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { requirePoolMember } from "../functions/api/_member-auth.js";
+import { verifyAdminRequest } from "../functions/api/_admin-auth.js";
+import { onRequestPost as postAdminLogin } from "../functions/api/admin-login.js";
 import { onRequestGet as getBuschGirls } from "../functions/api/buschgirls.js";
 import { onRequestPost as postBuschVote } from "../functions/api/buschgirl-vote.js";
 import { onRequestGet as getMemberAuthConfig } from "../functions/api/member-auth-config.js";
@@ -9,7 +11,8 @@ import { onRequestGet as getMemberAuthConfig } from "../functions/api/member-aut
 const env = {
   SUPABASE_URL: "https://project.example",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
-  SUPABASE_SECRET_KEY: "sb_secret_test"
+  SUPABASE_SECRET_KEY: "sb_secret_test",
+  ADMIN_SESSION_SECRET: "admin-session-secret-for-tests"
 };
 const authUser = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -21,7 +24,8 @@ const memberRow = {
   auth_user_id: authUser.id,
   email: authUser.email,
   player_id: "33333333-3333-4333-8333-333333333333",
-  active: true
+  active: true,
+  is_admin: true
 };
 
 function json(data, status = 200, headers = {}) {
@@ -89,6 +93,61 @@ test("member authentication returns the server-linked player identity", async t 
   assert.equal(member.playerName, "Brett");
   assert.equal(member.email, "member@example.com");
   assert.equal(member.playerId, memberRow.player_id);
+  assert.equal(member.isAdmin, true);
+});
+
+test("guest cannot create an administrator session", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => { throw new Error("fetch should not be called"); };
+  const response = await postAdminLogin({
+    request: new Request("https://pool.example/api/admin-login", { method: "POST" }),
+    env
+  });
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.has("set-cookie"), false);
+});
+
+test("non-admin member cannot create an administrator session", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = membershipFetch();
+  const originalAdmin = memberRow.is_admin;
+  memberRow.is_admin = false;
+  t.after(() => { memberRow.is_admin = originalAdmin; });
+  const response = await postAdminLogin({ request: request("/api/admin-login", { method: "POST" }), env });
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.has("set-cookie"), false);
+});
+
+test("admin member receives a role-bound session without a PIN", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = membershipFetch();
+  const response = await postAdminLogin({ request: request("/api/admin-login", { method: "POST" }), env });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.ok(body.token);
+  assert.match(response.headers.get("set-cookie") || "", /HttpOnly/);
+});
+
+test("administrator session is rejected immediately after role removal", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = membershipFetch();
+  const login = await postAdminLogin({ request: request("/api/admin-login", { method: "POST" }), env });
+  const { token } = await login.json();
+
+  globalThis.fetch = async input => {
+    const url = String(input);
+    if (url.includes("/rest/v1/pool_members?")) return json([]);
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+  const authorized = await verifyAdminRequest(new Request("https://pool.example/api/admin-context", {
+    headers: { Authorization: `Bearer ${token}` }
+  }), env);
+  assert.equal(authorized, false);
 });
 
 test("private photo endpoint returns one bulk-signed member batch", async t => {

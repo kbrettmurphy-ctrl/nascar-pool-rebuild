@@ -16,7 +16,6 @@
 
   const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
   const views = ["current","live","mymatchup","standings","dues","bracket","hub"];
-  const ADMIN_PIN_LENGTH = 6;
   let _adminUnlockInFlight = false;
   let activeView = "current";
   let ALL_MATCHUPS = null;
@@ -431,6 +430,50 @@ if (liveCard) {
     closeAdminOverlay_();
   }
 
+  async function createMemberAdminSession_() {
+    const member = window.MemberAuth?.getMember();
+    if (!member?.isAdmin) throw new Error("Administrator access is not enabled for this member");
+    const res = await window.MemberAuth.authorizedFetch("/api/admin-login", {
+      method: "POST",
+      cache: "no-store"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok || !data?.token) {
+      const error = new Error(data?.error || "Administrator access failed");
+      error.status = res.status;
+      throw error;
+    }
+    setAdminToken_(data.token);
+    _adminContext = null;
+    return data.token;
+  }
+
+  async function openMemberAdmin_() {
+    if (_adminUnlockInFlight) return;
+    _adminUnlockInFlight = true;
+    try {
+      if (getAdminToken_()) {
+        try {
+          await initAdminOverlay_();
+          openAdminOverlay_();
+          return;
+        } catch {
+          clearAdminToken_();
+          _adminContext = null;
+        }
+      }
+      await createMemberAdminSession_();
+      await initAdminOverlay_();
+      openAdminOverlay_();
+    } catch (error) {
+      clearAdminToken_();
+      _adminContext = null;
+      window.alert(error?.message || "Administrator access failed");
+    } finally {
+      _adminUnlockInFlight = false;
+    }
+  }
+
   async function adminFetch_(url, options = {}) {
     const token = getAdminToken_();
     const headers = {
@@ -482,42 +525,6 @@ if (liveCard) {
    Admin overlay UI
    ========================================================== */
 
-  function openAdminPin_() {
-    const backdrop = document.getElementById("adminPinBackdrop");
-    const modal = backdrop?.querySelector(".adminPinModal");
-    const input = document.getElementById("adminPinInput");
-    const status = document.getElementById("adminPinStatus");
-
-    if (!backdrop || !input || !status) return;
-
-    status.textContent = "";
-    input.value = "";
-    backdrop.hidden = false;
-
-    if (!backdrop.dataset.bound) {
-      backdrop.dataset.bound = "1";
-
-      backdrop.addEventListener("click", (e) => {
-        if (e.target === backdrop) {
-          closeAdminPin_();
-        }
-      });
-
-      if (modal) {
-        modal.addEventListener("click", (e) => {
-          e.stopPropagation();
-        });
-      }
-    }
-
-    setTimeout(() => input.focus(), 20);
-  }
-
-  function closeAdminPin_() {
-    const backdrop = document.getElementById("adminPinBackdrop");
-    if (backdrop) backdrop.hidden = true;
-  }
-
   function openAdminOverlay_() {
     const el = document.getElementById("adminOverlay");
     if (el) el.hidden = false;
@@ -546,39 +553,7 @@ if (liveCard) {
     });
 
     if (tabName === "push") loadAdminPushTab_();
-  }
-
-  async function unlockAdmin_() {
-    if (_adminUnlockInFlight) return
-    const pin = String(document.getElementById("adminPinInput")?.value || "").trim();
-    if (!pin) {
-      setAdminStatus_("adminPinStatus", "Enter PIN.", true);
-      return;
-    }
-    _adminUnlockInFlight = true;
-    setAdminStatus_("adminPinStatus", "Slingshot...engage");
-    try {
-      const res = await fetch("/api/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok || !data?.token) {
-        throw new Error(data?.error || "Invalid PIN");
-      }
-      setAdminToken_(data.token);
-      _adminContext = null;
-      await initAdminOverlay_();
-      closeAdminPin_();
-      openAdminOverlay_();
-    } catch (err) {
-      clearAdminToken_();
-      _adminContext = null;
-      setAdminStatus_("adminPinStatus", err.message || String(err), true);
-    } finally {
-      _adminUnlockInFlight = false;
-    }
+    if (tabName === "members") loadAdminMembers_();
   }
 
   async function initAdminOverlay_() {
@@ -612,6 +587,102 @@ if (liveCard) {
     }
 
     await loadVenmoBalance_();
+  }
+
+  async function loadAdminMembers_() {
+    const list = document.getElementById("adminMemberList");
+    const playerSelect = document.getElementById("adminInvitePlayer");
+    if (!list || !playerSelect) return;
+    list.textContent = "Loading…";
+    setAdminStatus_("adminMembersStatus", "");
+    try {
+      const data = await adminFetch_("/api/admin-members", { cache: "no-store" });
+      const memberPlayerIds = new Set((data.members || []).map(member => Number(member.playerId)));
+      const availablePlayers = (data.players || []).filter(player => !memberPlayerIds.has(Number(player.id)));
+      playerSelect.innerHTML = `<option value="">Select player</option>` + availablePlayers
+        .map(player => `<option value="${player.id}">${escapeHtml(player.name)}</option>`)
+        .join("");
+      list.replaceChildren();
+
+      for (const member of data.members || []) {
+        const row = document.createElement("div");
+        row.className = "adminMemberRow";
+        const identity = document.createElement("div");
+        identity.className = "adminMemberIdentity";
+        const name = document.createElement("div");
+        name.className = "adminMemberName";
+        name.textContent = member.playerName || "Unknown player";
+        const email = document.createElement("div");
+        email.className = "adminMemberEmail muted";
+        email.textContent = `${member.email}${member.hasAccount ? "" : " · invitation pending"}`;
+        identity.append(name, email);
+
+        const label = document.createElement("label");
+        label.className = "adminRoleToggle";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = Boolean(member.isAdmin);
+        checkbox.disabled = member.id === data.currentMemberId || !member.active || !member.hasAccount;
+        checkbox.setAttribute("aria-label", `Administrator access for ${member.playerName}`);
+        const labelText = document.createElement("span");
+        labelText.textContent = "Admin";
+        label.append(checkbox, labelText);
+
+        checkbox.addEventListener("change", async () => {
+          const desired = checkbox.checked;
+          checkbox.disabled = true;
+          setAdminStatus_("adminMembersStatus", `Updating ${member.playerName}…`);
+          try {
+            await adminFetch_("/api/admin-members", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "set-admin", memberId: member.id, isAdmin: desired })
+            });
+            member.isAdmin = desired;
+            setAdminStatus_("adminMembersStatus", `${member.playerName} ${desired ? "is now an admin" : "is no longer an admin"}.`);
+          } catch (error) {
+            checkbox.checked = !desired;
+            setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+          } finally {
+            checkbox.disabled = member.id === data.currentMemberId || !member.active || !member.hasAccount;
+          }
+        });
+
+        row.append(identity, label);
+        list.append(row);
+      }
+      if (!(data.members || []).length) list.textContent = "No invited members yet.";
+    } catch (error) {
+      list.textContent = "";
+      setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+    }
+  }
+
+  async function inviteAdminMember_() {
+    const playerId = Number(document.getElementById("adminInvitePlayer")?.value || 0);
+    const emailInput = document.getElementById("adminInviteEmail");
+    const email = String(emailInput?.value || "").trim().toLowerCase();
+    if (!playerId || !email) {
+      setAdminStatus_("adminMembersStatus", "Choose a player and enter their email.", true);
+      return;
+    }
+    const button = document.getElementById("adminInviteBtn");
+    if (button) button.disabled = true;
+    setAdminStatus_("adminMembersStatus", "Sending invitation…");
+    try {
+      const data = await adminFetch_("/api/admin-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "invite", playerId, email })
+      });
+      if (emailInput) emailInput.value = "";
+      await loadAdminMembers_();
+      setAdminStatus_("adminMembersStatus", data.message || "Invitation sent.");
+    } catch (error) {
+      setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function refreshAdminRaceOptions_() {
@@ -4821,25 +4892,9 @@ async function saveBuschPhotoImage_(info) {
 
 async function unlockAdminForPhotoDelete_(label = "delete this photo") {
   if (getAdminToken_()) return true;
-
-  const pin = prompt(`Admin PIN to ${label}:`);
-  if (pin === null) return false;
-
-  const cleanPin = String(pin || "").trim();
-  if (!cleanPin) return false;
-
-  const res = await fetch("/api/admin-login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pin: cleanPin })
-  });
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || !data?.ok || !data?.token) {
-    throw new Error(data?.error || "Invalid PIN");
-  }
-
-  setAdminToken_(data.token);
+  const member = window.MemberAuth?.getMember();
+  if (!member?.isAdmin) throw new Error(`Administrator access is required to ${label}`);
+  await createMemberAdminSession_();
   return true;
 }
 
@@ -4905,12 +4960,15 @@ function showBuschPhotoMenu_(x, y) {
 
   const menu = document.createElement("div");
   menu.className = "buschPhotoMenu";
+  const deleteAction = window.MemberAuth?.getMember()?.isAdmin
+    ? `<button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>`
+    : "";
   menu.innerHTML = `
     <div class="buschPhotoMenuPanel" role="menu" aria-label="Photo options">
       <button type="button" role="menuitem" data-action="view">View Full Res Photo</button>
       <button type="button" role="menuitem" data-action="save">Save Image</button>
       <button type="button" role="menuitem" data-action="info">Get Info</button>
-      <button type="button" role="menuitem" data-action="delete" class="danger">Delete Photo</button>
+      ${deleteAction}
     </div>
   `;
 
@@ -5298,8 +5356,6 @@ function showBuschPhotoMenu_(x, y) {
 
 function initAdminControls_() {
     const portal = document.getElementById("playerPortalPill");
-    const pinBackdrop = document.getElementById("adminPinBackdrop");
-    const pinInput = document.getElementById("adminPinInput");
     const closeBtn = document.getElementById("adminCloseBtn");
     const lockBtn = document.getElementById("adminLockBtn");
 
@@ -5307,26 +5363,12 @@ function initAdminControls_() {
 
     function startPress() {
       clearTimeout(pressTimer);
+      if (!window.MemberAuth?.getMember()?.isAdmin) return;
 
       pressTimer = setTimeout(async () => {
         clearTimeout(pressTimer);
         pressTimer = null;
-
-        // If already unlocked, open admin tools directly.
-        if (getAdminToken_()) {
-          try {
-            await initAdminOverlay_();
-            openAdminOverlay_();
-            return;
-          } catch (err) {
-            // Token is stale/invalid, clear it and fall back to PIN.
-            clearAdminToken_();
-            _adminContext = null;
-            setAdminStatus_("adminPinStatus", "Session expired. Enter PIN again.", true);
-          }
-        }
-
-        openAdminPin_();
+        await openMemberAdmin_();
       }, 300);
   }
 
@@ -5343,26 +5385,6 @@ function initAdminControls_() {
     portal.addEventListener("mouseleave", cancelPress);
     portal.addEventListener("touchend", cancelPress);
     portal.addEventListener("touchcancel", cancelPress);
-  }
-
-  if (pinInput && !pinInput.dataset.bound) {
-    pinInput.dataset.bound = "1";
-    pinInput.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        closeAdminPin_();
-        return;
-      }
-      if (e.key === "Enter") {
-        unlockAdmin_();
-      }
-    });
-    pinInput.addEventListener("input", () => {
-      const pin = String(pinInput.value || "").trim();
-      setAdminStatus_("adminPinStatus", "", false);
-      if (pin.length === ADMIN_PIN_LENGTH) {
-        unlockAdmin_();
-      }
-    });
   }
 
   if (closeBtn && !closeBtn.dataset.bound) {
@@ -5384,6 +5406,12 @@ function initAdminControls_() {
       setAdminTab_(btn.dataset.adminTab);
     });
   });
+
+  const inviteBtn = document.getElementById("adminInviteBtn");
+  if (inviteBtn && !inviteBtn.dataset.bound) {
+    inviteBtn.dataset.bound = "1";
+    inviteBtn.addEventListener("click", inviteAdminMember_);
+  }
 
   document.getElementById("adminAssignBtn")?.addEventListener("click", () =>
     runAdminRaceOp_("/api/generate-assignments", "adminRaceOpsStatus", "Generating assignments")
@@ -5455,6 +5483,10 @@ function initAdminControls_() {
     const member = state?.member || null;
     _memberIdentity = member;
     setBuschMemberAccess_(Boolean(member));
+
+    if (!member?.isAdmin && (getAdminToken_() || !document.getElementById("adminOverlay")?.hidden)) {
+      await logoutAdmin_();
+    }
 
     if (member) {
       savePlayerName(member.playerName);

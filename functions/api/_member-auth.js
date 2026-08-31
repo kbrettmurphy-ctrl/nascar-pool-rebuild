@@ -1,4 +1,4 @@
-const MEMBER_SELECT = "id,auth_user_id,email,player_id,active";
+const MEMBER_SELECT = "id,auth_user_id,email,player_id,active,is_admin";
 
 export class MemberAuthError extends Error {
   constructor(message, status = 401) {
@@ -135,8 +135,15 @@ export async function requirePoolMember(request, env) {
     userId: user.id,
     email: String(user.email || row.email || "").trim().toLowerCase(),
     playerId: row.player_id,
-    playerName
+    playerName,
+    isAdmin: row.is_admin === true
   };
+}
+
+export async function requirePoolAdmin(request, env) {
+  const member = await requirePoolMember(request, env);
+  if (!member.isAdmin) throw new MemberAuthError("Admin access required", 403);
+  return member;
 }
 
 export function memberAuthResponse(error) {

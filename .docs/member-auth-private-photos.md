@@ -13,6 +13,9 @@ This rollout is intentionally split so the live photo rotation is never broken b
 - Votes use the verified member's player identity instead of a browser-submitted name.
 - Player originals, admin thumbnails, ratings, and maintenance backfill use bulk signed URLs.
 - The final public-to-private bucket change is isolated in its own migration.
+- Administrator access is a server-managed member role; guests and ordinary members cannot open admin tools.
+- Signed-in admins open the portal without a second PIN.
+- Admins can invite players and temporarily grant or revoke admin access from the Members tab.
 
 ## Required Cloudflare Pages variables
 
@@ -106,6 +109,22 @@ order by p.name;
 5. Open the invitation, choose a password, and confirm the OS offers to save it.
 6. Reload and confirm the member remains signed in and is locked to the correct player.
 7. Sign out and confirm all photo DOM state is cleared.
+
+## Member invitations and administrator roles
+
+Status: applied to the live Supabase project on 2026-08-31 as migration
+`20260831224210_member_admin_roles`. Brett is the initial administrator.
+
+While signed in as an administrator, long-press the Player Portal pill, then
+open **Members**. Choose an unlinked player, enter the player's email, and
+choose **Send invitation**. Supabase sends the account/password setup link.
+After the member accepts the invitation and signs in, reload the Members tab
+to make the Admin toggle available if temporary administrator access is needed.
+
+Admin roles are stored in `public.pool_members.is_admin`, never browser-editable
+user metadata. Every protected admin request re-checks that the member is still
+active and still an administrator, so revocation is immediate. The current
+administrator cannot remove their own access from the UI.
 
 ## Required pre-cutover checks
 

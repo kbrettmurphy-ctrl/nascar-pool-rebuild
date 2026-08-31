@@ -32,9 +32,22 @@ async function signPayload(payloadStr, secret) {
   return b64urlEncode(new Uint8Array(sig));
 }
 
-export async function createAdminToken(env) {
+function adminPayload(member, kind) {
+  if (!member?.isAdmin || !member?.id || !member?.userId) {
+    throw new Error("Verified admin member is required");
+  }
+  return {
+    exp: Date.now() + (1000 * 60 * 45),
+    role: "admin",
+    kind,
+    memberId: member.id,
+    userId: member.userId
+  };
+}
+
+export async function createAdminToken(env, member) {
   const exp = Date.now() + (1000 * 60 * 45); // 45 min
-  const payload = JSON.stringify({ exp, role: "admin" });
+  const payload = JSON.stringify({ ...adminPayload(member, "bearer"), exp });
   const payloadB64 = b64urlEncode(encoder.encode(payload));
   const sig = await signPayload(payloadB64, env.ADMIN_SESSION_SECRET);
   return `${payloadB64}.${sig}`;
@@ -42,9 +55,9 @@ export async function createAdminToken(env) {
 
 export const ADMIN_COOKIE_NAME = "nascar_pool_admin_session";
 
-export async function createAdminCookie(env) {
+export async function createAdminCookie(env, member) {
   if (!env.ADMIN_SESSION_SECRET) throw new Error("ADMIN_SESSION_SECRET is not configured");
-  const payload = JSON.stringify({ exp: Date.now() + (1000 * 60 * 45), role: "admin", kind: "cookie" });
+  const payload = JSON.stringify(adminPayload(member, "cookie"));
   const payloadB64 = b64urlEncode(encoder.encode(payload));
   const sig = await signPayload(payloadB64, env.ADMIN_SESSION_SECRET);
   return `${ADMIN_COOKIE_NAME}=${payloadB64}.${sig}; Max-Age=2700; Path=/; HttpOnly; Secure; SameSite=Strict`;
@@ -54,50 +67,61 @@ export function clearAdminCookie() {
   return `${ADMIN_COOKIE_NAME}=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; Secure; SameSite=Strict`;
 }
 
+async function activeAdminMember(payload, env) {
+  if (!payload?.memberId || !payload?.userId || !env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return false;
+  const params = new URLSearchParams({
+    select: "id",
+    id: `eq.${payload.memberId}`,
+    auth_user_id: `eq.${payload.userId}`,
+    active: "eq.true",
+    is_admin: "eq.true",
+    limit: "1"
+  });
+  const response = await fetch(`${env.SUPABASE_URL}/rest/v1/pool_members?${params}`, {
+    headers: {
+      apikey: env.SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`
+    }
+  });
+  if (!response.ok) return false;
+  const rows = await response.json().catch(() => []);
+  return Array.isArray(rows) && rows.length === 1;
+}
+
+async function verifiedPayload(token, env, expectedKind) {
+  if (!env.ADMIN_SESSION_SECRET) return null;
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+  const expectedSig = await signPayload(payloadB64, env.ADMIN_SESSION_SECRET);
+  if (!timingSafeEqual(sig, expectedSig)) return null;
+  try {
+    const payload = JSON.parse(b64urlDecodeToString(payloadB64));
+    if (payload?.role !== "admin" || payload?.kind !== expectedKind) return null;
+    if (!Number.isFinite(Number(payload.exp)) || Date.now() > Number(payload.exp)) return null;
+    return await activeAdminMember(payload, env) ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function verifyAdminCookie(request, env) {
   if (!env.ADMIN_SESSION_SECRET) return false;
   const cookies = request.headers.get("cookie") || "";
   const value = cookies.split(";").map(v => v.trim()).find(v => v.startsWith(`${ADMIN_COOKIE_NAME}=`));
   if (!value) return false;
-  const token = value.slice(ADMIN_COOKIE_NAME.length + 1);
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  const [payloadB64, sig] = parts;
-  const expectedSig = await signPayload(payloadB64, env.ADMIN_SESSION_SECRET);
-  if (!timingSafeEqual(sig, expectedSig)) return false;
-  try {
-    const payload = JSON.parse(b64urlDecodeToString(payloadB64));
-    return payload?.role === "admin" && payload?.kind === "cookie" &&
-      Number.isFinite(Number(payload.exp)) && Date.now() <= Number(payload.exp);
-  } catch {
-    return false;
-  }
+  return Boolean(await verifiedPayload(value.slice(ADMIN_COOKIE_NAME.length + 1), env, "cookie"));
+}
+
+export async function getVerifiedAdminRequest(request, env) {
+  const auth = request.headers.get("authorization") || "";
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  return verifiedPayload(m[1].trim(), env, "bearer");
 }
 
 export async function verifyAdminRequest(request, env) {
-  const auth = request.headers.get("authorization") || "";
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  if (!m) return false;
-
-  const token = m[1].trim();
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-
-  const [payloadB64, sig] = parts;
-  const expectedSig = await signPayload(payloadB64, env.ADMIN_SESSION_SECRET);
-  if (!timingSafeEqual(sig, expectedSig)) return false;
-
-  let payload;
-  try {
-    payload = JSON.parse(b64urlDecodeToString(payloadB64));
-  } catch {
-    return false;
-  }
-
-  if (!payload || payload.role !== "admin") return false;
-  if (!payload.exp || Date.now() > Number(payload.exp)) return false;
-
-  return true;
+  return Boolean(await getVerifiedAdminRequest(request, env));
 }
 
 export function json(data, status = 200) {

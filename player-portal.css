@@ -2140,7 +2140,6 @@ a.newsCard:last-child{ border-bottom:none; }
    Admin modals + controls
    ========================================================== */
 
-.adminBackdrop,
 .adminOverlay{
   position:fixed;
   inset:0;
@@ -2156,19 +2155,10 @@ a.newsCard:last-child{ border-bottom:none; }
   calc(14px + env(safe-area-inset-bottom) + 90px);
 }
 
-.adminBackdrop{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-}
-
-.adminBackdrop[hidden],
 .adminOverlay[hidden]{
   display:none !important;
 }
 
-.adminPinModal,
 .adminSheet{
   width:min(100%, 760px);
   margin:0 auto;
@@ -2182,15 +2172,6 @@ a.newsCard:last-child{ border-bottom:none; }
   -webkit-backdrop-filter: blur(14px);
   max-height: none;
   overflow:visible;
-}
-
-.adminPinModal{
-  padding:16px;
-}
-
-.adminPinModal .muted{
-  display:block;
-  margin:0 0 8px 0;
 }
 
 .adminModalTitle{
@@ -2353,6 +2334,69 @@ a.newsCard:last-child{ border-bottom:none; }
 
 .adminPushList{ margin-top:6px; }
 
+.adminMemberInvite{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);
+  gap:10px;
+  margin-top:12px;
+}
+
+.adminMemberInvite .primary{
+  grid-column:1 / -1;
+}
+
+.adminMemberList{
+  margin-top:8px;
+}
+
+.adminMemberRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 2px;
+  border-bottom:1px solid var(--lineSoft);
+}
+
+.adminMemberRow:last-child{ border-bottom:none; }
+
+.adminMemberIdentity{
+  flex:1 1 auto;
+  min-width:0;
+}
+
+.adminMemberName{
+  color:var(--text);
+  font-weight:700;
+}
+
+.adminMemberEmail{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+}
+
+.adminRoleToggle{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:0 0 auto;
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+}
+
+.adminRoleToggle input{
+  width:18px;
+  height:18px;
+  accent-color:var(--blue);
+}
+
+@media (max-width:520px){
+  .adminMemberInvite{ grid-template-columns:1fr; }
+  .adminMemberInvite .primary{ grid-column:auto; }
+}
+
 .pushRow{
   display:flex;
   align-items:center;
@@ -2422,8 +2466,7 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 
 .adminField select,
-.adminField input,
-#adminPinInput{
+.adminField input{
   width:100%;
   display:block;
   font-size:16px !important;

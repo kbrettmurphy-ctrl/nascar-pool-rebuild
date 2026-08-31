@@ -2,9 +2,9 @@
 
 ## Access and privacy
 
-The gallery is at `/buschgirls-gallery/`. It has no public navigation or separate login. Unlock the existing NASCAR administrator interface, open **Photos**, then choose **Open Gallery**. The button navigates in the same tab. Pages Functions middleware rejects the gallery document and every gallery asset unless the signed `nascar_pool_admin_session` cookie is valid.
+The gallery is at `/buschgirls-gallery/`. It has no public navigation or separate login. Sign in with an administrator-enabled member account, long-press the Player Portal pill, open **Photos**, then choose **Open Gallery**. The button navigates in the same tab. Pages Functions middleware rejects the gallery document and every gallery asset unless the signed `nascar_pool_admin_session` cookie is valid.
 
-The existing login still returns the 45-minute bearer token stored in `sessionStorage["nascar_pool_admin_token"]`. It also sets a separate 45-minute `HttpOnly; Secure; SameSite=Strict; Path=/` cookie authenticated with the existing `ADMIN_SESSION_SECRET`. JavaScript cannot read it. Logout clears sessionStorage and calls `/api/admin-logout` to expire the cookie. The cookie permits the protected static route to load; it does not authorize gallery APIs or mutations. Those still require the bearer token.
+The member-backed admin exchange returns a 45-minute bearer token stored in `sessionStorage["nascar_pool_admin_token"]`. It also sets a separate 45-minute `HttpOnly; Secure; SameSite=Strict; Path=/` cookie authenticated with the existing `ADMIN_SESSION_SECRET`. JavaScript cannot read it. Logout clears sessionStorage and calls `/api/admin-logout` to expire the cookie. The cookie permits the protected static route to load; it does not authorize gallery APIs or mutations. Those still require the bearer token. Each check also verifies the live `pool_members.is_admin` role, making revocation immediate.
 
 Gallery pages, assets, and responses use `private, no-store`, same-origin referrers, and no-index headers. The service worker bypasses the gallery and its APIs and does not provide the public app shell as an offline fallback.
 
@@ -20,7 +20,7 @@ Before the historical backfill, the gallery still lists every existing row. The 
 
 Endpoints:
 
-- `POST /api/admin-login`: existing PIN verification and bearer response, plus signed cookie.
+- `POST /api/admin-login`: verified Supabase member-admin exchange for a bearer token and signed cookie; no PIN.
 - `POST /api/admin-logout`: expires the administrator cookie.
 - `GET /api/admin-buschgirls-gallery`: bearer-protected filename search, folder/rotation/indexing/exact-hash filters, deterministic sorting, filtered counts, adaptive server pagination (100 maximum), and signed thumbnail URLs. The browser chooses a page size near 80 that is divisible by the measured responsive grid column count.
 - `GET /api/admin-buschgirls-backfill`: returns at most 40 rows still missing a hash or thumbnail; the browser normally asks for 20.
@@ -56,7 +56,7 @@ For a preview, push `feature/buschgirls-gallery`, open the Cloudflare Pages bran
 
 1. `/buschgirls-gallery/`, `/gallery.css`, and `/gallery.js` below that route return a generic 404 before login.
 2. The normal application works without any admin cookie.
-3. Existing admin login succeeds, the bearer remains in sessionStorage, and the response has an HttpOnly cookie containing neither PIN nor bearer token.
+3. A signed-in admin opens the portal without a PIN, the bearer remains in sessionStorage, and the response has an HttpOnly cookie containing no bearer token.
 4. **Photos → Open Gallery** opens the gallery in the same tab.
 5. Missing or altered bearer tokens show the gallery's expired-session state and do not return API data.
 6. Pagination, folder totals, viewer, right-click/long-press menu, and confirmation wording work against non-production test data.
@@ -65,7 +65,7 @@ For a preview, push `feature/buschgirls-gallery`, open the Cloudflare Pages bran
 
 ## Manual backfill — only after August 9, 2026
 
-Do not start the production backfill before August 9, 2026. After that date, unlock admin, open the gallery, choose **Maintenance**, read the 2,605-file / 683-MB warning, and explicitly confirm **Start**. Two items are processed concurrently, with a short delay between groups. Transient HTTP 429, `too_many_connections`, and `SlowDown` failures are retried three times with exponential backoff. **Pause** stops after the active small group; **Resume** queries missing database state, so reloads do not repeat completed rows. **Stop** ends the loop. **Retry failures** retries the capped visible failure set. If authentication expires, processing stops and admin must be unlocked again.
+Do not start the production backfill before August 9, 2026. After that date, open the admin gallery, choose **Maintenance**, read the 2,605-file / 683-MB warning, and explicitly confirm **Start**. Two items are processed concurrently, with a short delay between groups. Transient HTTP 429, `too_many_connections`, and `SlowDown` failures are retried three times with exponential backoff. **Pause** stops after the active small group; **Resume** queries missing database state, so reloads do not repeat completed rows. **Stop** ends the loop. **Retry failures** retries the capped visible failure set. If authentication expires, processing stops and the admin session must be refreshed.
 
 Use **Review duplicates** to inspect exact hash groups. It never merges, deletes, changes votes, or changes active state. After completion, confirm the gallery reports zero pending items and run:
 
