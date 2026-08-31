@@ -122,6 +122,10 @@ order by p.name;
 
 ## Stage 2: final private-bucket cutover
 
+Status: applied to the live Supabase project on 2026-08-31 as migration
+`20260831222637_private_buschgirls_cutover`. Both buckets were verified private,
+and a formerly public object URL returned `400` after the cutover.
+
 Only after the preview checks pass, apply:
 
 `20260831205408_private_buschgirls_cutover.sql`
