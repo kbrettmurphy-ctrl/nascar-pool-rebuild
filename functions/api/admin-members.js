@@ -159,6 +159,28 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: true, message: `Invitation canceled for ${email}` });
     }
 
+    if (action === "resend-invite") {
+      const memberId = String(body?.memberId || "");
+      if (!UUID_RE.test(memberId)) return json({ ok: false, error: "Invalid member" }, 400);
+      const rows = await serviceJson(
+        env,
+        `/rest/v1/pool_members?id=eq.${encodeURIComponent(memberId)}&active=eq.true&select=id,email,auth_user_id&limit=1`
+      );
+      const member = rows?.[0];
+      if (!member?.email) return json({ ok: false, error: "Invitation not found" }, 404);
+      if (member.auth_user_id) {
+        return json({ ok: false, error: "That member has already completed account setup" }, 409);
+      }
+      const email = String(member.email).trim().toLowerCase();
+      const redirectTo = `${new URL(request.url).origin}/`;
+      await serviceJson(env, `/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      return json({ ok: true, message: `Invitation resent to ${email}` });
+    }
+
     if (action === "invite") {
       const playerId = Number(body?.playerId);
       const email = String(body?.email || "").trim().toLowerCase();

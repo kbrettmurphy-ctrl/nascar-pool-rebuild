@@ -2378,20 +2378,25 @@ a.newsCard:last-child{ border-bottom:none; }
 
 .adminPendingActions{
   display:flex;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   gap:6px;
   margin-top:6px;
+  width:100%;
 }
 
 .adminSetupLinkBtn,
+.adminResendInviteBtn,
 .adminCancelInviteBtn{
-  padding:6px 9px;
+  flex:1 1 0;
+  min-width:0;
+  padding:6px 5px;
   border:1px solid var(--line);
   border-radius:8px;
   background:var(--chip);
   color:var(--text);
-  font-size:11px;
+  font-size:10px;
   font-weight:700;
+  white-space:nowrap;
 }
 
 .adminCancelInviteBtn{

@@ -655,7 +655,7 @@ if (liveCard) {
           const setupButton = document.createElement("button");
           setupButton.type = "button";
           setupButton.className = "adminSetupLinkBtn";
-          setupButton.textContent = "Create setup link";
+          setupButton.textContent = "Create Link";
           setupButton.addEventListener("click", async () => {
             setupButton.disabled = true;
             setAdminStatus_("adminMembersStatus", `Creating a setup link for ${member.playerName}…`);
@@ -673,16 +673,42 @@ if (liveCard) {
             }
           });
 
+          const resendButton = document.createElement("button");
+          resendButton.type = "button";
+          resendButton.className = "adminResendInviteBtn";
+          resendButton.textContent = "Resend Invite";
+          resendButton.addEventListener("click", async () => {
+            setupButton.disabled = true;
+            resendButton.disabled = true;
+            cancelButton.disabled = true;
+            setAdminStatus_("adminMembersStatus", `Resending ${member.playerName}'s invitation…`);
+            try {
+              const result = await adminFetch_("/api/admin-members", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "resend-invite", memberId: member.id })
+              });
+              setAdminStatus_("adminMembersStatus", result.message || "Invitation resent.");
+            } catch (error) {
+              setAdminStatus_("adminMembersStatus", error.message || String(error), true);
+            } finally {
+              setupButton.disabled = false;
+              resendButton.disabled = false;
+              cancelButton.disabled = false;
+            }
+          });
+
           const cancelButton = document.createElement("button");
           cancelButton.type = "button";
           cancelButton.className = "adminCancelInviteBtn";
-          cancelButton.textContent = "Cancel invitation";
+          cancelButton.textContent = "Cancel Invite";
           cancelButton.addEventListener("click", async () => {
             const confirmed = window.confirm(
               `Cancel the invitation for ${member.playerName} (${member.email})? Their setup link will stop working.`
             );
             if (!confirmed) return;
             setupButton.disabled = true;
+            resendButton.disabled = true;
             cancelButton.disabled = true;
             setAdminStatus_("adminMembersStatus", `Canceling ${member.playerName}'s invitation…`);
             try {
@@ -695,11 +721,12 @@ if (liveCard) {
               setAdminStatus_("adminMembersStatus", result.message || "Invitation canceled.");
             } catch (error) {
               setupButton.disabled = false;
+              resendButton.disabled = false;
               cancelButton.disabled = false;
               setAdminStatus_("adminMembersStatus", error.message || String(error), true);
             }
           });
-          pendingActions.append(setupButton, cancelButton);
+          pendingActions.append(setupButton, resendButton, cancelButton);
           identity.append(pendingActions);
         }
 

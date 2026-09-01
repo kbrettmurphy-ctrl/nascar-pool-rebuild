@@ -149,3 +149,32 @@ test("established member account cannot be canceled as an invitation", async t =
   assert.equal(response.status, 409);
   assert.match(body.error, /Active member accounts/);
 });
+
+test("pending member can receive a fresh invitation email", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let invitationResent = false;
+  globalThis.fetch = async (input, options = {}) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/pool_members?") && url.includes("is_admin=eq.true")) return json([{ id: admin.id }]);
+    if (url.includes(`/rest/v1/pool_members?id=eq.${pendingMemberId}`)) {
+      return json([{ id: pendingMemberId, email: "member@example.com", auth_user_id: null }]);
+    }
+    if (url.includes("/auth/v1/invite") && options.method === "POST") {
+      assert.deepEqual(JSON.parse(options.body), { email: "member@example.com" });
+      invitationResent = true;
+      return json({ id: "44444444-4444-4444-8444-444444444444" });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const response = await postAdminMembers({
+    request: await adminRequest({ action: "resend-invite", memberId: pendingMemberId }),
+    env
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(invitationResent, true);
+  assert.equal(body.message, "Invitation resent to member@example.com");
+});
