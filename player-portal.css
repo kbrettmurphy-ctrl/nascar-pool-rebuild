@@ -2635,6 +2635,10 @@ a.newsCard:last-child{ border-bottom:none; }
   font-weight:600;
   white-space:nowrap;
 }
+
+.adminTab[data-admin-tab="members"]{
+  flex-grow:1.18;
+}
 .adminTab:hover{ background:transparent; }
 
 .adminTab.active{
