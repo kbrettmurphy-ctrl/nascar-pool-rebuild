@@ -28,12 +28,45 @@ async function serviceJson(env, path, options = {}) {
   return data;
 }
 
+async function listAuthUsers(env) {
+  const data = await serviceJson(env, "/auth/v1/admin/users?page=1&per_page=1000");
+  return Array.isArray(data?.users) ? data.users : [];
+}
+
+function authUserByEmail(users, email) {
+  return users.find(candidate =>
+    String(candidate?.email || "").trim().toLowerCase() === email
+  ) || null;
+}
+
+async function reconcileConfirmedMembers(env, members, authUsers) {
+  for (const member of members || []) {
+    if (member.auth_user_id) continue;
+    const email = String(member.email || "").trim().toLowerCase();
+    const authUser = authUserByEmail(authUsers, email);
+    if (!authUser?.id || !(authUser.email_confirmed_at || authUser.confirmed_at)) continue;
+    const rows = await serviceJson(
+      env,
+      `/rest/v1/pool_members?id=eq.${encodeURIComponent(member.id)}&auth_user_id=is.null&select=id,auth_user_id`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ auth_user_id: authUser.id, updated_at: new Date().toISOString() })
+      }
+    );
+    if (rows?.[0]?.auth_user_id) member.auth_user_id = rows[0].auth_user_id;
+  }
+  return members;
+}
+
 async function memberRoster(env) {
-  const [members, players] = await Promise.all([
+  const [members, players, authUsers] = await Promise.all([
     serviceJson(env, "/rest/v1/pool_members?select=id,player_id,email,active,is_admin,auth_user_id,players(name)"),
-    serviceJson(env, "/rest/v1/players?select=id,name&active=eq.true&order=name.asc")
+    serviceJson(env, "/rest/v1/players?select=id,name&active=eq.true&order=name.asc"),
+    listAuthUsers(env)
   ]);
-  const normalized = (members || []).map(row => ({
+  const reconciledMembers = await reconcileConfirmedMembers(env, members, authUsers);
+  const normalized = (reconciledMembers || []).map(row => ({
     id: row.id,
     playerId: Number(row.player_id),
     playerName: String(Array.isArray(row.players) ? row.players[0]?.name : row.players?.name || "").trim(),
@@ -68,10 +101,7 @@ async function createSetupLink(env, email, redirectTo) {
 }
 
 async function findPendingAuthUser(env, email) {
-  const data = await serviceJson(env, "/auth/v1/admin/users?page=1&per_page=1000");
-  const user = (data?.users || []).find(candidate =>
-    String(candidate?.email || "").trim().toLowerCase() === email
-  );
+  const user = authUserByEmail(await listAuthUsers(env), email);
   if (!user?.id) return null;
   return user.invited_at && !user.last_sign_in_at ? user : null;
 }

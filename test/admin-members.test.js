@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAdminToken } from "../functions/api/_admin-auth.js";
-import { onRequestPost as postAdminMembers } from "../functions/api/admin-members.js";
+import { onRequestGet as getAdminMembers, onRequestPost as postAdminMembers } from "../functions/api/admin-members.js";
 
 const env = {
   SUPABASE_URL: "https://project.example",
@@ -32,6 +32,13 @@ async function adminRequest(body) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
+  });
+}
+
+async function adminGetRequest() {
+  const token = await createAdminToken(env, admin);
+  return new Request("https://pool.example/api/admin-members", {
+    headers: { Authorization: `Bearer ${token}` }
   });
 }
 
@@ -177,4 +184,42 @@ test("pending member can receive a fresh invitation email", async t => {
   assert.equal(body.ok, true);
   assert.equal(invitationResent, true);
   assert.equal(body.message, "Invitation resent to member@example.com");
+});
+
+test("members page reconciles a confirmed setup-link account", async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const confirmedUserId = "44444444-4444-4444-8444-444444444444";
+  let accountLinked = false;
+  globalThis.fetch = async (input, options = {}) => {
+    const url = String(input);
+    if (url.includes("/rest/v1/pool_members?") && url.includes("is_admin=eq.true")) return json([{ id: admin.id }]);
+    if (url.includes("/rest/v1/pool_members?select=id,player_id,email")) {
+      return json([{
+        id: pendingMemberId,
+        player_id: 10,
+        email: "member@example.com",
+        active: true,
+        is_admin: false,
+        auth_user_id: null,
+        players: { name: "Tyler" }
+      }]);
+    }
+    if (url.includes("/rest/v1/players?")) return json([{ id: 10, name: "Tyler" }]);
+    if (url.includes("/auth/v1/admin/users?page=1")) {
+      return json({ users: [{ id: confirmedUserId, email: "member@example.com", email_confirmed_at: "2026-08-31T23:09:40Z" }] });
+    }
+    if (url.includes(`/rest/v1/pool_members?id=eq.${pendingMemberId}`) && options.method === "PATCH") {
+      assert.equal(JSON.parse(options.body).auth_user_id, confirmedUserId);
+      accountLinked = true;
+      return json([{ id: pendingMemberId, auth_user_id: confirmedUserId }]);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const response = await getAdminMembers({ request: await adminGetRequest(), env });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(accountLinked, true);
+  assert.equal(body.members[0].hasAccount, true);
 });
