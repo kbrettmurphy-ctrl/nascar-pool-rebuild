@@ -2359,7 +2359,7 @@ await refreshAfterAdminChange_();
     const name = sel ? String(sel.value || "").trim() : "";
 
     if (!name) {
-      out.textContent = "Pick your name up top. The leaderboard doesn\u2019t wait for anonymous cowards.";
+      out.textContent = "Sign in to see your season and matchup details.";
       return;
     }
 
@@ -2609,7 +2609,7 @@ await refreshAfterAdminChange_();
     const sel = document.getElementById("globalPlayer");
     const name = sel ? String(sel.value || "").trim() : "";
     if (!name) {
-      out.textContent = "I can't show you dues without knowing who you are, you silly goose!";
+      out.textContent = "Sign in to view your dues.";
       return;
     }
 
