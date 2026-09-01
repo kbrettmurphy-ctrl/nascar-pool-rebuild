@@ -413,6 +413,14 @@ select, input{
   white-space:nowrap;
 }
 
+#globalPlayer.identityLocked{
+  appearance:none;
+  -webkit-appearance:none;
+  pointer-events:none;
+  opacity:1;
+  cursor:default;
+}
+
 .headerRow2{
   display:flex;
   align-items:center;

@@ -1923,64 +1923,20 @@ await refreshAfterAdminChange_();
       .replace(/'/g,"&#039;");
   }
 
-  function populatePlayerDropdowns(playerList) {
+  function populatePlayerDropdowns() {
     const gp = document.getElementById("globalPlayer");
     if (!gp) return;
 
-    const options = [
-      `<option value="" id="playerPlaceholder" disabled>Who the fuck are you?</option>`
-    ]
-      .concat(playerList.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`))
-      .join("");
-
-    gp.innerHTML = options;
-
-    const ph = gp.querySelector("#playerPlaceholder");
-    const saved = _memberIdentity?.playerName || loadPlayerName();
-
-    if (saved) {
-      gp.value = saved;
-      if (ph) ph.hidden = true;
-    } else {
-      gp.value = "";
-      if (ph) {
-        ph.hidden = false;
-        ph.selected = true;
-      }
-    }
-
+    const identity = String(_memberIdentity?.playerName || "").trim();
+    gp.innerHTML = identity
+      ? `<option value="${escapeAttr(identity)}">${escapeHtml(identity)}</option>`
+      : `<option value="">Guest</option>`;
+    gp.value = identity;
+    gp.classList.add("identityLocked");
+    gp.disabled = true;
+    gp.title = identity ? "Your player is linked to your member account" : "Guest";
+    gp.onchange = null;
     autoSizePlayerSelect_(gp);
-    gp.disabled = Boolean(_memberIdentity);
-    gp.title = _memberIdentity ? "Your player is linked to your member account" : "Choose a player";
-
-    gp.onchange = async () => {
-      const name = String(gp.value || "").trim();
-      if (!name) return;
-      if (ph) ph.hidden = true;
-
-      savePlayerName(name);
-      refillQueue();
-      setWelcome();
-      checkDuesNag_();
-      autoSizePlayerSelect_(gp);
-
-      // update row highlighting everywhere immediately
-      applyYouRowsNow_();
-
-      // refresh the active view so selected-player ordering updates immediately
-      if (activeView === "current") {
-        await loadSelectedRace_();
-      } else if (activeView === "mymatchup") {
-        await loadMyMatchup();
-        await loadDues();
-      } else if (activeView === "live") {
-        await loadLiveMatchups();
-      } else if (activeView === "standings") {
-        await loadStandings();
-      } else if (activeView === "bracket") {
-        await loadBracket();
-      }
-    };
   }
 
 
@@ -2264,7 +2220,7 @@ await refreshAfterAdminChange_();
 
     const paddingLeft  = parseFloat(cs.paddingLeft)  || 0;
     const paddingRight = parseFloat(cs.paddingRight) || 0;
-    const arrowSpace = 34;
+    const arrowSpace = sel.classList.contains("identityLocked") ? 8 : 34;
     const width = Math.ceil(
       measurer.getBoundingClientRect().width +
       paddingLeft +
@@ -5625,9 +5581,7 @@ function initAdminControls_() {
       return;
     }
 
-    if (_wasMember) {
-      try { localStorage.removeItem(STORAGE_KEY); } catch {}
-    }
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     _wasMember = false;
     buschGirls = [];
     buschQueue = [];
