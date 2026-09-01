@@ -2359,7 +2359,7 @@ await refreshAfterAdminChange_();
     const name = sel ? String(sel.value || "").trim() : "";
 
     if (!name) {
-      out.textContent = "Sign in to see your season and matchup details.";
+      out.textContent = "Sign in to see your season. Guest isn't a NASCAR driver, no matter how confident you are.";
       return;
     }
 
@@ -2609,7 +2609,7 @@ await refreshAfterAdminChange_();
     const sel = document.getElementById("globalPlayer");
     const name = sel ? String(sel.value || "").trim() : "";
     if (!name) {
-      out.textContent = "Sign in to view your dues.";
+      out.textContent = "Sign in to see what you owe. Ignorance is not a payment plan.";
       return;
     }
 
