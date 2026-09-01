@@ -2359,7 +2359,7 @@ await refreshAfterAdminChange_();
     const name = sel ? String(sel.value || "").trim() : "";
 
     if (!name) {
-      out.textContent = "Sign in to see your season. Guest isn't a NASCAR driver, no matter how confident you are.";
+      out.textContent = "Sign in to see your season. Unless your mother named you Guest, you're in the wrong account.";
       return;
     }
 
