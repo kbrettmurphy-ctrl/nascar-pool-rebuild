@@ -186,7 +186,7 @@
   let searchTimer=null;
   function applySearch(){clearTimeout(searchTimer);const value=$("filenameSearch").value.trim();$("clearSearch").hidden=!value;if(value===state.search)return;state.search=value;resetResultsAndLoad();}
   let resizeTimer=null;
-  const resizeObserver=new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{const columns=countGridColumns();if(columns===state.columns)return;const oldOffset=(state.page-1)*state.pageSize;const pageSize=pageSizeForColumns(columns);state.columns=columns;if(pageSize===state.pageSize)return;state.pageSize=pageSize;state.page=Math.floor(oldOffset/pageSize)+1;loadPage();},220);});
+  const resizeObserver=new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(!$("viewer").hidden)return;const columns=countGridColumns();if(columns===state.columns)return;const oldOffset=(state.page-1)*state.pageSize;const pageSize=pageSizeForColumns(columns);state.columns=columns;if(pageSize===state.pageSize)return;state.pageSize=pageSize;state.page=Math.floor(oldOffset/pageSize)+1;loadPage();},220);});
 
   function goBack(){ try{const ref=document.referrer?new URL(document.referrer):null;if(ref&&ref.origin===location.origin&&history.length>1){history.back();return;}}catch{} location.assign("/"); }
   $("backBtn").addEventListener("click",goBack); document.querySelectorAll(".returnBtn").forEach(button=>button.addEventListener("click",()=>location.assign("/")));
