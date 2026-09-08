@@ -483,23 +483,12 @@
         });
 
         // Auto-update long-lived PWA sessions: when the app comes back
-        // to the foreground, check whether a newer build is deployed
-        // (ETag probe covers content-only edits; reg.update() covers
-        // service-worker changes) and reload once if so.
+        // to the foreground, check whether a newer build is deployed.
+        // The ETag probe covers content-only edits; reg.update() covers
+        // service-worker changes without forcing a controller-change reload.
         (function autoFreshen(){
-          var hadController = false;
           var reloaded = false;
           var loadedEtag = null;
-
-          navigator.serviceWorker.ready.then(function(){
-            hadController = !!navigator.serviceWorker.controller;
-          });
-
-          navigator.serviceWorker.addEventListener("controllerchange", function(){
-            if (reloaded || !hadController) return;
-            reloaded = true;
-            location.reload();
-          });
 
           function probeEtag(){
             return fetch("/player-portal.js", { method: "HEAD", cache: "no-cache" })

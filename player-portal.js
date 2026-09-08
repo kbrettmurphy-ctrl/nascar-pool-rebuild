@@ -5615,21 +5615,7 @@ function initAdminControls_() {
     await loadBuschGirls();
   }
 
-  async function forcePwaUpdate_() {
-    if (!("serviceWorker" in navigator)) return;
-
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (!reg) return;
-
-    await reg.update();
-
-    if (reg.waiting) {
-      reg.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
-  }
-
   window.onload = async () => {
-    await forcePwaUpdate_();
     await window.MemberAuth?.init({ onChange: handleMemberAuthChange_ });
     initPushNotifications_();
     initAdminControls_();
