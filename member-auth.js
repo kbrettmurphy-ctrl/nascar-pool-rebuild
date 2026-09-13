@@ -20,15 +20,44 @@
     document.querySelectorAll("[data-member-panel]").forEach(panel => {
       panel.hidden = panel.dataset.memberPanel !== name;
     });
+    const card = document.querySelector(".memberAuthCard");
+    const titleByPanel = {
+      signin: "memberAuthTitle",
+      reset: "memberResetTitle",
+      password: "memberPasswordTitle",
+      account: "memberProfileName"
+    };
+    if (card && titleByPanel[name]) card.setAttribute("aria-labelledby", titleByPanel[name]);
     setStatus("");
+  }
+
+  function setPasswordMode(isAccountChange) {
+    const wrap = byId("memberCurrentPasswordWrap");
+    const current = byId("memberCurrentPassword");
+    if (wrap) wrap.hidden = !isAccountChange;
+    if (current) {
+      current.required = Boolean(isAccountChange);
+      if (!isAccountChange) current.value = "";
+    }
+    if (byId("memberPasswordTitle")) {
+      byId("memberPasswordTitle").textContent = isAccountChange ? "Change password" : "Choose a password";
+    }
   }
 
   function showModal(panel = member ? "account" : "signin") {
     setPanel(panel);
     const backdrop = byId("memberAuthBackdrop");
     if (backdrop) backdrop.hidden = false;
+    if (panel === "account") {
+      window.dispatchEvent(new CustomEvent("member-profile-open"));
+    }
     requestAnimationFrame(() => {
-      const selector = panel === "signin" ? "#memberEmail" : panel === "password" ? "#memberNewPassword" : null;
+      const changingPassword = panel === "password" && !byId("memberCurrentPasswordWrap")?.hidden;
+      const selector = panel === "signin"
+        ? "#memberEmail"
+        : panel === "password"
+          ? changingPassword ? "#memberCurrentPassword" : "#memberNewPassword"
+          : null;
       document.querySelector(selector)?.focus();
     });
   }
@@ -41,10 +70,21 @@
   function paintAccountButton() {
     const button = byId("memberAccountBtn");
     if (!button) return;
-    button.textContent = member ? "✓" : "👤";
+    const initial = button.querySelector(".profileInitial");
+    if (initial) initial.textContent = member ? initials(member.playerName) : "";
     button.classList.toggle("memberActive", Boolean(member));
     button.setAttribute("aria-label", member ? `Member account: ${member.playerName}` : "Member sign in");
     button.title = member ? `${member.playerName} · ${member.email}` : "Member sign in";
+  }
+
+  function initials(name) {
+    return String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase() || "")
+      .join("") || "M";
   }
 
   function emit() {
@@ -77,7 +117,11 @@
     }
     member = data.member;
     const label = byId("memberAccountIdentity");
-    if (label) label.textContent = `${member.playerName} · ${member.email}`;
+    const name = byId("memberProfileName");
+    const avatar = byId("memberProfileAvatar");
+    if (label) label.textContent = member.email;
+    if (name) name.textContent = member.playerName;
+    if (avatar) avatar.textContent = initials(member.playerName);
     emit();
     return member;
   }
@@ -135,15 +179,22 @@
     if (!client) return setStatus("Member login is not configured yet.", true);
     const password = String(byId("memberNewPassword")?.value || "");
     const confirmation = String(byId("memberConfirmPassword")?.value || "");
+    const currentPassword = String(byId("memberCurrentPassword")?.value || "");
     if (password.length < 8) return setStatus("Use at least 8 characters.", true);
     if (password !== confirmation) return setStatus("The passwords do not match.", true);
     const button = byId("memberPasswordBtn");
     if (button) button.disabled = true;
     setStatus("Saving password…");
     try {
-      const { error } = await client.auth.updateUser({ password });
+      const attributes = currentPassword
+        ? { password, current_password: currentPassword }
+        : { password };
+      const { error } = await client.auth.updateUser(attributes);
       if (error) throw error;
       await verifyMembership();
+      if (byId("memberCurrentPassword")) byId("memberCurrentPassword").value = "";
+      if (byId("memberNewPassword")) byId("memberNewPassword").value = "";
+      if (byId("memberConfirmPassword")) byId("memberConfirmPassword").value = "";
       history.replaceState({}, "", location.pathname + location.search.replace(/([?&])memberAuth=[^&]*&?/, "$1").replace(/[?&]$/, ""));
       hideModal();
     } catch (error) {
@@ -180,7 +231,11 @@
     byId("memberAccountBtn")?.addEventListener("click", () => showModal(member ? "account" : "signin"));
     byId("memberAccountCloseBtn")?.addEventListener("click", hideModal);
     byId("memberSignOutBtn")?.addEventListener("click", signOut);
-    byId("memberChangePasswordBtn")?.addEventListener("click", () => setPanel("password"));
+    byId("memberChangePasswordBtn")?.addEventListener("click", () => {
+      setPasswordMode(true);
+      setPanel("password");
+      requestAnimationFrame(() => byId("memberCurrentPassword")?.focus());
+    });
   }
 
   async function init(options = {}) {
@@ -203,7 +258,10 @@
 
       client.auth.onAuthStateChange((event, activeSession) => {
         if (event === "PASSWORD_RECOVERY") {
-          setTimeout(() => showModal("password"), 0);
+          setTimeout(() => {
+            setPasswordMode(false);
+            showModal("password");
+          }, 0);
         } else if (event === "SIGNED_OUT" && member) {
           setTimeout(() => {
             member = null;
@@ -218,7 +276,10 @@
       if (activeSession) {
         try {
           await verifyMembership();
-          if (initialQueryMode === "recovery" || initialHashType === "invite" || initialHashType === "recovery") showModal("password");
+          if (initialQueryMode === "recovery" || initialHashType === "invite" || initialHashType === "recovery") {
+            setPasswordMode(false);
+            showModal("password");
+          }
           else hideModal();
         } catch (error) {
           await rejectUnapprovedSession(error?.message || "This account is not an active pool member.");

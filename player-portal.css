@@ -404,22 +404,47 @@ select, input{
 }
 #welcomeName:empty{ display:none; }
 
-#globalPlayer{
-  flex:0 1 auto;
-  max-width:55%;
-  min-width:0;
+.profileButton{
+  width:40px;
+  height:40px;
+  padding:0;
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
   overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  border-radius:999px;
+  border:1px solid var(--chipBorder);
+  background:var(--chip);
+  color:var(--muted);
 }
-
-#globalPlayer.identityLocked{
-  appearance:none;
-  -webkit-appearance:none;
-  pointer-events:none;
-  opacity:1;
-  cursor:default;
+.profileButton:hover{ background:var(--chipHover); }
+.profileButton:focus-visible{
+  outline:3px solid color-mix(in srgb, var(--blue) 45%, transparent);
+  outline-offset:2px;
 }
+.profileGuestIcon{
+  width:23px;
+  height:23px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.profileInitial{
+  display:none;
+  font-size:16px;
+  font-weight:850;
+  letter-spacing:-.25px;
+}
+.profileButton.memberActive{
+  color:#07131c;
+  border-color:color-mix(in srgb, var(--blue) 65%, var(--chipBorder));
+  background:linear-gradient(145deg, #8fd7f7, #4db4e8);
+  box-shadow:0 3px 12px rgba(0,122,194,.28);
+}
+.profileButton.memberActive .profileGuestIcon{ display:none; }
+.profileButton.memberActive .profileInitial{ display:inline; }
 
 .headerRow2{
   display:flex;
@@ -468,8 +493,8 @@ select, input{
   inset:0;
   z-index:10000;
   display:grid;
-  place-items:center;
-  padding:calc(20px + env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom));
+  place-items:end center;
+  padding:calc(20px + env(safe-area-inset-top)) 0 0;
   background:var(--overlayBg);
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
@@ -477,12 +502,13 @@ select, input{
 .memberAuthBackdrop[hidden]{ display:none; }
 .memberAuthCard{
   position:relative;
-  width:min(100%, 390px);
-  max-height:calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  width:min(100%, 430px);
+  max-height:calc(100dvh - 20px - env(safe-area-inset-top));
   overflow:auto;
-  padding:24px;
+  padding:24px 20px calc(22px + env(safe-area-inset-bottom));
   border:1px solid var(--line);
-  border-radius:22px;
+  border-bottom:0;
+  border-radius:24px 24px 0 0;
   background:var(--sheetBg);
   color:var(--text);
   box-shadow:var(--popShadow);
@@ -506,6 +532,8 @@ select, input{
   margin-top:16px;
 }
 .memberAuthForm label{ margin:3px 0 0; }
+.memberAuthField{ display:grid; gap:7px; }
+.memberAuthField[hidden]{ display:none; }
 .memberAuthForm input{
   width:100%;
   height:44px;
@@ -569,13 +597,122 @@ select, input{
   line-height:1;
 }
 .memberAccountIdentity{
-  padding:12px;
-  border:1px solid var(--lineSoft);
-  border-radius:12px;
-  background:var(--chip);
-  font-weight:700;
+  margin:2px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:600;
+  overflow-wrap:anywhere;
 }
 .dangerText{ color:var(--redText); }
+
+.memberProfileHero{
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding-right:36px;
+}
+.memberProfileHero h1{ margin-bottom:0; }
+.memberProfileAvatar{
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:999px;
+  color:#07131c;
+  background:linear-gradient(145deg, #8fd7f7, #4db4e8);
+  box-shadow:0 5px 18px rgba(0,122,194,.25);
+  font-size:21px;
+  font-weight:850;
+}
+.memberSettings{
+  margin-top:22px;
+  overflow:hidden;
+  border:1px solid var(--lineSoft);
+  border-radius:16px;
+  background:var(--chip);
+}
+.memberSettingRow{
+  width:100%;
+  min-height:62px;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:10px 12px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+}
+.memberSettingRow + .memberSettingRow{ border-top:1px solid var(--lineSoft); }
+.memberSettingButton:hover{ background:var(--chipHover); }
+.memberSettingIcon{
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:9px;
+  background:var(--card);
+  font-size:16px;
+}
+.memberSettingCopy{
+  min-width:0;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  gap:2px;
+}
+.memberSettingCopy strong{ font-size:13px; }
+.memberSettingCopy span{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.25;
+}
+.memberSettingAction{
+  min-width:58px;
+  min-height:32px;
+  padding:6px 10px;
+  border-radius:999px;
+  border-color:var(--chipBorder);
+  background:var(--card);
+  color:var(--blueText);
+  font-size:11px;
+  font-weight:800;
+}
+.memberSettingAction.active{
+  color:var(--greenText);
+  border-color:color-mix(in srgb, var(--green) 40%, var(--chipBorder));
+}
+.memberSettingChevron{
+  color:var(--muted);
+  font-size:25px;
+  font-weight:300;
+  line-height:1;
+}
+.memberSignOutButton{
+  width:100%;
+  min-height:44px;
+  margin-top:18px;
+  border-color:color-mix(in srgb, var(--red) 30%, var(--chipBorder));
+  background:color-mix(in srgb, var(--red) 8%, var(--chip));
+  color:var(--redText);
+  font-weight:750;
+}
+
+@media (min-width:600px){
+  .memberAuthBackdrop{
+    place-items:center;
+    padding:calc(20px + env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom));
+  }
+  .memberAuthCard{
+    max-height:calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding:24px;
+    border-bottom:1px solid var(--line);
+    border-radius:22px;
+  }
+}
 
 @media (max-width:380px){
   .spoilerToggle .label{ display:none; }

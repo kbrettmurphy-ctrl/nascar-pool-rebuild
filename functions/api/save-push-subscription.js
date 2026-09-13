@@ -1,10 +1,17 @@
+import { memberAuthResponse, requirePoolMember } from "./_member-auth.js";
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
+    let member;
+    try {
+      member = await requirePoolMember(request, env);
+    } catch (error) {
+      return memberAuthResponse(error);
+    }
 
     const body = await request.json();
 
-    const playerName = String(body?.playerName || "").trim();
     const subscription = body?.subscription || null;
     const userAgent = request.headers.get("user-agent") || "";
 
@@ -13,7 +20,7 @@ export async function onRequestPost(context) {
     }
 
     const row = {
-      player_name: playerName || null,
+      player_name: member.playerName,
       endpoint: subscription.endpoint,
       subscription,
       user_agent: userAgent,
