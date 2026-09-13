@@ -100,6 +100,10 @@ async function createSetupLink(env, email, redirectTo) {
   return setupLink;
 }
 
+function passwordSetupRedirect(request) {
+  return `${new URL(request.url).origin}/?memberAuth=recovery`;
+}
+
 async function findPendingAuthUser(env, email) {
   const user = authUserByEmail(await listAuthUsers(env), email);
   if (!user?.id) return null;
@@ -150,7 +154,7 @@ export async function onRequestPost({ request, env }) {
       );
       const member = rows?.[0];
       if (!member?.email) return json({ ok: false, error: "Member not found" }, 404);
-      const redirectTo = `${new URL(request.url).origin}/?memberAuth=recovery`;
+      const redirectTo = passwordSetupRedirect(request);
       const setupLink = await createSetupLink(env, String(member.email).toLowerCase(), redirectTo);
       return json({
         ok: true,
@@ -202,7 +206,7 @@ export async function onRequestPost({ request, env }) {
         return json({ ok: false, error: "That member has already completed account setup" }, 409);
       }
       const email = String(member.email).trim().toLowerCase();
-      const redirectTo = `${new URL(request.url).origin}/`;
+      const redirectTo = passwordSetupRedirect(request);
       await serviceJson(env, `/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -247,7 +251,7 @@ export async function onRequestPost({ request, env }) {
         });
       }
 
-      const redirectTo = `${new URL(request.url).origin}/`;
+      const redirectTo = passwordSetupRedirect(request);
       try {
         await serviceJson(env, `/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
           method: "POST",
@@ -256,7 +260,7 @@ export async function onRequestPost({ request, env }) {
         });
       } catch (error) {
         if (error.status !== 429 && !/email rate limit/i.test(error.message || "")) throw error;
-        const setupLink = await createSetupLink(env, email, `${redirectTo}?memberAuth=recovery`);
+        const setupLink = await createSetupLink(env, email, redirectTo);
         return json({
           ok: true,
           invitationSent: false,

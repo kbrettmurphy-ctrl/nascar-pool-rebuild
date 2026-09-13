@@ -80,7 +80,10 @@ test("email rate limit falls back to a setup link without losing the member", as
       memberCreated = true;
       return new Response(null, { status: 201 });
     }
-    if (url.includes("/auth/v1/invite")) return json({ msg: "email rate limit exceeded" }, 429);
+    if (url.includes("/auth/v1/invite")) {
+      assert.match(url, /redirect_to=https%3A%2F%2Fpool\.example%2F%3FmemberAuth%3Drecovery/);
+      return json({ msg: "email rate limit exceeded" }, 429);
+    }
     if (url.includes("/auth/v1/admin/generate_link")) {
       return json({ action_link: "https://project.example/auth/v1/verify?token=fallback" });
     }
@@ -168,6 +171,7 @@ test("pending member can receive a fresh invitation email", async t => {
       return json([{ id: pendingMemberId, email: "member@example.com", auth_user_id: null }]);
     }
     if (url.includes("/auth/v1/invite") && options.method === "POST") {
+      assert.match(url, /redirect_to=https%3A%2F%2Fpool\.example%2F%3FmemberAuth%3Drecovery/);
       assert.deepEqual(JSON.parse(options.body), { email: "member@example.com" });
       invitationResent = true;
       return json({ id: "44444444-4444-4444-8444-444444444444" });
