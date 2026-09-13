@@ -1923,24 +1923,6 @@ await refreshAfterAdminChange_();
       .replace(/'/g,"&#039;");
   }
 
-  function populatePlayerDropdowns() {
-    const gp = document.getElementById("globalPlayer");
-    if (!gp) return;
-
-    const identity = String(_memberIdentity?.playerName || "").trim();
-    gp.innerHTML = identity
-      ? `<option value="${escapeAttr(identity)}">${escapeHtml(identity)}</option>`
-      : `<option value="">Guest</option>`;
-    gp.value = identity;
-    gp.classList.add("identityLocked");
-    gp.disabled = true;
-    gp.title = identity ? "Your player is linked to your member account" : "Guest";
-    gp.onchange = null;
-    autoSizePlayerSelect_(gp);
-  }
-
-
-
   function applyYouRowsNow_(){
     const you = loadPlayerName().trim().toLowerCase();
 
@@ -2194,43 +2176,6 @@ await refreshAfterAdminChange_();
     sel.style.width = width + "px";
   }
 
-  function autoSizePlayerSelect_(sel){
-    if(!sel) return;
-
-    let measurer = document.getElementById("__playerSelectMeasurer");
-    if(!measurer){
-      measurer = document.createElement("span");
-      measurer.id = "__playerSelectMeasurer";
-      measurer.style.position = "absolute";
-      measurer.style.visibility = "hidden";
-      measurer.style.whiteSpace = "pre";
-      measurer.style.left = "-9999px";
-      measurer.style.top = "-9999px";
-      document.body.appendChild(measurer);
-    }
-
-    const cs = getComputedStyle(sel);
-    measurer.style.fontFamily = cs.fontFamily;
-    measurer.style.fontSize = cs.fontSize;
-    measurer.style.fontWeight = cs.fontWeight;
-    measurer.style.letterSpacing = cs.letterSpacing;
-
-    const text = sel.options[sel.selectedIndex]?.text || "";
-    measurer.textContent = text;
-
-    const paddingLeft  = parseFloat(cs.paddingLeft)  || 0;
-    const paddingRight = parseFloat(cs.paddingRight) || 0;
-    const arrowSpace = sel.classList.contains("identityLocked") ? 8 : 34;
-    const width = Math.ceil(
-      measurer.getBoundingClientRect().width +
-      paddingLeft +
-      paddingRight +
-      arrowSpace
-    );
-
-    sel.style.width = width + "px";
-  }
-
   async function loadSelectedRace_(){
     const sel = document.getElementById("raceSelect");
     const area = document.getElementById("matchupsArea");
@@ -2264,9 +2209,6 @@ await refreshAfterAdminChange_();
 
   async function loadPlayersThenInit() {
     try{
-      const players = await getPlayerList_();
-      const safePlayers = Array.isArray(players) ? players : [];
-      populatePlayerDropdowns(safePlayers);
       setWelcome();
       await initRaceSelect_();
       checkDuesNag_();
@@ -2354,9 +2296,8 @@ await refreshAfterAdminChange_();
   }
 
   async function loadMyMatchup() {
-    const sel = document.getElementById("globalPlayer");
     const out = document.getElementById("mmStatus");
-    const name = sel ? String(sel.value || "").trim() : "";
+    const name = loadPlayerName();
 
     if (!name) {
       out.textContent = "Sign in to see your season. Unless your mother named you Guest, you're in the wrong account.";
@@ -2606,8 +2547,7 @@ await refreshAfterAdminChange_();
       return;
     }
 
-    const sel = document.getElementById("globalPlayer");
-    const name = sel ? String(sel.value || "").trim() : "";
+    const name = loadPlayerName();
     if (!name) {
       out.textContent = "Sign in to see what you owe. Ignorance is not a payment plan.";
       return;
@@ -3470,8 +3410,9 @@ async function enablePushNotifications_() {
       throw new Error("Push notifications are not supported in this browser.");
     }
 
-    if (!loadPlayerName().trim()) {
-      throw new Error("Pick your name from the dropdown first so we know who to notify.");
+    if (!window.MemberAuth?.isMember()) {
+      window.MemberAuth?.showSignIn();
+      throw new Error("Sign in to manage notifications.");
     }
 
     const reg = await navigator.serviceWorker.ready;
@@ -3482,7 +3423,7 @@ async function enablePushNotifications_() {
     if (existing) {
       let status = { found: false, paused: false };
       try {
-        const sRes = await fetch(
+        const sRes = await window.MemberAuth.authorizedFetch(
           `/api/push-prefs?endpoint=${encodeURIComponent(existing.endpoint)}`,
           { cache: "no-store" }
         );
@@ -3492,12 +3433,7 @@ async function enablePushNotifications_() {
 
       if (status.found) {
         const turningOff = !status.paused;
-        const q = turningOff
-          ? "Notifications are ON for this device. Pause them?"
-          : "Notifications are paused. Turn them back on?";
-        if (!confirm(q)) return;
-
-        const res = await fetch("/api/push-prefs", {
+        const res = await window.MemberAuth.authorizedFetch("/api/push-prefs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: existing.endpoint, paused: turningOff })
@@ -3507,10 +3443,7 @@ async function enablePushNotifications_() {
           throw new Error(data?.error || "Failed updating notification settings.");
         }
 
-        paintPushButton_(!turningOff);
-        alert(turningOff
-          ? "Notifications paused. Tap the bell any time to turn them back on."
-          : "Notifications are back on.");
+        paintPushButton_(!turningOff, turningOff);
         return;
       }
       // Subscribed in the browser but unknown to the server:
@@ -3528,11 +3461,10 @@ async function enablePushNotifications_() {
       applicationServerKey: urlBase64ToUint8Array_(VAPID_PUBLIC_KEY)
     });
 
-    const res = await fetch("/api/save-push-subscription", {
+    const res = await window.MemberAuth.authorizedFetch("/api/save-push-subscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        playerName: loadPlayerName(),
         subscription
       })
     });
@@ -3544,49 +3476,59 @@ async function enablePushNotifications_() {
     }
 
     paintPushButton_(true);
-    alert("Notifications enabled. Tap the bell again any time to pause them.");
   } catch (err) {
+    setNotificationStatus_(err.message || String(err));
     alert(err.message || String(err));
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-function paintPushButton_(active) {
-  const btn = document.getElementById("enableNotificationsBtn");
-  if (!btn) return;
-  btn.textContent = active ? "🔔" : "🔕";
-  btn.setAttribute("aria-label", active
-    ? "Notifications on - tap to pause"
-    : "Enable notifications");
+function setNotificationStatus_(message) {
+  const status = document.getElementById("memberNotificationStatus");
+  if (status) status.textContent = message || "";
 }
 
-function initPushNotifications_() {
+function paintPushButton_(active, paused = false) {
   const btn = document.getElementById("enableNotificationsBtn");
   if (!btn) return;
+  btn.textContent = active ? "Pause" : paused ? "Resume" : "Turn on";
+  btn.classList.toggle("active", active);
+  btn.setAttribute("aria-label", active
+    ? "Pause notifications on this device"
+    : paused ? "Resume notifications on this device" : "Enable notifications on this device");
+  setNotificationStatus_(active
+    ? "On for this device"
+    : paused ? "Paused on this device" : "Off on this device");
+}
 
-  // Keep the button visible even where push isn't supported (iOS
-  // Safari tab) - the click handler explains how to enable it.
-  btn.addEventListener("click", enablePushNotifications_);
-
-  // Reflect this device's state on the bell icon, and self-heal:
-  // iOS silently expires subscriptions and evicts service workers,
-  // so if permission is already granted we quietly rebuild and
-  // re-register the subscription instead of waiting for a bell tap.
-  // (A deleted-and-reinstalled PWA can't be healed - iOS wipes the
-  // permission itself, and re-prompting requires a user gesture.)
-  (async () => {
-    try {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
+async function refreshPushNotifications_() {
+  const btn = document.getElementById("enableNotificationsBtn");
+  if (!btn) return;
+  try {
+      if (!window.MemberAuth?.isMember()) return;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        btn.disabled = false;
+        btn.textContent = "Unavailable";
+        setNotificationStatus_("Not supported on this device");
+        return;
+      }
+      if (Notification.permission === "denied") {
+        btn.disabled = true;
+        btn.textContent = "Blocked";
+        setNotificationStatus_("Blocked in device settings");
+        return;
+      }
+      btn.disabled = false;
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       const player = loadPlayerName().trim();
 
       async function register_(subscription) {
-        await fetch("/api/save-push-subscription", {
+        await window.MemberAuth.authorizedFetch("/api/save-push-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playerName: player, subscription })
+          body: JSON.stringify({ subscription })
         }).catch(() => {});
       }
 
@@ -3604,23 +3546,36 @@ function initPushNotifications_() {
         }
       }
 
-      if (!sub) return;
+      if (!sub) {
+        paintPushButton_(false);
+        return;
+      }
 
-      const res = await fetch(
+      const res = await window.MemberAuth.authorizedFetch(
         `/api/push-prefs?endpoint=${encodeURIComponent(sub.endpoint)}`,
         { cache: "no-store" }
       );
       const data = await res.json().catch(() => ({}));
 
       if (data?.ok && data.found) {
-        paintPushButton_(!data.paused);
+        paintPushButton_(!data.paused, Boolean(data.paused));
       } else if (data?.ok && !data.found && player) {
         // browser holds a live subscription the server lost - re-save
         await register_(sub);
         paintPushButton_(true);
       }
-    } catch (e) {}
-  })();
+    } catch (e) {
+      setNotificationStatus_("Could not check this device");
+    }
+}
+
+function initPushNotifications_() {
+  const btn = document.getElementById("enableNotificationsBtn");
+  if (!btn) return;
+
+  btn.addEventListener("click", enablePushNotifications_);
+  window.addEventListener("member-profile-open", refreshPushNotifications_);
+  refreshPushNotifications_();
 }
 
   /* ==========================================================
@@ -5561,13 +5516,6 @@ function initAdminControls_() {
 
     if (member) {
       savePlayerName(member.playerName);
-      const select = document.getElementById("globalPlayer");
-      if (select) {
-        select.value = member.playerName;
-        select.disabled = true;
-        select.title = "Your player is linked to your member account";
-        autoSizePlayerSelect_(select);
-      }
       if (!_wasMember) {
         buschGirls = [];
         buschQueue = [];
@@ -5594,7 +5542,6 @@ function initAdminControls_() {
     if (image) image.removeAttribute("src");
     document.body.style.overflow = "";
     document.body.classList.remove("noSelect");
-    if (Array.isArray(_playerList)) populatePlayerDropdowns(_playerList);
     setWelcome();
   }
 

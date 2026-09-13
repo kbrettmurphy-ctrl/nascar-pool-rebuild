@@ -1,4 +1,5 @@
-import { verifyAdminRequest, json } from "./_admin-auth";
+import { verifyAdminRequest, json } from "./_admin-auth.js";
+import { memberAuthResponse, requirePoolMember } from "./_member-auth.js";
 
 // GET ?endpoint=<url>
 //   Device asks about its own subscription: { found, paused, playerName }
@@ -48,8 +49,15 @@ export async function onRequestGet(context) {
       return json({ ok: false, error: "endpoint is required" }, 400);
     }
 
+    let member;
+    try {
+      member = await requirePoolMember(request, env);
+    } catch (error) {
+      return memberAuthResponse(error);
+    }
+
     const res = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}&select=paused,player_name`,
+      `${env.SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}&player_name=eq.${encodeURIComponent(member.playerName)}&select=paused,player_name`,
       {
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
@@ -96,7 +104,13 @@ export async function onRequestPost(context) {
       if (!isAdmin) return json({ ok: false, error: "Unauthorized" }, 401);
       filter = `player_name=eq.${encodeURIComponent(playerName)}`;
     } else if (endpoint) {
-      filter = `endpoint=eq.${encodeURIComponent(endpoint)}`;
+      let member;
+      try {
+        member = await requirePoolMember(request, env);
+      } catch (error) {
+        return memberAuthResponse(error);
+      }
+      filter = `endpoint=eq.${encodeURIComponent(endpoint)}&player_name=eq.${encodeURIComponent(member.playerName)}`;
     } else {
       return json({ ok: false, error: "endpoint or playerName is required" }, 400);
     }

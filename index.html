@@ -42,7 +42,12 @@
       <h2>NASCAR '26</h2>
       <div id="welcomeName"></div>
     </div>
-    <select id="globalPlayer"></select>
+    <button class="profileButton" id="memberAccountBtn" type="button" aria-label="Member sign in" title="Member sign in">
+      <svg class="profileGuestIcon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm-7.25 8.5c.52-3.65 3.53-6.25 7.25-6.25s6.73 2.6 7.25 6.25"/>
+      </svg>
+      <span class="profileInitial" aria-hidden="true"></span>
+    </button>
   </div>
 
   <div class="headerRow2">
@@ -56,11 +61,12 @@
     </button>
 
     <div class="headerActions">
-      <button class="iconBtn" id="memberAccountBtn" type="button" aria-label="Member sign in" title="Member sign in">👤</button>
       <button class="iconBtn" id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
       <button class="iconBtn" onclick="refreshActiveView()" type="button" aria-label="Refresh">🔄</button>
-      <button class="iconBtn" id="enableNotificationsBtn" type="button" aria-label="Enable notifications">🔔</button>
     </div>
+  </div>
+
+  <div id="gfGlobal"></div>
   </div>
 
   <div id="memberAuthBackdrop" class="memberAuthBackdrop" hidden>
@@ -83,7 +89,7 @@
 
       <div data-member-panel="reset" hidden>
         <div class="memberAuthMark">Account recovery</div>
-        <h1>Reset password</h1>
+        <h1 id="memberResetTitle">Reset password</h1>
         <p class="muted">We'll email a secure reset link to an approved member account.</p>
         <form id="memberResetForm" class="memberAuthForm">
           <label for="memberResetEmail">Email</label>
@@ -95,9 +101,13 @@
 
       <div data-member-panel="password" hidden>
         <div class="memberAuthMark">Member account</div>
-        <h1>Choose a password</h1>
+        <h1 id="memberPasswordTitle">Choose a password</h1>
         <p class="muted">Your phone or password manager can create and save a strong password.</p>
         <form id="memberPasswordForm" class="memberAuthForm">
+          <div id="memberCurrentPasswordWrap" class="memberAuthField" hidden>
+            <label for="memberCurrentPassword">Current password</label>
+            <input id="memberCurrentPassword" name="current-password" type="password" autocomplete="current-password">
+          </div>
           <label for="memberNewPassword">New password</label>
           <input id="memberNewPassword" name="new-password" type="password" minlength="8" autocomplete="new-password" required>
           <label for="memberConfirmPassword">Confirm password</label>
@@ -109,17 +119,35 @@
 
       <div data-member-panel="account" hidden>
         <button id="memberAccountCloseBtn" class="memberAuthClose" type="button" aria-label="Close">×</button>
-        <div class="memberAuthMark">Signed in</div>
-        <h1>Member account</h1>
-        <p id="memberAccountIdentity" class="memberAccountIdentity"></p>
-        <button id="memberChangePasswordBtn" class="memberGuestBtn" type="button">Change password</button>
-        <button id="memberSignOutBtn" class="memberAuthLink dangerText" type="button">Sign out</button>
+        <div class="memberProfileHero">
+          <div id="memberProfileAvatar" class="memberProfileAvatar" aria-hidden="true"></div>
+          <div>
+            <div class="memberAuthMark">Signed in</div>
+            <h1 id="memberProfileName">Member account</h1>
+            <p id="memberAccountIdentity" class="memberAccountIdentity"></p>
+          </div>
+        </div>
+
+        <div class="memberSettings" aria-label="Account settings">
+          <div class="memberSettingRow">
+            <div class="memberSettingIcon" aria-hidden="true">🔔</div>
+            <div class="memberSettingCopy">
+              <strong>Notifications</strong>
+              <span id="memberNotificationStatus">Checking this device…</span>
+            </div>
+            <button id="enableNotificationsBtn" class="memberSettingAction" type="button">Manage</button>
+          </div>
+          <button id="memberChangePasswordBtn" class="memberSettingRow memberSettingButton" type="button">
+            <span class="memberSettingIcon" aria-hidden="true">🔒</span>
+            <span class="memberSettingCopy"><strong>Change password</strong><span>Update your account password</span></span>
+            <span class="memberSettingChevron" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <button id="memberSignOutBtn" class="memberSignOutButton" type="button">Sign out</button>
       </div>
       <div id="memberAuthStatus" class="memberAuthStatus" aria-live="polite"></div>
     </section>
-  </div>
-
-  <div id="gfGlobal"></div>
   </div>
 
  <div id="view-current" class="card" style="display:none;">
