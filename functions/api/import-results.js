@@ -1,5 +1,5 @@
-import { verifyAdminRequest, json } from "./_admin-auth";
-import { sendBatchNotifications } from "./_push";
+import { verifyAdminRequest, json } from "./_admin-auth.js";
+import { sendBatchNotifications } from "./_push.js";
 
 export async function onRequestPost(context) {
   try {
@@ -791,7 +791,7 @@ function ordinal_(n) {
   return `${x}th`;
 }
 
-async function syncPlayerFinancialWinnings(env) {
+export async function syncPlayerFinancialWinnings(env) {
   const headers = {
     apikey: env.SUPABASE_SECRET_KEY,
     Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,

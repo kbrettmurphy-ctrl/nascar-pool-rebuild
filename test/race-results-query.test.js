@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { onRequestPost as recalculateWinnings } from "../functions/api/recalculate-winnings.js";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiDir = path.join(repoRoot, "functions", "api");
 
@@ -31,4 +33,14 @@ test("race-results reads are bounded before Supabase applies its row limit", asy
     [],
     "Fetching every finisher can silently drop recent races at Supabase's 1,000-row response limit"
   );
+});
+
+test("winnings recalculation requires an administrator session", async () => {
+  const response = await recalculateWinnings({
+    request: new Request("https://pool.example/api/recalculate-winnings", { method: "POST" }),
+    env: {}
+  });
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { ok: false, error: "Unauthorized" });
 });
