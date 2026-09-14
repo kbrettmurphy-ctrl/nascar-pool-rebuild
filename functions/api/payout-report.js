@@ -1,4 +1,5 @@
-import { verifyAdminRequest, json } from "./_admin-auth";
+import { verifyAdminRequest, json } from "./_admin-auth.js";
+import { syncPlayerFinancialWinnings } from "./import-results.js";
 
 export async function onRequestGet(context) {
   try {
@@ -6,6 +7,11 @@ export async function onRequestGet(context) {
 
     const ok = await verifyAdminRequest(request, env);
     if (!ok) return json({ ok: false, error: "Unauthorized" }, 401);
+
+    // Reconcile from race and tournament results before reporting. This keeps
+    // the admin payout view accurate even if an earlier import-time sync was
+    // interrupted or a result query was truncated.
+    await syncPlayerFinancialWinnings(env);
 
     const headers = {
       apikey: env.SUPABASE_SECRET_KEY,

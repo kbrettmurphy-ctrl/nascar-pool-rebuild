@@ -44,3 +44,12 @@ test("winnings recalculation requires an administrator session", async () => {
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { ok: false, error: "Unauthorized" });
 });
+
+test("payout report reconciles winnings before reading balances", async () => {
+  const source = await readFile(path.join(apiDir, "payout-report.js"), "utf8");
+  const reconcileAt = source.indexOf("await syncPlayerFinancialWinnings(env)");
+  const financialReadAt = source.indexOf("/rest/v1/player_financials?select=");
+
+  assert.ok(reconcileAt >= 0, "payout report must reconcile winnings");
+  assert.ok(reconcileAt < financialReadAt, "reconciliation must happen before balances are read");
+});
