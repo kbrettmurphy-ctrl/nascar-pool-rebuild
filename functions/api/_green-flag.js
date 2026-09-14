@@ -87,7 +87,7 @@ async function resolveCurrentDbRace_(env, headers) {
       `/rest/v1/races?select=id,race_number,race_name,season_year&order=race_number.asc`,
       headers
     ),
-    getSupabaseJson_(env, `/rest/v1/race_results?select=race_id`, headers)
+    getSupabaseJson_(env, `/rest/v1/race_results?select=race_id&finishing_position=eq.1`, headers)
   ]);
 
   const completed = new Set((results || []).map(r => Number(r.race_id)));

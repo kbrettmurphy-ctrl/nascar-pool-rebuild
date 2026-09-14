@@ -118,7 +118,7 @@ export async function onRequestGet(context) {
         `/rest/v1/tournament_players?select=tournament_id,player_id,seed,players(name)`
       ),
       getJson(
-        `/rest/v1/race_results?select=race_id`
+        `/rest/v1/race_results?select=race_id&finishing_position=eq.1`
       ),
       getJson(
         `/rest/v1/race_results?finishing_position=eq.1&select=race_id,drivers(name)`

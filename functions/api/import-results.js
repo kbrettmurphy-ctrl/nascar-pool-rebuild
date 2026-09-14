@@ -549,7 +549,7 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
     );
 
     const allRaceResults = await getJson(
-      `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
+      `/rest/v1/race_results?select=race_id,driver_id,finishing_position&finishing_position=eq.1`
     );
 
     const winningDriverIdByRaceId = new Map();
@@ -944,7 +944,7 @@ async function syncPlayerFinancialWinnings(env) {
     getJson(`/rest/v1/players?select=id,name&order=id.asc`),
     getJson(`/rest/v1/player_financials?select=player_id,paid,winnings,paidout`),
     getJson(`/rest/v1/drivers?select=id,name`),
-    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position`),
+    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position&finishing_position=eq.1`),
     getJson(`/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_finish,driver_2_finish`),
     getJson(`/rest/v1/tournaments?select=id,tournament_number&order=tournament_number.asc`),
     getJson(`/rest/v1/swiss_matchup_results?select=tournament_id,round_number,race_id,player1_id,player1_name,player1_avg,player2_id,player2_name,player2_avg,winner_id&order=tournament_id.asc,round_number.asc`),

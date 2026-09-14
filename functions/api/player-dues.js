@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
     );
 
     const completedRows = await getJson(
-      `/rest/v1/race_results?select=race_id,races(race_number)`
+      `/rest/v1/race_results?select=race_id,races(race_number)&finishing_position=eq.1`
     );
 
     const completedRaceIds = new Set();

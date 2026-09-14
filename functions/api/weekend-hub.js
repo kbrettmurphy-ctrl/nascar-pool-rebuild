@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
     // Current race = first DB race without results (same rule as green flag)
     const [races, results] = await Promise.all([
       getJson(`/rest/v1/races?select=id,race_number,race_name,race_short,season_year&order=race_number.asc`),
-      getJson(`/rest/v1/race_results?select=race_id`),
+      getJson(`/rest/v1/race_results?select=race_id&finishing_position=eq.1`),
     ]);
 
     const completed = new Set((results || []).map(r => Number(r.race_id)));

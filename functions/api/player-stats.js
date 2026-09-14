@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
     );
 
     const raceResults = await getJson(
-      `/rest/v1/race_results?select=race_id,driver_id,finishing_position`
+      `/rest/v1/race_results?select=race_id,driver_id,finishing_position&finishing_position=eq.1`
     );
 
     const tournaments = await getJson(

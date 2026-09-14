@@ -24,7 +24,7 @@ export async function onRequestGet(context) {
       getJson(`/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`),
       getJson(`/rest/v1/tournament_rounds?select=tournament_id,round_number,race_id,tournaments(tournament_number)&order=tournament_id.asc,round_number.asc`),
       getJson(`/rest/v1/players?select=id,name&order=name.asc`),
-      getJson(`/rest/v1/race_results?select=race_id`),
+      getJson(`/rest/v1/race_results?select=race_id&finishing_position=eq.1`),
     ]);
 
     const completedRaceIds = new Set((raceResults || []).map(r => Number(r.race_id)));

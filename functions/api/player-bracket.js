@@ -113,7 +113,7 @@ export async function onRequestGet(context) {
     // Load races + completed race ids to determine current race directly
     const [races, completedRaceRows, allTournaments] = await Promise.all([
       getJson(`/rest/v1/races?select=id,race_number,race_name,race_short&order=race_number.asc`),
-      getJson(`/rest/v1/race_results?select=race_id`),
+      getJson(`/rest/v1/race_results?select=race_id&finishing_position=eq.1`),
       getJson(`/rest/v1/tournaments?select=id,tournament_number,season_year&order=tournament_number.asc`)
     ]);
 
@@ -215,7 +215,7 @@ export async function onRequestGet(context) {
     getJson(`/rest/v1/tournament_players?select=player_id,seed,players(name)&tournament_id=eq.${tournamentId}`),
     getJson(`/rest/v1/tournament_rounds?select=round_number,race_id,races(race_name,race_short,race_number)&tournament_id=eq.${tournamentId}&order=round_number.asc`),
     getJson(`/rest/v1/swiss_matchup_results?select=tournament_id,round_number,match_number,player1_id,player1_name,player1_driver_1,player1_driver_2,player1_avg,player2_id,player2_name,player2_driver_1,player2_driver_2,player2_avg,winner_id&tournament_id=eq.${tournamentId}&order=round_number.asc,match_number.asc`),
-    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position`),
+    getJson(`/rest/v1/race_results?select=race_id,driver_id,finishing_position&finishing_position=eq.1`),
     getJson(`/rest/v1/player_race_scores?select=race_id,player_id,driver_1_name,driver_2_name,driver_1_car_number,driver_2_car_number,driver_1_finish,driver_2_finish`),
     getJson(`/rest/v1/drivers?select=id,name`)
   ]);
