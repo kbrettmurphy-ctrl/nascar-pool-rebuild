@@ -1789,7 +1789,7 @@ await refreshAfterAdminChange_();
     }
   }
 
-  function refreshActiveView() {
+  async function refreshActiveView() {
     _playerRaceData = null;
     _playerDues = null;
     _playerList = null;
@@ -1803,27 +1803,151 @@ await refreshAfterAdminChange_();
     _gfStartMs = null;
     renderGreenFlagCountdown_();
 
+    let refreshPromise = Promise.resolve();
+
     if (activeView === "hub") {
       _hubLoaded = true;
-      loadHub_();
-    }
-
-    if (activeView === "current") {
+      refreshPromise = loadHub_();
+    } else if (activeView === "current") {
       _currentLoaded = true;
-      loadCurrent();
+      refreshPromise = loadCurrent();
     } else if (activeView === "standings") {
       _standingsLoaded = true;
-      loadStandings();
+      refreshPromise = loadStandings();
     } else if (activeView === "mymatchup") {
       _myMatchupLoaded = true;
-      loadMyMatchup();
-      loadDues();
+      refreshPromise = Promise.all([loadMyMatchup(), loadDues()]);
+    } else if (activeView === "dues") {
+      _duesLoaded = true;
+      refreshPromise = loadDues();
     } else if (activeView === "bracket") {
       _bracketLoaded = true;
-      loadBracket();
+      refreshPromise = loadBracket();
     } else if (activeView === "live") {
-      loadLiveMatchups();
+      refreshPromise = loadLiveMatchups();
     }
+
+    await refreshPromise;
+  }
+
+  function initPullToRefresh_() {
+    const indicator = document.getElementById("pullRefresh");
+    const icon = indicator?.querySelector(".pullRefreshIcon");
+    const label = indicator?.querySelector(".pullRefreshLabel");
+    if (!indicator || !icon || !label) return;
+
+    const threshold = 72;
+    const maxTravel = 104;
+    let startX = 0;
+    let startY = 0;
+    let distance = 0;
+    let tracking = false;
+    let pulling = false;
+    let refreshing = false;
+
+    const pageIsAtTop = () => (document.scrollingElement?.scrollTop || window.scrollY || 0) <= 0;
+    const isInteractive = (target) => target instanceof Element && Boolean(
+      target.closest(
+        "button, a, input, select, textarea, [role='button'], [contenteditable='true'], " +
+        ".memberAuthBackdrop, .adminOverlay, .buschPopup"
+      )
+    );
+
+    function paintPull_(travel) {
+      const offset = Math.min(maxTravel, Math.max(0, travel * .52));
+      const ready = travel >= threshold;
+      indicator.classList.add("visible");
+      indicator.classList.toggle("ready", ready);
+      indicator.style.transform = `translate(-50%, ${offset - 52}px)`;
+      label.textContent = ready ? "Release to refresh" : "Pull to refresh";
+      indicator.setAttribute("aria-hidden", "false");
+    }
+
+    function hide_() {
+      indicator.classList.remove("visible", "ready", "refreshing");
+      indicator.style.transform = "translate(-50%, -64px)";
+      indicator.setAttribute("aria-hidden", "true");
+      icon.textContent = "\u2193";
+      label.textContent = "Pull to refresh";
+    }
+
+    document.addEventListener("touchstart", (event) => {
+      if (event.touches.length !== 1) {
+        tracking = false;
+        pulling = false;
+        if (!refreshing) hide_();
+        return;
+      }
+      if (refreshing || !pageIsAtTop() || isInteractive(event.target)) return;
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      distance = 0;
+      tracking = true;
+      pulling = false;
+    }, { passive:true });
+
+    document.addEventListener("touchmove", (event) => {
+      if (!tracking || refreshing || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const dy = touch.clientY - startY;
+      const dx = Math.abs(touch.clientX - startX);
+
+      if (dy <= 0 || (!pulling && dx > Math.abs(dy))) {
+        tracking = false;
+        hide_();
+        return;
+      }
+      if (!pageIsAtTop()) {
+        tracking = false;
+        hide_();
+        return;
+      }
+
+      if (dy > 8) pulling = true;
+      if (!pulling) return;
+      event.preventDefault();
+      distance = dy;
+      paintPull_(distance);
+    }, { passive:false });
+
+    async function finishPull_(event) {
+      if (event.touches.length) return;
+      if (!tracking) return;
+      tracking = false;
+      if (!pulling || distance < threshold) {
+        pulling = false;
+        hide_();
+        return;
+      }
+
+      pulling = false;
+      refreshing = true;
+      indicator.classList.remove("ready");
+      indicator.classList.add("visible", "refreshing");
+      indicator.style.transform = "translate(-50%, 0)";
+      icon.textContent = "";
+      label.textContent = "Refreshing\u2026";
+      indicator.setAttribute("aria-hidden", "false");
+
+      try {
+        await refreshActiveView();
+        label.textContent = "Updated";
+        await new Promise(resolve => setTimeout(resolve, 350));
+      } finally {
+        refreshing = false;
+        hide_();
+      }
+    }
+
+    document.addEventListener("touchend", finishPull_, { passive:true });
+    document.addEventListener("touchcancel", () => {
+      if (!refreshing) {
+        tracking = false;
+        pulling = false;
+        hide_();
+      }
+    }, { passive:true });
   }
 
   function savePlayerName(name) {
@@ -5566,6 +5690,7 @@ function initAdminControls_() {
     await window.MemberAuth?.init({ onChange: handleMemberAuthChange_ });
     initPushNotifications_();
     initAdminControls_();
+    initPullToRefresh_();
     await loadPlayersThenInit();
     initBuschLongPress_();
     initBuschVotes_();

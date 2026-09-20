@@ -244,6 +244,57 @@ body::before{
   z-index: 0;
 }
 
+.pullRefresh{
+  position:fixed;
+  top:calc(env(safe-area-inset-top, 0px) + 12px);
+  left:50%;
+  z-index:9000;
+  height:38px;
+  padding:0 13px 0 10px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid var(--chipBorder);
+  border-radius:999px;
+  background:var(--cardSolid);
+  color:var(--textStrong);
+  box-shadow:var(--popShadow);
+  font-size:12px;
+  font-weight:750;
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-50%, -64px);
+  transition:transform .18s ease, opacity .18s ease;
+  will-change:transform, opacity;
+}
+.pullRefresh.visible{ opacity:1; }
+.pullRefreshIcon{
+  width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:var(--glassBlue14);
+  color:var(--blueText);
+  font-size:16px;
+  font-weight:900;
+  transition:transform .18s ease;
+}
+.pullRefresh.ready .pullRefreshIcon{ transform:rotate(180deg); }
+.pullRefresh.refreshing .pullRefreshIcon{
+  border:2px solid var(--glassBlue42);
+  border-top-color:var(--blue);
+  background:transparent;
+  color:transparent;
+  animation:pullRefreshSpin .7s linear infinite;
+}
+@keyframes pullRefreshSpin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){
+  .pullRefresh,
+  .pullRefreshIcon{ transition:none; }
+  .pullRefresh.refreshing .pullRefreshIcon{ animation-duration:1.4s; }
+}
+
 /* ==========================================================
    Shared layout + utility pieces
    ========================================================== */
