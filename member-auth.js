@@ -63,6 +63,10 @@
   }
 
   function hideModal() {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && activeElement.closest("#memberAuthBackdrop")) {
+      activeElement.blur();
+    }
     const backdrop = byId("memberAuthBackdrop");
     if (backdrop) backdrop.hidden = true;
   }
