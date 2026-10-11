@@ -3830,8 +3830,8 @@ function initPushNotifications_() {
                 <span class="nameText">${escapeHtml(m.p1 || "")}</span>
               </div>
               <div class="sideRight">
-                <span class="winSlot">${m.p1RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
-                <span class="winSlot">${p1Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                <span class="winSlot">${m.p1RaceWinner && p1Win ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                <span class="winSlot">${p1Win ? `<span class="winDot" title="Matchup Winner"></span>` : m.p1RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
                 <span class="avgBox ${m.a1 == null ? "empty" : ""}">${m.a1 == null ? "—" : escapeHtml(fmtAvg(m.a1))}</span>
               </div>
             </div>
@@ -3842,8 +3842,8 @@ function initPushNotifications_() {
                 <span class="nameText">${escapeHtml(m.p2 || "")}</span>
               </div>
               <div class="sideRight">
-                <span class="winSlot">${m.p2RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
-                <span class="winSlot">${p2Win ? `<span class="winDot" title="Matchup Winner"></span>` : ``}</span>
+                <span class="winSlot">${m.p2RaceWinner && p2Win ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
+                <span class="winSlot">${p2Win ? `<span class="winDot" title="Matchup Winner"></span>` : m.p2RaceWinner ? `<span class="raceDot" title="Race Winner Driver"></span>` : ``}</span>
                 <span class="avgBox ${m.a2 == null ? "empty" : ""}">${m.a2 == null ? "—" : escapeHtml(fmtAvg(m.a2))}</span>
               </div>
             </div>
