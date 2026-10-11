@@ -2699,12 +2699,8 @@ await refreshAfterAdminChange_();
           ? `<span style="color: var(--red); opacity: 0.9;">Balance Due: $${balance.toFixed(2)}</span>`
           : `Balance Due: $${balance.toFixed(2)}`;
 
-      // Position against the full $180 season: paid + winnings - 180.
-      // The server's signed balance is exactly the negative of that
-      // (balance = 180 - paid - winnings), winnings counting as dues
-      // credit - so net is just -balance, going positive only once
-      // cash + winnings clear the whole season.
-      const net = -Number(data.balance ?? 0);
+      // Season profit compares winnings with the full entry cost, regardless of dues paid.
+      const net = winnings - 180;
       const netLine =
         `<div class="netLine ${net >= 0 ? "up" : "down"}">Season net: ${net >= 0 ? "+" : "\u2212"}$${Math.abs(net).toFixed(2)}</div>`;
 
