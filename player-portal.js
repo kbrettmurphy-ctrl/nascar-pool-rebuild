@@ -1748,6 +1748,7 @@ await refreshAfterAdminChange_();
   function showView(which) {
     if (!spoilersOn_() && which === "bracket") which = "current";
 
+    document.body.classList.remove("booting");
     activeView = which;
     setActiveNav(which);
     localStorage.setItem(VIEW_KEY, which);

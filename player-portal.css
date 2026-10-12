@@ -244,6 +244,46 @@ body::before{
   z-index: 0;
 }
 
+/* Boot state: until the first view renders, pulse the watermark
+   and show a label under it so the empty screen reads as loading. */
+body.booting::before{
+  animation: bootPulse 1.4s ease-in-out infinite;
+}
+@keyframes bootPulse{
+  0%,100%{ opacity: var(--wmOpacity); }
+  50%{ opacity: calc(var(--wmOpacity) * 3); }
+}
+.bootLoader{ display:none; }
+body.booting .bootLoader{
+  position: fixed;
+  left: 0; right: 0;
+  top: calc(50% + var(--wmShift) + 112px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 1;
+}
+.bootDots{ display:flex; gap:6px; }
+.bootDots i{
+  width: 8px; height: 8px; border-radius: 50%;
+  animation: bootDot 1s ease-in-out infinite;
+}
+.bootDots i:nth-child(1){ background: var(--yellow); }
+.bootDots i:nth-child(2){ background: var(--red); animation-delay: .15s; }
+.bootDots i:nth-child(3){ background: var(--blue); animation-delay: .3s; }
+@keyframes bootDot{
+  0%,100%{ transform: translateY(0); opacity: .5; }
+  50%{ transform: translateY(-6px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce){
+  body.booting::before, .bootDots i{ animation: none; }
+}
+
 .pullRefresh{
   position:fixed;
   top:calc(env(safe-area-inset-top, 0px) + 12px);
