@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     const since = String(body?.since || "").trim();
     const dryRun = body?.dryRun !== false;
 
-    const allowed = new Set(["soft", "old", "spicy", "spicier"]);
+    const allowed = new Set(["soft", "spicy", "spicier"]);
     if (!allowed.has(from) || !allowed.has(to) || from === to) {
       return json({ ok: false, error: "Bad from/to folder" }, 400);
     }

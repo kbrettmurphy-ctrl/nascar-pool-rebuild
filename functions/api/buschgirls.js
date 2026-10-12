@@ -31,21 +31,18 @@ async function getActivePhotos(env) {
   return allRows;
 }
 
-function chooseBatch(rows, member, excludedIds, includeWarmup) {
+function chooseBatch(rows, excludedIds, includeWarmup) {
   const available = rows.filter(row => !excludedIds.has(String(row.id)));
   const soft = available.filter(row => row.folder === "soft");
-  const isTyler = member.playerName.trim().toLowerCase() === "tyler";
   const warmup = includeWarmup ? shuffle(soft).slice(0, WARMUP_COUNT) : [];
   const warmupIds = new Set(warmup.map(row => String(row.id)));
-  const main = isTyler
-    ? available.filter(row => row.folder === "old")
-    : available.filter(row => ["soft", "spicy", "spicier"].includes(row.folder) && !warmupIds.has(String(row.id)));
+  const main = available.filter(row => ["soft", "spicy", "spicier"].includes(row.folder) && !warmupIds.has(String(row.id)));
   return [...warmup, ...shuffle(main)].slice(0, BATCH_SIZE);
 }
 
 export async function onRequestGet({ request, env }) {
   try {
-    const member = await requirePoolMember(request, env);
+    await requirePoolMember(request, env);
     const params = new URL(request.url).searchParams;
     const excludedIds = new Set(
       String(params.get("exclude") || "")
@@ -56,8 +53,8 @@ export async function onRequestGet({ request, env }) {
     );
     const includeWarmup = params.get("warmup") === "1";
     const rows = await getActivePhotos(env);
-    let selected = chooseBatch(rows, member, excludedIds, includeWarmup);
-    if (!selected.length && excludedIds.size) selected = chooseBatch(rows, member, new Set(), includeWarmup);
+    let selected = chooseBatch(rows, excludedIds, includeWarmup);
+    if (!selected.length && excludedIds.size) selected = chooseBatch(rows, new Set(), includeWarmup);
 
     const paths = selected.map(row => row.storage_path || `${row.folder}/${row.filename}`);
     const signed = await signStoragePaths(env, "buschgirls", paths, SIGNED_URL_SECONDS);

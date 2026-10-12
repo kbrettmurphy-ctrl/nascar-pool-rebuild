@@ -3,7 +3,7 @@
   const TOKEN_KEY = "nascar_pool_admin_token";
   const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", indexingState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, backfill:null, failures:[], requestId:0 };
   const $ = id => document.getElementById(id);
-  const validFolders = new Set(["all","soft","old","spicy","spicier"]);
+  const validFolders = new Set(["all","soft","spicy","spicier"]);
   const validSorts = new Set(["newest","oldest","filename_asc","filename_desc"]);
   const validActiveStates = new Set(["all","active","inactive"]);
   const validIndexingStates = new Set(["all","ready","needs_indexing"]);

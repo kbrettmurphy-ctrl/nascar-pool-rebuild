@@ -13,7 +13,7 @@ export async function onRequestPost(context) {
     const photoId = String(body?.photoId || "").trim();
     const to = String(body?.toFolder || "").trim().toLowerCase();
 
-    const allowed = new Set(["soft", "old", "spicy", "spicier"]);
+    const allowed = new Set(["soft", "spicy", "spicier"]);
     if (!photoId || photoId.length > 64) {
       return json({ ok: false, error: "photoId is required" }, 400);
     }

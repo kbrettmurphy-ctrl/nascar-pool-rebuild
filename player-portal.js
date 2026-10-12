@@ -4771,28 +4771,13 @@ function takeRandom_(arr, count) {
   return shuffle_(arr).slice(0, count);
 }
 
-function activePlayerIsTyler_() {
-  return String(loadPlayerName() || "").trim().toLowerCase() === "tyler";
-}
-
 function refillQueue() {
   const soft = buschGirls.filter(p => p.folder === "soft");
-  const old = buschGirls.filter(p => p.folder === "old");
   const spicy = buschGirls.filter(p => p.folder === "spicy");
   const spicier = buschGirls.filter(p => p.folder === "spicier");
 
   const warmup = takeRandom_(soft, Math.min(BUSCH_WARMUP_COUNT, soft.length));
   const warmupUrls = new Set(warmup.map(p => p.url));
-
-  const isTyler = activePlayerIsTyler_();
-
-  if (isTyler) {
-    buschQueue = [
-      ...warmup,
-      ...shuffle_(old.filter(p => !warmupUrls.has(p.url)))
-    ];
-    return;
-  }
 
   const main = shuffle_([
     ...spicy,
