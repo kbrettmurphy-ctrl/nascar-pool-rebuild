@@ -5516,7 +5516,7 @@ function initAdminControls_() {
         clearTimeout(pressTimer);
         pressTimer = null;
         await openMemberAdmin_();
-      }, 300);
+      }, 30);
   }
 
   function cancelPress() {
