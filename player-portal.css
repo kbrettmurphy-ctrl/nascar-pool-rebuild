@@ -26,7 +26,6 @@ html{
   --yellow:#FFD659;
   --green:#4DD21D;
 
-  --greenfade:#4DD21DBF;
   --greentrans:#4DD21D33; /* 20% */
 
   --winnerGreen:#16a34a;
@@ -697,7 +696,6 @@ select, input{
   font-weight:600;
   overflow-wrap:anywhere;
 }
-.dangerText{ color:var(--redText); }
 
 .memberProfileHero{
   display:flex;
@@ -972,10 +970,6 @@ select, input{
 
 .buschPhotoMenuPanel button:active{
   background:rgba(120,120,128,.18);
-}
-
-.buschPhotoMenuPanel button.folderItem{
-  text-transform:capitalize;
 }
 
 .buschPhotoMenuPanel button.danger{
@@ -1346,16 +1340,6 @@ select, input{
 }
 
 .title{ display:flex; align-items:center; gap:6px; min-width:0; }
-.race{
-  font-size:11px;
-  color: var(--muted);
-  font-weight:700;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  min-width:0;
-}
-
 .ticket{
   border:1px solid var(--line);
   border-radius: 12px;
@@ -2411,12 +2395,6 @@ a.newsCard:last-child{ border-bottom:none; }
   -webkit-backdrop-filter: blur(14px);
   max-height: none;
   overflow:visible;
-}
-
-.adminModalTitle{
-  font-size:20px;
-  font-weight:800;
-  margin-bottom:6px;
 }
 
 /* Header + context + tabs stay pinned while panes scroll */

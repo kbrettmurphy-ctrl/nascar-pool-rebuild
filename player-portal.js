@@ -15,7 +15,7 @@
   };
 
   const roundLabel = (n) => (Number(n) === 4 ? "Final" : `Rnd ${n}`);
-  const views = ["current","live","mymatchup","standings","dues","bracket","hub"];
+  const views = ["current","live","mymatchup","standings","bracket","hub"];
   let _adminUnlockInFlight = false;
   let activeView = "current";
   let ALL_MATCHUPS = null;
@@ -30,13 +30,9 @@
   let _selectedBracketTournament = "";
   let _adminContext = null;
   let _adminSeedWheel = null;
-  let _adminLongPressTimer = null;
-  let _adminLongPressTriggered = false;
-  let _memberIdentity = null;
   let _wasMember = false;
   let _currentLoaded = false;
   let _standingsLoaded = false;
-  let _duesLoaded = false;
   let _myMatchupLoaded = false;
   let _bracketLoaded = false;
   
@@ -1320,15 +1316,6 @@ if (liveCard) {
     });
 
     setAdminStatus_(statusId, data.message || `${label} done.`);
-    /*
-    if (url === "/api/import-qualifying") {
-      alert(`Qualifying response:\n\n${JSON.stringify(data, null, 2)}`);
-    }
-
-    if (url === "/api/import-results") {
-      alert(`Results response:\n\n${JSON.stringify(data, null, 2)}`);
-    }
-    */
 if (Array.isArray(data.data) && data.data.length) {
 
   const msg = data.data.map((row, i) => {
@@ -1499,7 +1486,7 @@ await refreshAfterAdminChange_();
         btn.textContent = `Venmo: $${amount}`;
       }
     } catch (err) {
-      const btn = document.getElementById("adminVenmoBalanceBtn");
+      const btn = document.getElementById("venmoBalanceBtn");
       if (btn) {
         btn.textContent = "Venmo: ERROR";
       }
@@ -1662,11 +1649,18 @@ await refreshAfterAdminChange_();
 
     if (!confirm("Clear all assignments for this race?")) return;
 
-    const res = await fetch(`/api/clear-assignments?raceId=${raceId}`);
-    const data = await res.json();
+    try {
+      const data = await adminFetch_("/api/clear-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raceId })
+      });
 
-    alert(data.message || "Assignments cleared.");
-    await refreshAfterAdminChange_();
+      alert(data.message || "Assignments cleared.");
+      await refreshAfterAdminChange_();
+    } catch (err) {
+      alert(err.message || String(err));
+    }
   }
 
   /* ==========================================================
@@ -1708,7 +1702,6 @@ await refreshAfterAdminChange_();
       live: "nav-live",
       mymatchup: "nav-me",
       standings: "nav-stats",
-      dues: "nav-dues",
       bracket: "nav-bracket",
       hub: "nav-hub"
     };
@@ -1797,7 +1790,6 @@ await refreshAfterAdminChange_();
     _cache_standings = null;
     _currentLoaded = false;
     _standingsLoaded = false;
-    _duesLoaded = false;
     _myMatchupLoaded = false;
     _bracketLoaded = false;
     _hubLoaded = false;
@@ -1818,9 +1810,6 @@ await refreshAfterAdminChange_();
     } else if (activeView === "mymatchup") {
       _myMatchupLoaded = true;
       refreshPromise = Promise.all([loadMyMatchup(), loadDues()]);
-    } else if (activeView === "dues") {
-      _duesLoaded = true;
-      refreshPromise = loadDues();
     } else if (activeView === "bracket") {
       _bracketLoaded = true;
       refreshPromise = loadBracket();
@@ -3216,7 +3205,6 @@ await refreshAfterAdminChange_();
     items.forEach((it, i) => {
       const r = Number.isFinite(it.rank) ? it.rank : (startRank + i);
       const name = it.player || "";
-      const isPaid = r <= 4;
       const isYou  = you && name.trim().toLowerCase() === you;
 
       const W = it["W"] ?? it["w"] ?? null;
@@ -3888,9 +3876,6 @@ let _buschInitialBatch = true;
 let _buschBatchExpiresAt = 0;
 
 const BUSCH_WARMUP_COUNT = 2;
-
-const SHOW_KYLE_TRIBUTE = false;
-const KYLE_TRIBUTE_IMG = "img/IMG_0792.jpeg";
 
 /* ==========================================================
    Green flag countdown (Matchup tab, current race only)
@@ -4568,42 +4553,6 @@ async function adminSendPushForm_() {
     if (bodyEl) bodyEl.value = "";
   } catch (err) {
     setAdminStatus_("adminPushStatus", err.message || String(err), true);
-  }
-}
-
-// One-time fix: today's misfiled uploads move soft -> spicier.
-// Dry-runs first so the count gets eyeballed before anything moves.
-async function migrateBuschToday_() {
-  const status = document.getElementById("buschUploadStatus");
-  const say = (m) => { if (status) status.textContent = m; };
-  const args = { from: "soft", to: "spicier", since: "2026-07-13T00:00:00-04:00" };
-
-  try {
-    say("Checking\u2026");
-    const dry = await adminFetch_("/api/migrate-buschgirls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...args, dryRun: true })
-    });
-
-    if (!dry.count) { say("Nothing to move \u2014 no soft uploads since today."); return; }
-
-    if (!confirm(`Move ${dry.count} photos (soft \u2192 spicier) uploaded since today?\nSample: ${(dry.sample || []).join(", ")}`)) {
-      say("Cancelled.");
-      return;
-    }
-
-    say(`Moving ${dry.count} photos\u2026`);
-    const res = await adminFetch_("/api/migrate-buschgirls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...args, dryRun: false })
-    });
-
-    say(`Moved ${res.moved}, failed ${res.failedCount}.` +
-      (res.failedCount ? ` First failures: ${res.failed.map(f => f.filename).join(", ")}` : ""));
-  } catch (e) {
-    say("Error: " + (e.message || e));
   }
 }
 
@@ -5594,7 +5543,6 @@ function initAdminControls_() {
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
-  document.getElementById("buschMigrateBtn")?.addEventListener("click", migrateBuschToday_);
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 
@@ -5613,7 +5561,6 @@ function initAdminControls_() {
 
   async function handleMemberAuthChange_(state) {
     const member = state?.member || null;
-    _memberIdentity = member;
     setBuschMemberAccess_(Boolean(member));
 
     if (!member?.isAdmin && (getAdminToken_() || !document.getElementById("adminOverlay")?.hidden)) {
@@ -5677,7 +5624,6 @@ function initAdminControls_() {
     initBuschLongPress_();
     initBuschVotes_();
     renderGreenFlagCountdown_();
-    showKyleTributeOnLoad_();
 
     startLivePolling_();
 

@@ -361,13 +361,6 @@ function utf8(str) {
   return new TextEncoder().encode(str);
 }
 
-function uint16(n) {
-  return new Uint8Array([
-    (n >>> 8) & 255,
-    n & 255
-  ]);
-}
-
 function uint32(n) {
   return new Uint8Array([
     (n >>> 24) & 255,

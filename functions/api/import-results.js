@@ -723,35 +723,6 @@ async function sendResultsNotifications_({ env, raceId, race, tournamentId, roun
     });
   }
 
-  /*if (roundNumber !== 4 && winningDriverName) {
-    for (const playerId of raceWinnerPlayerIds) {
-      const playerName = nameById.get(playerId);
-      if (!playerName) continue;
-
-      try {
-        const push = await sendPlayerNotification(env, playerName, {
-          title: "Race Winner",
-          body: `${winningDriverName} won ${raceLabel} for an extra $25.`,
-          url: "/"
-        });
-
-        pushResults.push({
-          type: "raceWinner",
-          playerName,
-          ...push
-        });
-      } catch (err) {
-        pushResults.push({
-          type: "raceWinner",
-          playerName,
-          sent: 0,
-          failed: 1,
-          error: err.message || String(err)
-        });
-      }
-    }
-  }*/
-
   return pushResults;
 }
 

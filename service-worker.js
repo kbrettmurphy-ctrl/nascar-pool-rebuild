@@ -1,4 +1,4 @@
-const CACHE_NAME = "nascar-pool-pwa-v73";
+const CACHE_NAME = "nascar-pool-pwa-v74";
 
 const STATIC_ASSETS = [
   "/",
@@ -36,12 +36,6 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
-
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -54,16 +48,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // The administrator gallery, its assets, APIs, thumbnails, and
+  // The administrator gallery, its assets, thumbnails, and
   // full-size images must always go directly to the network and must never
   // receive the public app's offline index fallback.
   if (url.pathname === "/buschgirls-gallery" ||
       url.pathname.startsWith("/buschgirls-gallery/") ||
-      url.pathname.startsWith("/api/admin-buschgirls-gallery") ||
-      url.pathname.startsWith("/api/admin-buschgirls-backfill") ||
-      url.pathname.startsWith("/api/admin-buschgirls-duplicates") ||
-      url.pathname.startsWith("/api/index-buschgirl") ||
-      url.pathname.startsWith("/api/delete-buschgirl") ||
       url.pathname.includes("/storage/v1/object/public/buschgirls-thumbnails/") ||
       url.pathname.includes("/storage/v1/object/sign/buschgirls-thumbnails/") ||
       url.pathname.includes("/storage/v1/object/buschgirls-thumbnails/") ||
@@ -94,11 +83,7 @@ self.addEventListener("fetch", (event) => {
     "/player-portal.css",
     "/member-auth.js",
     "/index.html",
-    "/manifest.webmanifest",
-    "/buschgirls-gallery/",
-    "/buschgirls-gallery/index.html",
-    "/buschgirls-gallery/gallery.js",
-    "/buschgirls-gallery/gallery.css"
+    "/manifest.webmanifest"
   ]);
 
   if (url.origin === location.origin && NETWORK_FIRST.has(url.pathname)) {

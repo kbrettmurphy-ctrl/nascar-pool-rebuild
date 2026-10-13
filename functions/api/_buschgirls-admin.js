@@ -21,18 +21,6 @@ export function privateJson(data, status = 200) {
   });
 }
 
-export async function supabaseRows(env, path, options = {}) {
-  const response = await fetch(`${env.SUPABASE_URL}${path}`, {
-    ...options,
-    headers: serviceHeaders(env, options.headers)
-  });
-  const text = await response.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : []; } catch { data = text; }
-  if (!response.ok) throw new Error(typeof data === "string" ? data : JSON.stringify(data));
-  return { data, response };
-}
-
 export async function signStoragePaths(env, bucket, paths, expiresIn = 900) {
   const cleanPaths = Array.from(new Set((paths || []).map(path => String(path || "").trim()).filter(Boolean)));
   if (!cleanPaths.length) return new Map();
