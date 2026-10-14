@@ -44,7 +44,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm-1.5-4.6-3.2-3.2 1.4-1.4 1.8 1.8 4.6-4.6 1.4 1.4-6 6Z"/></svg><span class="select-label">Select</span>
     </button>
   </header>
-  <div id="filterPanel" class="filter-panel" role="dialog" aria-label="Gallery filters" hidden>
+  <div id="filterPanel" class="filter-panel" role="dialog" aria-label="Gallery filters" tabindex="-1" hidden>
     <label>Rotation<select id="activeState"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
     <label>Exact hash<select id="duplicateState"><option value="all">All</option><option id="exactDuplicatesOption" value="exact">Exact duplicates only</option></select></label>
     <p id="duplicateHint" class="filter-hint" hidden>No hashes are available yet.</p>

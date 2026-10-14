@@ -176,7 +176,7 @@
 
   function resetResultsAndLoad(){state.page=1;loadPage({scroll:true});}
   function commitPageInput(){const input=$("pageInput");const raw=String(input.value||"").trim();const number=Number(raw);if(!raw||!Number.isFinite(number)){input.value=String(state.page);return;}const target=Math.max(1,Math.min(state.totalPages,Math.trunc(number)));input.value=String(target);if(target===state.page)return;state.page=target;loadPage({scroll:true});}
-  function setFilterPanel(open){$("filterPanel").hidden=!open;document.querySelectorAll(".filter-button").forEach(button=>button.setAttribute("aria-expanded",String(open)));if(open)$("activeState").focus();}
+  function setFilterPanel(open){$("filterPanel").hidden=!open;document.querySelectorAll(".filter-button").forEach(button=>button.setAttribute("aria-expanded",String(open)));if(open)$("filterPanel").focus({preventScroll:true});}
   function initializeControls(){
     restoreQueryState();
     $("folderFilter").value=state.folder;$("filenameSearch").value=state.search;$("sortSelect").value=state.sort;$("activeState").value=state.activeState;$("duplicateState").value=state.duplicateState;$("clearSearch").hidden=!state.search;
