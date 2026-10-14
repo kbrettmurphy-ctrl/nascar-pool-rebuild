@@ -34,6 +34,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visibl
 .toolbar select:hover,.toolbar .search-control input:hover { background-color:#ffffff12; }
 .toolbar .search-control input { padding-left:30px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aeb5c0'%3E%3Cpath d='m20.5 19-4.4-4.4a7.5 7.5 0 1 0-1.5 1.5l4.4 4.4 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:9px center; background-size:15px; }
 .toolbar-icon { border-radius:8px; }
+/* The gallery has its own clear button; hide the browser's built-in one. */
+.toolbar .search-control input::-webkit-search-cancel-button,.toolbar .search-control input::-webkit-search-decoration { -webkit-appearance:none; appearance:none; display:none; }
 .pagination { grid-template-columns:34px 36px auto auto 34px; padding:0 1px; background-color:#ffffff0a; }
 .pagination button { width:34px; min-width:34px; height:calc(var(--control-h) - 2px); min-height:0; border-radius:7px; }
 .pagination input { width:36px; height:26px; min-height:26px; border-color:#ffffff1a; border-radius:6px; }
