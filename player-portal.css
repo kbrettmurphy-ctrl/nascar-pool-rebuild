@@ -896,7 +896,7 @@ select, input{
   left:50%;
   transform:translate(-50%, -50%);
   width:auto;
-  max-width:min(92vw, 520px);
+  max-width:min(92vw, 800px);
   max-height:88vh;
   padding:0;
   border-radius:16px;
