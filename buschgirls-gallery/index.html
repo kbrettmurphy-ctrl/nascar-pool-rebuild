@@ -12,6 +12,9 @@
     <div class="toolbar-brand">
       <button id="backBtn" class="toolbar-icon back-button" type="button" aria-label="Back to Admin">←</button>
       <h1>BuschGirls Gallery</h1>
+      <button id="selectToggle" class="toolbar-icon" type="button" aria-label="Select photos" aria-pressed="false" title="Select">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 16H5V5h14v14Zm-8.5-3.5-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7Z"/></svg>
+      </button>
       <button id="searchToggle" class="toolbar-icon mobile-action" type="button" aria-label="Search filenames" aria-expanded="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.5 19-4.4-4.4a7.5 7.5 0 1 0-1.5 1.5l4.4 4.4 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"/></svg>
       </button>
@@ -64,9 +67,17 @@
   <div id="contextMenu" class="context-menu" role="menu" hidden>
     <div id="contextPath" class="context-path"></div><div id="contextDate" class="context-date"></div>
     <button type="button" data-action="view" role="menuitem">View Full Size</button>
+    <button type="button" data-action="select" role="menuitem">Select Multiple</button>
     <div class="context-move-label">Move to folder</div>
     <div id="contextMove" class="folder-move"><button type="button" class="folder-chip" data-move="soft" role="menuitem">soft</button><button type="button" class="folder-chip" data-move="spicy" role="menuitem">spicy</button><button type="button" class="folder-chip" data-move="spicier" role="menuitem">spicier</button></div>
     <button type="button" data-action="delete" class="danger" role="menuitem">Permanently Delete</button>
+  </div>
+
+  <div id="selectionBar" class="selection-bar" role="toolbar" aria-label="Selected photos" hidden>
+    <span id="selectionCount" class="selection-count" aria-live="polite">0 selected</span>
+    <button id="selectPage" type="button">Select page</button>
+    <button id="deleteSelected" class="danger" type="button" disabled>Delete</button>
+    <button id="exitSelect" type="button">Done</button>
   </div>
 
   <div id="viewer" class="viewer" role="dialog" aria-modal="true" aria-labelledby="viewerTitle" hidden>

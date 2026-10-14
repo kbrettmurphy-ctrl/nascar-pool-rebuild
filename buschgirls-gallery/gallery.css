@@ -49,6 +49,16 @@ main { width:100%; padding:6px; }
 .tile img { width:100%; height:100%; object-fit:cover; object-position:center center; }
 .tile.broken::after { content:"Image unavailable"; color:var(--muted); font-size:.78rem; }
 .tile.broken img { display:none; }
+.toolbar-icon[aria-pressed="true"] { color:var(--focus); background:#68a9ff1f; }
+.gallery-grid.selecting .tile::before { content:""; position:absolute; z-index:1; top:7px; right:7px; width:24px; height:24px; border:2px solid #fffc; border-radius:50%; background:#0006; box-shadow:0 1px 4px #0008; }
+.gallery-grid.selecting .tile.selected::before { content:"✓"; display:grid; place-items:center; border-color:var(--focus); background:var(--focus); color:#06101f; font-size:15px; font-weight:800; line-height:1; }
+.gallery-grid.selecting .tile.selected { outline:3px solid var(--focus); outline-offset:-3px; }
+.gallery-grid.selecting .tile.selected img { opacity:.72; }
+.selection-bar { position:fixed; z-index:20; left:50%; bottom:10px; transform:translateX(-50%); display:flex; align-items:center; gap:.4rem; width:max-content; max-width:calc(100vw - 12px); padding:6px 6px 6px 12px; border:1px solid #4b5563; border-radius:10px; background:#252b34f2; box-shadow:0 10px 30px #0009; }
+.selection-bar[hidden] { display:none; }
+.selection-count { margin-right:auto; padding-right:.3rem; font-variant-numeric:tabular-nums; white-space:nowrap; line-height:1.2; }
+.selection-count small { display:block; color:var(--muted); font-size:.72rem; }
+body.selecting main { padding-bottom:76px; }
 
 .expired { margin:10vh auto; max-width:32rem; padding:2rem; border:1px solid var(--line); background:var(--panel); text-align:center; }
 .context-menu { position:fixed; z-index:40; width:min(280px,calc(100vw - 1rem)); padding:.6rem; border:1px solid #4b5563; border-radius:9px; background:#252b34; box-shadow:0 12px 40px #0009; }
@@ -84,7 +94,7 @@ main { width:100%; padding:6px; }
   .toolbar h1 { font-size:.98rem; }
   .mobile-action { display:block; }
   .desktop-filter,.search-control { display:none; }
-  .toolbar.search-open .search-control { position:absolute; z-index:3; top:4px; left:52px; right:148px; display:flex; }
+  .toolbar.search-open .search-control { position:absolute; z-index:3; top:4px; left:52px; right:192px; display:flex; }
   .toolbar.search-open .search-control input { width:100%; }
   .toolbar.search-open .toolbar-brand h1 { visibility:hidden; }
   .folder-control span,.sort-control span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
