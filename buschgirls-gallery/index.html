@@ -46,10 +46,9 @@
   </header>
   <div id="filterPanel" class="filter-panel" role="dialog" aria-label="Gallery filters" hidden>
     <label>Rotation<select id="activeState"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-    <label>Indexing<select id="indexingState"><option value="all">All</option><option value="ready">Ready</option><option value="needs_indexing">Needs indexing</option></select></label>
     <label>Exact hash<select id="duplicateState"><option value="all">All</option><option id="exactDuplicatesOption" value="exact">Exact duplicates only</option></select></label>
     <p id="duplicateHint" class="filter-hint" hidden>No hashes are available yet.</p>
-    <div class="filter-actions"><button id="clearFilters" type="button">Clear Filters</button><button id="closeFilters" type="button">Done</button></div>
+    <div class="filter-actions"><button id="clearFilters" class="button-quiet" type="button">Clear Filters</button><button id="closeFilters" class="button-primary" type="button">Done</button></div>
   </div>
   <main>
     <div id="status" class="status" role="status"></div>

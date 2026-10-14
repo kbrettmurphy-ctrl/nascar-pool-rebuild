@@ -22,7 +22,7 @@ Endpoints:
 
 - `POST /api/admin-login`: verified Supabase member-admin exchange for a bearer token and signed cookie; no PIN.
 - `POST /api/admin-logout`: expires the administrator cookie.
-- `GET /api/admin-buschgirls-gallery`: bearer-protected filename search, folder/rotation/indexing/exact-hash filters, deterministic sorting, filtered counts, adaptive server pagination (100 maximum), and signed thumbnail URLs. The browser chooses a page size near 80 that is divisible by the measured responsive grid column count.
+- `GET /api/admin-buschgirls-gallery`: bearer-protected filename search, folder/rotation/exact-hash filters, deterministic sorting, filtered counts, adaptive server pagination (100 maximum), and signed thumbnail URLs. The browser chooses a page size near 80 that is divisible by the measured responsive grid column count.
 - `GET /api/admin-buschgirls-backfill`: returns at most 40 rows still missing a hash or thumbnail; the browser normally asks for 20.
 - `POST /api/index-buschgirl`: derives paths from the authoritative row, upserts one thumbnail, and records its SHA-256/index time.
 - `GET /api/admin-buschgirls-duplicates`: lists exact duplicate hash groups for review only.

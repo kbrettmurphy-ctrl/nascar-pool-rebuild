@@ -1,12 +1,11 @@
 (() => {
   "use strict";
   const TOKEN_KEY = "nascar_pool_admin_token";
-  const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", indexingState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, requestId:0, selectMode:false, selection:new Map(), lastSelectedIndex:-1, bulkDeleting:false };
+  const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, requestId:0, selectMode:false, selection:new Map(), lastSelectedIndex:-1, bulkDeleting:false };
   const $ = id => document.getElementById(id);
   const validFolders = new Set(["all","soft","spicy","spicier"]);
   const validSorts = new Set(["newest","oldest","filename_asc","filename_desc"]);
   const validActiveStates = new Set(["all","active","inactive"]);
-  const validIndexingStates = new Set(["all","ready","needs_indexing"]);
 
   class ApiError extends Error { constructor(message,status,data){ super(message); this.status=status; this.data=data; } }
   async function api(url, options={}) {
@@ -27,13 +26,11 @@
     const folder=String(params.get("folder")||"all").toLowerCase();
     const sort=String(params.get("sort")||"newest").toLowerCase();
     const active=String(params.get("activeState")||"all").toLowerCase();
-    const indexing=String(params.get("indexingState")||"all").toLowerCase();
     state.page=Number.isInteger(page)&&page>0?page:1;
     state.folder=validFolders.has(folder)?folder:"all";
     state.search=String(params.get("search")||"").trim().slice(0,100);
     state.sort=validSorts.has(sort)?sort:"newest";
     state.activeState=validActiveStates.has(active)?active:"all";
-    state.indexingState=validIndexingStates.has(indexing)?indexing:"all";
     state.duplicateState=params.get("duplicateState")==="exact"?"exact":"all";
   }
   function syncQueryState() {
@@ -43,21 +40,20 @@
     if(state.search)params.set("search",state.search);
     if(state.sort!=="newest")params.set("sort",state.sort);
     if(state.activeState!=="all")params.set("activeState",state.activeState);
-    if(state.indexingState!=="all")params.set("indexingState",state.indexingState);
     if(state.duplicateState!=="all")params.set("duplicateState",state.duplicateState);
     const query=params.toString();history.replaceState(null,"",`${location.pathname}${query?`?${query}`:""}`);
   }
   function countGridColumns() { const tracks=getComputedStyle($("galleryGrid")).gridTemplateColumns; return tracks&&tracks!=="none"?tracks.split(/\s+/).filter(Boolean).length:1; }
   function pageSizeForColumns(columns) { const safe=Math.max(1,Math.min(100,Number(columns)||1)); const lower=Math.max(safe,Math.floor(80/safe)*safe); const candidate=Math.ceil(80/safe)*safe; const upper=candidate<=100?candidate:lower; return Math.abs(80-lower)<=Math.abs(upper-80)?lower:upper; }
   function scrollToResults() { const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches; requestAnimationFrame(()=>requestAnimationFrame(()=>$("galleryGrid").scrollIntoView({block:"start",behavior:reduced?"auto":"smooth"}))); }
-  function advancedFilterCount(){return Number(state.activeState!=="all")+Number(state.indexingState!=="all")+Number(state.duplicateState!=="all");}
+  function advancedFilterCount(){return Number(state.activeState!=="all")+Number(state.duplicateState!=="all");}
   function paintFilterBadges(){const count=advancedFilterCount();document.querySelectorAll(".filter-badge").forEach(badge=>{badge.hidden=!count;badge.title=count?`${count} active filters`:"";});}
 
   async function loadPage({scroll=false}={}) {
     const requestId=++state.requestId;
     $("expired").hidden=true; $("status").textContent="Loading…"; closeMenu();
     try {
-      const query=new URLSearchParams({page:String(state.page),pageSize:String(state.pageSize),folder:state.folder,search:state.search,sort:state.sort,activeState:state.activeState,indexingState:state.indexingState,duplicateState:state.duplicateState});
+      const query=new URLSearchParams({page:String(state.page),pageSize:String(state.pageSize),folder:state.folder,search:state.search,sort:state.sort,activeState:state.activeState,duplicateState:state.duplicateState});
       const data=await api(`/api/admin-buschgirls-gallery?${query}`);
       if(requestId!==state.requestId)return;
       if(!data.duplicateFilterAvailable&&state.duplicateState==="exact"){state.duplicateState="all";$("duplicateState").value="all";return loadPage({scroll});}
@@ -183,7 +179,7 @@
   function setFilterPanel(open){$("filterPanel").hidden=!open;document.querySelectorAll(".filter-button").forEach(button=>button.setAttribute("aria-expanded",String(open)));if(open)$("activeState").focus();}
   function initializeControls(){
     restoreQueryState();
-    $("folderFilter").value=state.folder;$("filenameSearch").value=state.search;$("sortSelect").value=state.sort;$("activeState").value=state.activeState;$("indexingState").value=state.indexingState;$("duplicateState").value=state.duplicateState;$("clearSearch").hidden=!state.search;
+    $("folderFilter").value=state.folder;$("filenameSearch").value=state.search;$("sortSelect").value=state.sort;$("activeState").value=state.activeState;$("duplicateState").value=state.duplicateState;$("clearSearch").hidden=!state.search;
     state.columns=countGridColumns();state.pageSize=pageSizeForColumns(state.columns);
   }
 
@@ -201,8 +197,8 @@
   $("filenameSearch").addEventListener("input",()=>{clearTimeout(searchTimer);$("clearSearch").hidden=!$("filenameSearch").value;searchTimer=setTimeout(applySearch,300);});$("filenameSearch").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();applySearch();}});$("clearSearch").addEventListener("click",()=>{$("filenameSearch").value="";applySearch();$("filenameSearch").focus();});
   $("searchToggle").addEventListener("click",()=>{const open=!$("toolbar").classList.contains("search-open");$("toolbar").classList.toggle("search-open",open);$("searchToggle").setAttribute("aria-expanded",String(open));if(open)$("filenameSearch").focus();});
   document.querySelectorAll(".filter-button").forEach(button=>button.addEventListener("click",()=>setFilterPanel($("filterPanel").hidden)));
-  ["activeState","indexingState","duplicateState"].forEach(id=>$(id).addEventListener("change",event=>{state[id]=event.target.value;resetResultsAndLoad();}));
-  $("clearFilters").addEventListener("click",()=>{state.activeState="all";state.indexingState="all";state.duplicateState="all";$("activeState").value="all";$("indexingState").value="all";$("duplicateState").value="all";resetResultsAndLoad();});$("closeFilters").addEventListener("click",()=>setFilterPanel(false));
+  ["activeState","duplicateState"].forEach(id=>$(id).addEventListener("change",event=>{state[id]=event.target.value;resetResultsAndLoad();}));
+  $("clearFilters").addEventListener("click",()=>{state.activeState="all";state.duplicateState="all";$("activeState").value="all";$("duplicateState").value="all";resetResultsAndLoad();});$("closeFilters").addEventListener("click",()=>setFilterPanel(false));
   $("contextMenu").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo){movePhoto(state.selected,moveTo);return;}const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="select"&&state.selected){const photo=state.selected;setSelectMode(true);state.selection.set(photo.id,photo);state.lastSelectedIndex=state.photos.findIndex(x=>x.id===photo.id);paintSelection();}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
   $("viewerMove").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo)movePhoto(state.photos[state.viewerIndex],moveTo);});
   $("viewerClose").addEventListener("click",closeViewer); $("viewerPrevious").addEventListener("click",()=>moveViewer(-1)); $("viewerNext").addEventListener("click",()=>moveViewer(1)); $("viewerDelete").addEventListener("click",()=>{const photo=state.photos[state.viewerIndex];if(photo)permanentDelete(photo);});
