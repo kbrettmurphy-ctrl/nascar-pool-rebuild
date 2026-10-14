@@ -403,15 +403,15 @@
           <input id="buschUploadInput" class="fileHidden" type="file" accept="image/*" multiple>
         </div>
 
-        <button id="buschUploadBtn" class="primary" type="button">Upload Photos</button>
-
-        <button id="buschGalleryBtn" class="primary" type="button">Open Gallery</button>
+        <div class="buschPhotoActions">
+          <button id="buschUploadBtn" class="primary" type="button">Upload<span class="wideOnly"> Photos</span></button>
+          <div class="buschPhotoBrowse">
+            <button id="buschGalleryBtn" class="primary" type="button"><span class="wideOnly">Open </span>Gallery</button>
+            <button id="buschRatingsBtn" class="primary" type="button">📊 <span class="wideOnly">Photo </span>Ratings</button>
+          </div>
+        </div>
 
         <div id="buschUploadStatus" class="adminStatus"></div>
-
-        <div class="adminRow">
-          <button id="buschRatingsBtn" class="primary" type="button">📊 Photo Ratings</button>
-        </div>
         <div id="buschRatingsList" class="buschRatingsList"></div>
       </div>
 

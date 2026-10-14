@@ -2210,6 +2210,12 @@ a.newsCard:last-child{ border-bottom:none; }
   background: var(--chip);
 }
 
+/* Upload sits by the file picker; the two ways of browsing photos are grouped
+   at the other end of the same row, and wrap together if the row is too narrow. */
+.buschPhotoActions{ display:flex; flex-wrap:wrap; align-items:stretch; gap:8px 14px; margin-top:4px; }
+.buschPhotoActions button.primary{ margin-top:0; white-space:nowrap; }
+.buschPhotoBrowse{ display:flex; gap:6px; margin-left:auto; }
+@media (max-width:480px){ .buschPhotoActions .wideOnly{ display:none; } }
 .buschRatingsList{ margin-top:10px; }
 .bgRateRow{
   display:flex;

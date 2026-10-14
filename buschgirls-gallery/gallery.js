@@ -83,7 +83,8 @@
         const img=document.createElement("img"); img.src=photo.thumbnailUrl; img.alt=""; img.loading="lazy"; img.decoding="async";
         img.addEventListener("error",()=>button.classList.add("broken")); button.append(img);
       }
-      button.addEventListener("click",event=>{ if(state.suppressClick){state.suppressClick=false;return;} if(state.selectMode){toggleSelection(index,event.shiftKey);return;} openViewer(index,button); });
+      const dot=document.createElement("span"); dot.className="select-dot"; dot.setAttribute("aria-hidden","true"); button.append(dot);
+      button.addEventListener("click",event=>{ if(state.suppressClick){state.suppressClick=false;return;} if(state.selectMode||event.target.closest(".select-dot")){ if(!state.selectMode)setSelectMode(true); toggleSelection(index,event.shiftKey); return; } openViewer(index,button); });
       button.addEventListener("contextmenu",event=>{ event.preventDefault(); if(state.selectMode)return; openMenu(photo,event.clientX,event.clientY); });
       button.addEventListener("pointerdown",event=>startLongPress(event,photo));
       ["pointerup","pointercancel","pointermove"].forEach(name=>button.addEventListener(name,cancelLongPress));
@@ -130,7 +131,7 @@
     closeMenu(); closeViewer(); state.selectMode=on;
     if(!on){ state.selection.clear(); state.lastSelectedIndex=-1; }
     document.body.classList.toggle("selecting",on); $("galleryGrid").classList.toggle("selecting",on);
-    $("selectToggle").setAttribute("aria-pressed",String(on)); $("selectionBar").hidden=!on;
+    $("selectionBar").hidden=!on;
     paintSelection();
   }
   function toggleSelection(index,range) {
@@ -138,11 +139,13 @@
     if(range&&state.lastSelectedIndex>=0) { const from=Math.min(index,state.lastSelectedIndex),to=Math.max(index,state.lastSelectedIndex); state.photos.slice(from,to+1).forEach(p=>state.selection.set(p.id,p)); }
     else if(state.selection.has(photo.id)) state.selection.delete(photo.id);
     else state.selection.set(photo.id,photo);
-    state.lastSelectedIndex=index; paintSelection();
+    state.lastSelectedIndex=index;
+    if(!state.selection.size)setSelectMode(false); else paintSelection();
   }
   function toggleSelectPage() {
     const allSelected=state.photos.length&&state.photos.every(p=>state.selection.has(p.id));
-    state.photos.forEach(p=>allSelected?state.selection.delete(p.id):state.selection.set(p.id,p)); paintSelection();
+    state.photos.forEach(p=>allSelected?state.selection.delete(p.id):state.selection.set(p.id,p));
+    if(!state.selection.size)setSelectMode(false); else paintSelection();
   }
   function paintSelection() {
     document.querySelectorAll("#galleryGrid .tile").forEach(tile=>{ const photo=state.photos[Number(tile.dataset.index)]; const on=state.selectMode&&state.selection.has(photo?.id); tile.classList.toggle("selected",on); if(state.selectMode)tile.setAttribute("aria-pressed",String(on)); else tile.removeAttribute("aria-pressed"); });
@@ -170,6 +173,7 @@
     await Promise.all([worker(),worker(),worker()]);
     state.bulkDeleting=false;
     if(expired){ showExpired(); return; }
+    if(!state.selection.size)setSelectMode(false);
     await loadPage();
     $("status").textContent=`Permanently deleted ${deleted} photo${deleted===1?"":"s"}.`+(failed.length?` ${failed.length} failed and ${failed.length===1?"is":"are"} still selected; press Delete again to retry.`:"");
   }
@@ -256,7 +260,7 @@
   document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();if(!$("filterPanel").hidden&&!$("filterPanel").contains(event.target)&&!event.target.closest(".filter-button"))setFilterPanel(false);}); addEventListener("scroll",closeMenu,{passive:true,capture:true});
   document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("filterPanel").hidden)setFilterPanel(false);else if($("toolbar").classList.contains("search-open")){$("toolbar").classList.remove("search-open");$("searchToggle").setAttribute("aria-expanded","false");$("searchToggle").focus();}else if(!$("viewer").hidden)closeViewer();else if(!$("maintenance").hidden)$("maintenance").hidden=true;else if(state.selectMode)setSelectMode(false);}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});
   $("maintenanceBtn").addEventListener("click",()=>{$("maintenance").hidden=false;$("closeMaintenance").focus();}); $("closeMaintenance").addEventListener("click",()=>{$("maintenance").hidden=true;}); $("startBackfill").addEventListener("click",startBackfill); $("pauseBackfill").addEventListener("click",()=>{state.backfill.paused=true;paintProgress("Pausing after active batch.");}); $("resumeBackfill").addEventListener("click",()=>{state.backfill.paused=false;paintProgress("Resuming from database state.");runBackfill();}); $("stopBackfill").addEventListener("click",()=>{state.backfill.stopped=true;paintProgress("Stopped.");}); $("retryBackfill").addEventListener("click",async()=>{const photos=state.failures.map(x=>x.photo);state.failures=[];state.backfill={completed:0,failed:0,total:photos.length,paused:false,stopped:false,duplicateGroups:new Set()};await runBackfill(photos);state.backfill.stopped=true;paintProgress("Retry complete.");}); $("repairThumbnails").addEventListener("click",repairThumbnails); $("reviewDuplicates").addEventListener("click",reviewDuplicates);
-  $("selectToggle").addEventListener("click",()=>setSelectMode(!state.selectMode)); $("exitSelect").addEventListener("click",()=>setSelectMode(false)); $("selectPage").addEventListener("click",toggleSelectPage); $("deleteSelected").addEventListener("click",deleteSelected);
+  $("exitSelect").addEventListener("click",()=>setSelectMode(false)); $("selectPage").addEventListener("click",toggleSelectPage); $("deleteSelected").addEventListener("click",deleteSelected);
   addEventListener("beforeunload",event=>{if(state.bulkDeleting){event.preventDefault();event.returnValue="";}});
   initializeControls();resizeObserver.observe($("galleryGrid"));loadPage();initializeBackfillState();
 })();
