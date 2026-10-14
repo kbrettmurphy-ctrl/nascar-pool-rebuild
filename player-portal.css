@@ -2215,7 +2215,7 @@ a.newsCard:last-child{ border-bottom:none; }
 .buschPhotoActions{ display:flex; flex-wrap:wrap; align-items:stretch; gap:8px 14px; margin-top:4px; }
 .buschPhotoActions button.primary{ margin-top:0; white-space:nowrap; }
 .buschPhotoBrowse{ display:flex; gap:6px; margin-left:auto; }
-@media (max-width:480px){ .buschPhotoActions .wideOnly{ display:none; } }
+.buschPhotoActions.compact .wideOnly{ display:none; } /* set by fitBuschPhotoActions_ only when full labels would wrap */
 .buschRatingsList{ margin-top:10px; }
 .bgRateRow{
   display:flex;

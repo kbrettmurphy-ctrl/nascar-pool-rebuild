@@ -4639,6 +4639,24 @@ async function adminSendPushForm_() {
 
 // Supabase returns 429 on bursts of uncached images: retry the same URL twice
 // with jittered delays, then fall back to the full photo.
+// Photos admin: show the full button labels, and switch to the short ones only
+// when the three buttons wouldn't fit on one row. Reacts to width changes only,
+// because toggling the labels changes the row's height.
+function fitBuschPhotoActions_() {
+  const row = document.querySelector(".buschPhotoActions");
+  if (!row || typeof ResizeObserver !== "function") return;
+  let lastWidth = -1;
+  const fit = () => {
+    const width = row.clientWidth;
+    if (!width || width === lastWidth) return;
+    lastWidth = width;
+    row.classList.remove("compact");
+    const tops = new Set(Array.from(row.querySelectorAll("button"), b => Math.round(b.getBoundingClientRect().top)));
+    if (tops.size > 1) row.classList.add("compact");
+  };
+  new ResizeObserver(fit).observe(row);
+}
+
 function retryThumbThenFull_(img) {
   const tries = Number(img.dataset.retries || 0);
   const src = img.getAttribute("src");
@@ -5643,6 +5661,7 @@ function initAdminControls_() {
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
+  fitBuschPhotoActions_();
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 
