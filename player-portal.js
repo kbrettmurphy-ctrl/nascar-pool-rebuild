@@ -832,7 +832,7 @@ if (liveCard) {
     const players = [...(ctx.players || [])];
 
     function renderSeedRow(seed) {
-      const options = [`<option value="">Select player</option>`]
+      const options = [`<option value="">Select…</option>`]
         .concat(players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`))
         .join("");
 
@@ -884,7 +884,7 @@ if (liveCard) {
       });
 
       select.innerHTML =
-        `<option value="">Select player</option>` +
+        `<option value="">Select…</option>` +
         allowedPlayers
           .map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
           .join("");
@@ -1489,24 +1489,18 @@ await refreshAfterAdminChange_();
   }
   
   async function loadVenmoBalance_() {
-    const pending = document.getElementById("venmoBalanceBtn");
-    if (pending && !/\$/.test(pending.textContent)) pending.textContent = "Venmo: …";
+    const el = document.getElementById("adminVenmoBalance");
+    // Keep the last known amount on refresh; only the first load shows "…".
+    if (el && !/\$/.test(el.textContent)) el.textContent = "…";
     try {
       const data = await adminFetch_("/api/venmo-balance", {
         method: "GET"
       });
-
-      const amount = Number(data.venmoBalance || 0).toFixed(2);
-      const btn = document.getElementById("venmoBalanceBtn");
-
-      if (btn) {
-        btn.textContent = `Venmo: $${amount}`;
+      if (el) {
+        el.textContent = Number(data.venmoBalance || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
       }
     } catch (err) {
-      const btn = document.getElementById("venmoBalanceBtn");
-      if (btn) {
-        btn.textContent = "Venmo: ERROR";
-      }
+      if (el) el.textContent = "Unavailable";
       console.error("Venmo balance load failed:", err);
     }
   }
@@ -4656,24 +4650,6 @@ async function adminSendPushForm_() {
 
 // Supabase returns 429 on bursts of uncached images: retry the same URL twice
 // with jittered delays, then fall back to the full photo.
-// Photos admin: show the full button labels, and switch to the short ones only
-// when the three buttons wouldn't fit on one row. Reacts to width changes only,
-// because toggling the labels changes the row's height.
-function fitBuschPhotoActions_() {
-  const row = document.querySelector(".buschPhotoActions");
-  if (!row || typeof ResizeObserver !== "function") return;
-  let lastWidth = -1;
-  const fit = () => {
-    const width = row.clientWidth;
-    if (!width || width === lastWidth) return;
-    lastWidth = width;
-    row.classList.remove("compact");
-    const tops = new Set(Array.from(row.querySelectorAll("button"), b => Math.round(b.getBoundingClientRect().top)));
-    if (tops.size > 1) row.classList.add("compact");
-  };
-  new ResizeObserver(fit).observe(row);
-}
-
 function retryThumbThenFull_(img) {
   const tries = Number(img.dataset.retries || 0);
   const src = img.getAttribute("src");
@@ -5678,7 +5654,6 @@ function initAdminControls_() {
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
   document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
-  fitBuschPhotoActions_();
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 

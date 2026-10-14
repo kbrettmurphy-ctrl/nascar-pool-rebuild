@@ -263,24 +263,16 @@
     <div class="adminSheet">
       <div class="adminSticky">
       <div class="adminSheetHeader">
-        <div>
-          <div class="pill">Admin Tools</div>
-        </div>
+        <h2 class="adminTitle">Admin</h2>
         <div class="adminHeaderBtns">
-          <button id="adminLockBtn" class="topactions" type="button">Lock</button>
-          <button id="adminCloseBtn" class="topactions" type="button">Close</button>
+          <button id="adminLockBtn" class="adminIconBtn" type="button" aria-label="Lock admin tools" title="Lock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Z"/></svg></button>
+          <button id="adminCloseBtn" class="adminIconBtn" type="button" aria-label="Close admin tools" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5Z"/></svg></button>
         </div>
       </div>
 
-      <div class="adminContextBar">
-        <div class="adminField">
-          <label for="adminTournamentSelect">Tournament</label>
-          <select id="adminTournamentSelect"></select>
-        </div>
-        <div class="adminField">
-          <label for="adminRaceSelect">Race</label>
-          <select id="adminRaceSelect"></select>
-        </div>
+      <div class="adminGroup adminContextBar">
+        <label class="adminFieldRow"><span>Tournament</span><select id="adminTournamentSelect"></select></label>
+        <label class="adminFieldRow"><span>Race</span><select id="adminRaceSelect"></select></label>
       </div>
 
       <div class="adminTabs">
@@ -294,20 +286,24 @@
       </div>
 
       <div id="adminTab-raceops" class="adminTabPane active">
-        <div class="adminCardGrid">
-          <button id="adminAssignBtn" class="primary" type="button">Generate Assignments</button>
-          <button id="adminQualBtn" class="primary" type="button">Import Qualifying</button>
-          <button id="adminResultsBtn" class="primary" type="button">Import Results</button>
-          <button id="adminClearAssignmentsBtn" class="primary danger" type="button">Clear Assignments</button>
+        <div class="adminGroupLabel">Race day</div>
+        <div class="adminGroup">
+          <button id="adminAssignBtn" class="adminListBtn" type="button">Generate Assignments</button>
+          <button id="adminQualBtn" class="adminListBtn" type="button">Import Qualifying</button>
+          <button id="adminResultsBtn" class="adminListBtn" type="button">Import Results</button>
+        </div>
+        <div class="adminGroup">
+          <button id="adminClearAssignmentsBtn" class="adminListBtn danger" type="button">Clear Assignments</button>
         </div>
         <div id="adminRaceOpsStatus" class="adminStatus"></div>
       </div>
 
       <div id="adminTab-seeds" class="adminTabPane">
-        <div class="muted" style="margin-bottom:8px;">Round 1 manual seeds for selected tournament</div>
-        <button id="adminSeedWheelOpenBtn" class="primary adminSeedWheelOpenBtn" type="button">
-          Spinney Wheely Thingy
-        </button>
+        <div class="adminGroupLabel">Round 1 seeds</div>
+        <div class="adminGroupHint">Manual seeds for the selected tournament.</div>
+        <div class="adminGroup">
+          <button id="adminSeedWheelOpenBtn" class="adminListBtn adminNavRow" type="button">Spinney Wheely Thingy</button>
+        </div>
         <div id="adminSeedWheelBackdrop" class="adminSeedWheelBackdrop" hidden>
           <div id="adminSeedWheelPanel" class="adminSeedWheelModal" role="dialog" aria-modal="true" aria-labelledby="adminSeedWheelTitle">
             <div class="adminSeedWheelLayout">
@@ -328,111 +324,83 @@
             </div>
           </div>
         </div>
-        <div id="adminSeedsGrid" class="adminSeedsGrid"></div>
-        <div class="adminRow" style="margin-top:10px;">
-          <button id="adminSaveSeedsBtn" class="primary" type="button">Save Seeds</button>
-          <button id="adminClearSeedsBtn" class="primary danger" type="button">Clear Seeds</button>
+        <div class="adminGroup adminGroupPadded"><div id="adminSeedsGrid" class="adminSeedsGrid"></div></div>
+        <button id="adminSaveSeedsBtn" class="adminPrimaryBtn" type="button">Save Seeds</button>
+        <div class="adminGroup">
+          <button id="adminClearSeedsBtn" class="adminListBtn danger" type="button">Clear Seeds</button>
         </div>
         <div id="adminSeedsStatus" class="adminStatus"></div>
       </div>
 
       <div id="adminTab-funds" class="adminTabPane">
-        <div class="adminField">
-          <label for="adminFundsPlayer">Player</label>
-          <select id="adminFundsPlayer"></select>
+        <div class="adminStat">
+          <div class="adminStatLabel">Venmo balance</div>
+          <div id="adminVenmoBalance" class="adminStatValue">…</div>
         </div>
-        <div class="adminField">
-          <label for="adminFundsAmount">Amount</label>
-          <input id="adminFundsAmount" type="number" min="0" step="0.01" placeholder="25.00" />
+        <div class="adminGroup">
+          <label class="adminFieldRow"><span>Player</span><select id="adminFundsPlayer"></select></label>
+          <label class="adminFieldRow"><span>Amount</span><input id="adminFundsAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="25.00"></label>
         </div>
-        <div class="adminRow">
-          <button id="adminAddFundsBtn" class="primary" type="button">Add Funds</button>
-          <button id="adminMarkPaidOutBtn" class="primary" type="button">Mark Paid Out</button>
+        <div class="adminButtonRow">
+          <button id="adminAddFundsBtn" class="adminPrimaryBtn" type="button">Add Funds</button>
+          <button id="adminMarkPaidOutBtn" class="adminSecondaryBtn" type="button">Mark Paid Out</button>
         </div>
-
-        <div class="adminRow">
-          <button id="adminWhoIOweBtn" class="primary" type="button">Who Do I Owe?</button>
-        </div>
-        <div class="adminRow">
-          <button id="venmoBalanceBtn" class="primary" style="background:var(--glassBlue42);">Venmo: …</button>
+        <div class="adminGroup">
+          <button id="adminWhoIOweBtn" class="adminListBtn adminNavRow" type="button">Who Do I Owe?</button>
         </div>
         <div id="adminFundsStatus" class="adminStatus"></div>
       </div>
 
       <div id="adminTab-push" class="adminTabPane">
-        <div class="adminSectionTitle">Send Push</div>
-        <div class="adminField">
-          <label for="adminPushTo">To</label>
-          <select id="adminPushTo"><option value="">Everyone</option></select>
+        <div class="adminGroupLabel">Send push</div>
+        <div class="adminGroup">
+          <label class="adminFieldRow"><span>To</span><select id="adminPushTo"><option value="">Everyone</option></select></label>
+          <label class="adminFieldRow"><span>Title</span><input id="adminPushTitle" type="text" placeholder="NASCAR Pool" maxlength="60"></label>
+          <label class="adminFieldRow"><span>Message</span><input id="adminPushBody" type="text" placeholder="Results are in..." maxlength="180"></label>
         </div>
-        <div class="adminField">
-          <label for="adminPushTitle">Title</label>
-          <input id="adminPushTitle" type="text" placeholder="NASCAR Pool" maxlength="60">
-        </div>
-        <div class="adminField">
-          <label for="adminPushBody">Message</label>
-          <input id="adminPushBody" type="text" placeholder="Results are in..." maxlength="180">
-        </div>
-        <button id="adminPushSendBtn" class="primary" type="button">📣 Send Push</button>
-
-        <div class="adminSectionTitle" style="margin-top:18px;">Notifications</div>
-        <div class="muted">Tap a player's toggle to pause or resume all their devices.</div>
-        <div id="adminPushList" class="adminPushList muted">Loading…</div>
+        <button id="adminPushSendBtn" class="adminPrimaryBtn" type="button">Send Push</button>
         <div id="adminPushStatus" class="adminStatus"></div>
+
+        <div class="adminGroupLabel">Notifications</div>
+        <div class="adminGroupHint">Tap a player's toggle to pause or resume all their devices.</div>
+        <div id="adminPushList" class="adminGroup adminPushList muted">Loading…</div>
       </div>
 
       <div id="adminTab-buschgirls" class="adminTabPane">
-        <div class="big">Busch Girls Upload</div>
-        <div class="muted">Upload photos into the Supabase bucket. Humanity evolves, allegedly.</div>
-
-        <div class="adminField">
-          <label for="buschFolderSelect">Folder</label>
-          <select id="buschFolderSelect">
+        <div class="adminGroupLabel">Busch Girls upload</div>
+        <div class="adminGroupHint">Humanity evolves, allegedly.</div>
+        <div class="adminGroup">
+          <label class="adminFieldRow"><span>Folder</span><select id="buschFolderSelect">
             <option value="soft">soft</option>
             <option value="spicy">spicy</option>
             <option value="spicier">spicier</option>
-          </select>
-        </div>
-
-        <div class="adminField">
-          <label for="buschUploadInput">Photos</label>
-          <label class="fileControl" for="buschUploadInput">
-            <span class="fileControlBtn">Choose Files</span>
-            <span class="fileControlText" id="buschUploadText">No files selected</span>
-          </label>
+          </select></label>
+          <label class="adminFieldRow adminFileRow" for="buschUploadInput"><span>Photos</span><span class="fileControlText" id="buschUploadText">No files selected</span></label>
           <input id="buschUploadInput" class="fileHidden" type="file" accept="image/*" multiple>
         </div>
-
-        <div class="buschPhotoActions">
-          <button id="buschUploadBtn" class="primary" type="button">Upload<span class="wideOnly"> Photos</span></button>
-          <div class="buschPhotoBrowse">
-            <button id="buschGalleryBtn" class="primary" type="button"><span class="wideOnly">Open </span>Gallery</button>
-            <button id="buschRatingsBtn" class="primary" type="button">📊 <span class="wideOnly">Photo </span>Ratings</button>
-          </div>
-        </div>
-
+        <button id="buschUploadBtn" class="adminPrimaryBtn" type="button">Upload Photos</button>
         <div id="buschUploadStatus" class="adminStatus"></div>
+
+        <div class="adminGroupLabel">Browse</div>
+        <div class="adminGroup">
+          <button id="buschGalleryBtn" class="adminListBtn adminNavRow" type="button">Open Gallery</button>
+          <button id="buschRatingsBtn" class="adminListBtn adminNavRow" type="button">Photo Ratings</button>
+        </div>
         <div id="buschRatingsList" class="buschRatingsList"></div>
       </div>
 
       <div id="adminTab-members" class="adminTabPane">
-        <div class="adminSectionTitle">Invite a member</div>
-        <div class="muted">Choose the player identity this email should use. Supabase will email the setup link; if its mail limit is reached, you can copy one instead.</div>
-        <div class="adminMemberInvite">
-          <div class="adminField">
-            <label for="adminInvitePlayer">Player</label>
-            <select id="adminInvitePlayer"></select>
-          </div>
-          <div class="adminField">
-            <label for="adminInviteEmail">Email</label>
-            <input id="adminInviteEmail" type="email" inputmode="email" autocomplete="email" placeholder="member@example.com">
-          </div>
-          <button id="adminInviteBtn" class="primary" type="button">Send invitation</button>
+        <div class="adminGroupLabel">Invite a member</div>
+        <div class="adminGroupHint">Supabase emails the setup link. If its mail limit is reached, you can copy a link instead.</div>
+        <div class="adminGroup">
+          <label class="adminFieldRow"><span>Player</span><select id="adminInvitePlayer"></select></label>
+          <label class="adminFieldRow"><span>Email</span><input id="adminInviteEmail" type="email" inputmode="email" autocomplete="email" placeholder="member@example.com"></label>
         </div>
+        <button id="adminInviteBtn" class="adminPrimaryBtn" type="button">Send Invitation</button>
 
-        <div class="adminSectionTitle" style="margin-top:18px;">Administrator access</div>
-        <div class="muted">Admins can open these tools while signed in—no PIN required. You cannot remove your own access.</div>
-        <div id="adminMemberList" class="adminMemberList muted">Loading…</div>
+        <div class="adminGroupLabel">Administrator access</div>
+        <div class="adminGroupHint">Admins can open these tools while signed in. You can't remove your own access.</div>
+        <div id="adminMemberList" class="adminGroup adminMemberList muted">Loading…</div>
         <div id="adminMembersStatus" class="adminStatus"></div>
       </div>
     </div>

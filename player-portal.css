@@ -87,6 +87,10 @@ html{
   --navBg:rgba(2,11,18,.92);
   --overlayBg:rgba(2,11,18,.72);
   --sheetBg:#0a1822;
+  --groupedBg:#0a1822;
+  --groupBg:rgba(255,255,255,.05);
+  --groupBorder:rgba(255,255,255,.08);
+  --rowPress:rgba(255,255,255,.06);
 
   --btnPrimaryBg:#0b1926;
   --btnPrimaryBorder:rgba(255,255,255,.28);
@@ -154,6 +158,10 @@ html{
   --navBg:rgba(255,255,255,.92);
   --overlayBg:rgba(12,26,38,.45);
   --sheetBg:#ffffff;
+  --groupedBg:#f2f4f7;
+  --groupBg:#ffffff;
+  --groupBorder:rgba(12,26,38,.08);
+  --rowPress:rgba(12,26,38,.05);
 
   --btnPrimaryBg:#0c1a26;
   --btnPrimaryBorder:rgba(12,26,38,.30);
@@ -2210,23 +2218,6 @@ a.newsCard:last-child{ border-bottom:none; }
   background: var(--chip);
 }
 
-/* Upload sits by the file picker; the two ways of browsing photos are grouped
-   at the other end of the same row, and wrap together if the row is too narrow. */
-.buschPhotoActions{ display:flex; flex-wrap:wrap; align-items:stretch; gap:8px 10px; margin-top:4px; }
-.buschPhotoActions button.primary{ margin-top:0; padding:8px; white-space:nowrap; }
-.buschPhotoBrowse{ display:flex; gap:6px; margin-left:auto; }
-/* Set by fitBuschPhotoActions_ only when the full labels would wrap: short
-   labels, with the buttons sharing the row evenly instead of leaving a gap. */
-.buschPhotoActions.compact .wideOnly{ display:none; }
-.buschPhotoActions.compact > button,.buschPhotoActions.compact .buschPhotoBrowse button{ flex:1 1 0; }
-.buschPhotoActions.compact .buschPhotoBrowse{ flex:2 1 0; margin-left:0; }
-/* On phones the row is nearly full anyway, so space all three evenly rather
-   than visually grouping Gallery and Ratings. */
-@media (max-width:600px){
-  .buschPhotoActions{ column-gap:6px; }
-  .buschPhotoActions > button,.buschPhotoBrowse button{ flex:1 1 auto; }
-  .buschPhotoBrowse{ flex:2 1 auto; margin-left:0; }
-}
 .buschRatingsList{ margin-top:10px; }
 .bgRateRow{
   display:flex;
@@ -2426,16 +2417,7 @@ a.newsCard:last-child{ border-bottom:none; }
   border-bottom: 1px solid var(--lineSoft);
 }
 
-.adminSticky .adminContextBar{ margin-bottom:10px; }
 
-.adminSectionTitle{
-  font-size:15px;
-  font-weight:800;
-  letter-spacing:-0.2px;
-  margin:2px 0 2px;
-}
-
-#adminPushSendBtn{ width:100%; margin-top:8px; }
 
 /* ==========================================================
    Me page (driver profile)
@@ -2566,22 +2548,7 @@ a.newsCard:last-child{ border-bottom:none; }
   box-shadow:0 18px 52px rgba(0,0,0,.5);
 }
 
-.adminPushList{ margin-top:6px; }
 
-.adminMemberInvite{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);
-  gap:10px;
-  margin-top:12px;
-}
-
-.adminMemberInvite .primary{
-  grid-column:1 / -1;
-}
-
-.adminMemberList{
-  margin-top:8px;
-}
 
 .adminMemberRow{
   display:flex;
@@ -2679,10 +2646,6 @@ a.newsCard:last-child{ border-bottom:none; }
   accent-color:var(--blue);
 }
 
-@media (max-width:520px){
-  .adminMemberInvite{ grid-template-columns:1fr; }
-  .adminMemberInvite .primary{ grid-column:auto; }
-}
 
 .pushRow{
   display:flex;
@@ -2726,73 +2689,108 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 :root[data-theme="light"] .pushToggle.on{ color:var(--text); }
 
+/* ==========================================================
+   Admin sheet, settings style: grouped rounded lists on a
+   tinted page. Actions are list rows (blue = runs, chevron =
+   opens, red = destructive); each tab has at most one solid
+   primary button.
+   ========================================================== */
+.adminSheet,.adminSticky{ background:var(--groupedBg); }
+
 .adminSheetHeader{
   display:flex;
   justify-content:space-between;
   align-items:center;
   gap:10px;
-  margin-bottom:12px;
+  margin-bottom:10px;
 }
-
-.adminHeaderBtns{
-  display:flex;
-  gap:8px;
-}
-
-.adminContextBar{
+.adminTitle{ margin:0; font-size:20px; font-weight:800; letter-spacing:-0.3px; }
+.adminHeaderBtns{ display:flex; gap:8px; }
+.adminIconBtn{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:12px;
-}
-
-.adminField{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.adminField select,
-.adminField input{
-  width:100%;
-  display:block;
-  font-size:16px !important;
-  line-height:1.0;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:var(--glassBlue14);
+  place-items:center;
+  width:34px;
+  height:34px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:var(--chip);
   color:var(--text);
-  margin:0 0 8px 0;
-  -webkit-text-size-adjust:100%;
 }
+.adminIconBtn:hover{ background:var(--chipHover); }
+.adminIconBtn svg{ width:17px; height:17px; fill:currentColor; }
 
-.adminField select,
-.adminField input{
-  margin: 0 0 0 0;
+.adminGroup{
+  margin-top:8px;
+  border:1px solid var(--groupBorder);
+  border-radius:12px;
+  background:var(--groupBg);
+  overflow:hidden;
 }
+.adminGroupPadded{ padding:12px; }
+.adminGroupLabel{
+  margin:20px 4px 6px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.adminTabPane > .adminGroupLabel:first-child,
+.adminTabPane > .adminStat:first-child{ margin-top:2px; }
+.adminGroupHint{ margin:-2px 4px 8px; color:var(--muted); font-size:13px; }
+.adminGroupLabel + .adminGroup{ margin-top:0; }
 
-/* Safari renders a native <select> shorter than Chrome, so admin selects didn't
-   match the file control. Strip native appearance so they honor an explicit
-   height (matching .fileControl in every browser); a custom chevron stands in
-   for the native dropdown arrow. */
-.adminField select{
+/* A labelled control on one row: label left, value right. */
+.adminFieldRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:46px;
+  padding:0 14px;
+  border-bottom:1px solid var(--lineSoft);
+  cursor:pointer;
+}
+.adminFieldRow:last-of-type{ border-bottom:0; }
+.adminFieldRow > span:first-child{ flex:none; font-size:15px; font-weight:500; color:var(--text); }
+.adminFieldRow select,
+.adminFieldRow input{
+  flex:1 1 auto;
+  min-width:0;
+  height:44px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--muted);
+  font-size:16px !important; /* below 16px iOS zooms the page on focus */
+  text-align:right;
   -webkit-appearance:none;
   appearance:none;
-  box-sizing:border-box;
-  height:42px;
-  padding:0 34px 0 12px;
-  line-height:40px;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12'%20height='12'%20viewBox='0%200%2012%2012'%3E%3Cpath%20d='M2%204l4%204%204-4'%20fill='none'%20stroke='%23a9b4c2'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.adminFieldRow input{ color:var(--text); }
+.adminFieldRow input::placeholder{ color:var(--muted); opacity:.7; }
+.adminFieldRow select{
+  text-align-last:right;
+  padding-right:18px;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12'%20height='12'%20viewBox='0%200%2012%2012'%3E%3Cpath%20d='M3%204.5l3%203%203-3'%20fill='none'%20stroke='%23a9b4c2'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;
-  background-position:right 12px center;
+  background-position:right center;
+}
+.adminFieldRow select:focus,.adminFieldRow input:focus{ outline:none; }
+.adminFieldRow:focus-within{ background:var(--rowPress); }
+
+/* Tournament + race: side by side when there's room. */
+.adminContextBar{ margin:0 0 10px; }
+@media (min-width:641px){
+  .adminContextBar{ display:grid; grid-template-columns:1fr 1fr; }
+  .adminContextBar .adminFieldRow{ border-bottom:0; }
+  .adminContextBar .adminFieldRow + .adminFieldRow{ border-left:1px solid var(--lineSoft); }
 }
 
-/* File picker: native <input type=file> can't be sized consistently (Safari
-   ignores height even with appearance reset), so the real input is visually
-   hidden and a styled .fileControl label stands in. Being a plain element it
-   renders identically across browsers and matches the .adminField select box. */
-.adminField input.fileHidden{
+/* File picker row: the real input is visually hidden; tapping the row opens it. */
+.adminSheet input.fileHidden{
   position:absolute;
   width:1px;
   height:1px;
@@ -2803,48 +2801,96 @@ a.newsCard:last-child{ border-bottom:none; }
   overflow:hidden;
   clip:rect(0 0 0 0);
 }
-.adminField .fileControl{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  width:100%;
-  box-sizing:border-box;
-  height:42px;
-  padding:0 12px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:var(--glassBlue14);
-  color:var(--text);
-  font-size:14px;
-  cursor:pointer;
-}
-.adminField .fileControlBtn{
-  flex:0 0 auto;
-  box-sizing:border-box;
-  height:28px;
-  line-height:26px;
-  padding:0 12px;
-  border-radius:8px;
-  border:1px solid var(--line);
-  background:var(--chip);
-  color:var(--text);
-}
-.adminField .fileControlText{
+.adminFileRow .fileControlText{
   flex:1 1 auto;
   min-width:0;
-  color:var(--muted);
-  white-space:nowrap;
   overflow:hidden;
+  color:var(--blueText);
+  font-size:15px;
+  text-align:right;
   text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
+/* List rows that act as buttons. */
+.adminListBtn{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-height:46px;
+  margin:0;
+  padding:0 14px;
+  border:0;
+  border-bottom:1px solid var(--lineSoft);
+  border-radius:0;
+  background:transparent;
+  color:var(--blueText);
+  font-size:15px;
+  font-weight:500;
+  text-align:left;
+}
+.adminListBtn:last-of-type{ border-bottom:0; }
+.adminListBtn:hover,.adminListBtn:active{ background:var(--rowPress); }
+.adminListBtn:disabled{ opacity:.5; cursor:default; }
+.adminListBtn.adminNavRow{ color:var(--text); }
+.adminListBtn.adminNavRow::after{
+  content:"";
+  width:8px;
+  height:8px;
+  margin-left:auto;
+  border-top:2px solid var(--muted);
+  border-right:2px solid var(--muted);
+  transform:rotate(45deg);
+  opacity:.7;
+}
+.adminListBtn.danger{ color:var(--redText); }
 
+.adminPrimaryBtn,.adminSecondaryBtn{
+  width:100%;
+  min-height:44px;
+  margin:12px 0 0;
+  padding:0 16px;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:700;
+}
+.adminPrimaryBtn{ border:0; background:var(--blue); color:#fff; }
+.adminPrimaryBtn:hover{ background:var(--blue); filter:brightness(1.08); }
+.adminSecondaryBtn{ border:1px solid var(--groupBorder); background:var(--groupBg); color:var(--text); }
+.adminPrimaryBtn:disabled,.adminSecondaryBtn:disabled{ opacity:.55; filter:none; }
+.adminButtonRow{ display:flex; gap:8px; }
+.adminButtonRow > *{ flex:1; }
 
+.adminStat{ margin:2px 4px 14px; }
+.adminStatLabel{ color:var(--muted); font-size:13px; font-weight:600; }
+.adminStatValue{ font-size:32px; font-weight:800; letter-spacing:-0.5px; font-variant-numeric:tabular-nums; }
 
+/* Lists filled in by JS live inside a group card. */
+/* Padding only for the "Loading…"/empty text; rows bring their own. */
+.adminPushList:not(:has(.pushRow)),.adminMemberList:not(:has(.adminMemberRow)){ padding:12px 14px; }
+.adminPushList .pushRow{ padding:8px 14px; }
+.adminMemberList .adminMemberRow{ padding:10px 14px; }
+.adminMemberList .adminMemberRow:last-child{ border-bottom:0; }
+.adminMemberList .adminPendingActions{ flex-wrap:wrap; }
+.adminMemberList :is(.adminSetupLinkBtn,.adminResendInviteBtn,.adminCancelInviteBtn){ flex:0 0 auto; padding:5px 10px; font-size:12px; }
 
-
-
-
+/* Seeds: plain seed numbers and compact pickers inside the group card. */
+.adminSheet .adminSeedsGrid{ gap:8px 14px; }
+.adminSheet .adminSeedRow{ grid-template-columns:30px minmax(0,1fr); gap:6px; }
+.adminSheet .adminSeedNum{ padding:0; border:0; background:none; color:var(--muted); font-size:13px; font-weight:700; text-align:right; }
+.adminSheet .adminSeedSelect{
+  width:100%;
+  min-width:0;
+  height:34px;
+  padding:0 24px 0 10px;
+  border:1px solid var(--lineSoft);
+  border-radius:8px;
+  background:var(--rowPress) url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12'%20height='12'%20viewBox='0%200%2012%2012'%3E%3Cpath%20d='M3%204.5l3%203%203-3'%20fill='none'%20stroke='%23a9b4c2'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+  color:var(--text);
+  font-size:15px;
+  -webkit-appearance:none;
+  appearance:none;
+}
 
 .adminTabs{
   display:flex;
@@ -2887,24 +2933,8 @@ a.newsCard:last-child{ border-bottom:none; }
 .adminSheet.adminLoading :is(.adminTabPane, #adminTournamentSelect, #adminRaceSelect){ pointer-events:none; opacity:.55; transition:opacity .15s; }
 .adminTabPane.active{ display:block; }
 
-.adminCardGrid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:10px;
-}
-
-.adminRow{
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-}
-
-.adminRow > *{
-  flex:1;
-}
-
 .adminStatus{
-  margin-top:10px;
+  margin:8px 4px 0;
   font-size:13px;
   color:var(--muted);
   white-space:pre-wrap;
@@ -2914,11 +2944,6 @@ a.newsCard:last-child{ border-bottom:none; }
    Seed wheel (stays dark in both themes — the canvas draws
    its own dark artwork with fixed colors)
    ========================================================== */
-
-.adminSeedWheelOpenBtn{
-  width:100%;
-  margin:0 0 12px 0;
-}
 
 .adminSeedWheelBackdrop{
   position:fixed;
@@ -3147,10 +3172,6 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 
 @media (max-width: 640px){
-  .adminContextBar{
-    grid-template-columns:1fr;
-  }
-
   .adminSeedsGrid{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:8px;
