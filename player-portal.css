@@ -909,7 +909,7 @@ select, input{
 .buschPopupImg{
   display:block;
   width:auto;
-  max-width:min(92vw, 800px);
+  max-width:min(92vw, 520px);
   height:auto;
   max-height:calc(86vh - 44px);
   object-fit:contain;
