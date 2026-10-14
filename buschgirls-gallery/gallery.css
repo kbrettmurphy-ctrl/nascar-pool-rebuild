@@ -15,7 +15,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visibl
 .toolbar-icon:hover,.pagination button:hover:not(:disabled) { background:#ffffff0d; }
 .toolbar-icon:active,.pagination button:active:not(:disabled) { background:#ffffff18; }
 .back-button { font-size:1.35rem; }
-.maintenance-button svg,.toolbar-icon svg { width:19px; height:19px; vertical-align:middle; fill:currentColor; }
+.toolbar-icon svg { width:19px; height:19px; vertical-align:middle; fill:currentColor; }
 .folder-control,.sort-control { display:flex; align-items:center; gap:.3rem; color:var(--muted); font-size:.82rem; }
 .folder-control select,.sort-control select { min-width:88px; padding-block:.2rem; border-color:#ffffff18; background:#ffffff08; }
 .sort-control select { width:126px; }
@@ -32,7 +32,6 @@ button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visibl
 .mobile-action { display:none; }
 .filter-badge { position:absolute; top:7px; right:7px; width:7px; height:7px; border-radius:50%; background:var(--focus); }
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; overflow:hidden!important; clip-path:inset(50%)!important; white-space:nowrap!important; }
-.quiet { color:var(--muted); }
 
 .filter-panel { position:fixed; z-index:25; top:56px; right:52px; width:min(290px,calc(100vw - 12px)); padding:10px; border:1px solid var(--line); border-radius:8px; background:#20252d; box-shadow:0 10px 30px #0008; }
 .filter-panel[hidden] { display:none; }
@@ -49,6 +48,11 @@ main { width:100%; padding:6px; }
 .tile img { width:100%; height:100%; object-fit:cover; object-position:center center; }
 .tile.broken::after { content:"Image unavailable"; color:var(--muted); font-size:.78rem; }
 .tile.broken img { display:none; }
+/* Without this, iOS opens its own image menu on long-press instead of the gallery menu. */
+.tile,.tile img { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+.select-button { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; width:auto; padding:0 .8rem 0 .65rem; border-color:var(--line); background:#262c35; font-weight:600; }
+.select-button[aria-pressed="true"] { border-color:var(--focus); background:#68a9ff26; color:var(--focus); }
+.select-button[aria-pressed="true"] svg { fill:var(--focus); }
 /* Selection circle: shown on hover (pointer devices) and on every tile while
    selecting. Clicking it starts select mode; the rest of the tile still opens the viewer. */
 .select-dot { position:absolute; z-index:1; top:7px; right:7px; display:grid; place-items:center; width:24px; height:24px; border:2px solid #fffc; border-radius:50%; background:#0006; box-shadow:0 1px 4px #0008; color:#06101f; font-size:15px; font-weight:800; line-height:1; opacity:0; transition:opacity .12s, background-color .12s; }
@@ -77,7 +81,7 @@ body.selecting main { padding-bottom:76px; }
 .context-date { color:var(--muted); font-size:.85rem; }
 .danger { border-color:#85343a; color:#ffb9bd; }
 .viewer { position:fixed; z-index:30; inset:0; display:grid; grid-template-columns:auto minmax(0,1fr) auto; grid-template-rows:minmax(0,1fr) auto; padding:clamp(.5rem,2vw,1.5rem); background:#050608f7; }
-.viewer[hidden],.modal[hidden],.context-menu[hidden] { display:none; }
+.viewer[hidden],.context-menu[hidden] { display:none; }
 .viewer figure { min-width:0; min-height:0; margin:0; display:grid; grid-template-rows:minmax(0,1fr) auto; }
 .viewer img { width:100%; height:100%; min-height:0; object-fit:contain; }
 .viewer figcaption { display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem 1rem; padding:.5rem; }
@@ -85,17 +89,14 @@ body.selecting main { padding-bottom:76px; }
 .viewer-close { position:absolute; z-index:2; right:1rem; top:1rem; font-size:1.6rem; }
 .viewer-nav { align-self:center; font-size:2rem; }
 
-.modal { position:fixed; z-index:50; inset:0; overflow:auto; display:grid; place-items:center; padding:1rem; background:#000b; }
-.modal>section { width:min(760px,100%); max-height:90vh; overflow:auto; padding:1.25rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
-.modal-actions { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem; }
-.modal progress { width:100%; margin-top:.75rem; }
-.failures,.duplicates { margin-top:1rem; color:var(--muted); overflow-wrap:anywhere; }
 
 @media (max-width:1050px) {
-  .toolbar { grid-template-areas:"brand maintenance" "controls controls"; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:44px 44px; gap:0 4px; padding:2px 4px 4px; }
+  .toolbar { grid-template-areas:"brand select" "controls controls"; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:44px 44px; gap:0 4px; padding:2px 4px 4px; }
   .toolbar-brand { grid-area:brand; }
   .toolbar-controls { grid-area:controls; width:100%; justify-content:space-between; gap:4px; }
-  .maintenance-button { grid-area:maintenance; }
+  .select-button { grid-area:select; }
+  .select-button .select-label { display:none; }
+  .select-button,.select-button[aria-pressed="true"] { width:44px; padding:0; border-color:transparent; background:transparent; }
   .toolbar h1 { font-size:.98rem; }
   .mobile-action { display:block; }
   .desktop-filter,.search-control { display:none; }

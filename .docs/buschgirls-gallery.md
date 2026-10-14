@@ -61,27 +61,17 @@ For a preview, push `feature/buschgirls-gallery`, open the Cloudflare Pages bran
 5. Missing or altered bearer tokens show the gallery's expired-session state and do not return API data.
 6. Pagination, folder totals, viewer, right-click/long-press menu, and confirmation wording work against non-production test data.
 7. Lock expires the cookie; gallery documents/assets are rejected afterward. A tampered or expired cookie is rejected.
-8. The maintenance panel says stopped and no network requests begin automatically.
 
-## Manual backfill — only after August 9, 2026
+## Historical backfill (completed, tool removed)
 
-Do not start the production backfill before August 9, 2026. After that date, open the admin gallery, choose **Maintenance**, read the 2,605-file / 683-MB warning, and explicitly confirm **Start**. Two items are processed concurrently, with a short delay between groups. Transient HTTP 429, `too_many_connections`, and `SlowDown` failures are retried three times with exponential backoff. **Pause** stops after the active small group; **Resume** queries missing database state, so reloads do not repeat completed rows. **Stop** ends the loop. **Retry failures** retries the capped visible failure set. If authentication expires, processing stops and the admin session must be refreshed.
+The one-time thumbnail and SHA-256 backfill ran in August 2026, and every photo now has both. New uploads create their thumbnail and hash at upload time, so the gallery's **Maintenance** panel (backfill, **Repair missing thumbnails**, and **Review duplicates**) was removed in October 2026. The server endpoints it used (`/api/admin-buschgirls-backfill`, `/api/index-buschgirl`, `/api/admin-buschgirls-verify-thumbnails`, `/api/admin-buschgirls-duplicates`) are still deployed but no longer called from the gallery.
 
-Use **Review duplicates** to inspect exact hash groups. It never merges, deletes, changes votes, or changes active state. After completion, confirm the gallery reports zero pending items and run:
+One case still produces a photo without a thumbnail: an upload the browser cannot decode is stored untouched with `thumbnail_path` null. The gallery shows such photos using the original. To find them:
 
 ```sql
-select
-  count(*) as total,
-  count(*) filter (where sha256 is not null and thumbnail_path is not null) as indexed,
-  count(*) filter (where sha256 is null or thumbnail_path is null) as remaining
-from public.buschgirls_photos;
-
-select count(*) as exact_duplicate_groups
-from (
-  select sha256 from public.buschgirls_photos
-  where sha256 is not null
-  group by sha256 having count(*) > 1
-) groups;
+select folder, filename, uploaded_at from public.buschgirls_photos where thumbnail_path is null order by uploaded_at desc;
 ```
 
-Confirm that thumbnail object counts are consistent with indexed rows. Do not delete duplicate groups automatically.
+## Multi-select
+
+Press **Select** in the toolbar (an icon on phones), hover a tile on desktop and click its corner circle, or long-press a tile and choose **Select Multiple**. Taps then toggle photos, and the selection is kept across pages. **Delete N** confirms once, then deletes three at a time through `/api/delete-buschgirl`, retrying 429/5xx responses; failed photos stay selected for retry.

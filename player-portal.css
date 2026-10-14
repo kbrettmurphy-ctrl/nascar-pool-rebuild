@@ -2220,6 +2220,13 @@ a.newsCard:last-child{ border-bottom:none; }
 .buschPhotoActions.compact .wideOnly{ display:none; }
 .buschPhotoActions.compact > button,.buschPhotoActions.compact .buschPhotoBrowse button{ flex:1 1 0; }
 .buschPhotoActions.compact .buschPhotoBrowse{ flex:2 1 0; margin-left:0; }
+/* On phones the row is nearly full anyway, so space all three evenly rather
+   than visually grouping Gallery and Ratings. */
+@media (max-width:600px){
+  .buschPhotoActions{ column-gap:6px; }
+  .buschPhotoActions > button,.buschPhotoBrowse button{ flex:1 1 auto; }
+  .buschPhotoBrowse{ flex:2 1 auto; margin-left:0; }
+}
 .buschRatingsList{ margin-top:10px; }
 .bgRateRow{
   display:flex;

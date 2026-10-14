@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const TOKEN_KEY = "nascar_pool_admin_token";
-  const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", indexingState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, backfill:null, failures:[], requestId:0, selectMode:false, selection:new Map(), lastSelectedIndex:-1, bulkDeleting:false };
+  const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", indexingState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, requestId:0, selectMode:false, selection:new Map(), lastSelectedIndex:-1, bulkDeleting:false };
   const $ = id => document.getElementById(id);
   const validFolders = new Set(["all","soft","spicy","spicier"]);
   const validSorts = new Set(["newest","oldest","filename_asc","filename_desc"]);
@@ -131,7 +131,7 @@
     closeMenu(); closeViewer(); state.selectMode=on;
     if(!on){ state.selection.clear(); state.lastSelectedIndex=-1; }
     document.body.classList.toggle("selecting",on); $("galleryGrid").classList.toggle("selecting",on);
-    $("selectionBar").hidden=!on;
+    $("selectionBar").hidden=!on; $("selectBtn").setAttribute("aria-pressed",String(on));
     paintSelection();
   }
   function toggleSelection(index,range) {
@@ -178,57 +178,6 @@
     $("status").textContent=`Permanently deleted ${deleted} photo${deleted===1?"":"s"}.`+(failed.length?` ${failed.length} failed and ${failed.length===1?"is":"are"} still selected; press Delete again to retry.`:"");
   }
 
-  async function makeThumbnail(blob) {
-    const decoded=await decodeImage(blob);
-    try { const scale=Math.min(1,460/Math.max(decoded.width,decoded.height)); const canvas=document.createElement("canvas"); canvas.width=Math.max(1,Math.round(decoded.width*scale)); canvas.height=Math.max(1,Math.round(decoded.height*scale)); canvas.getContext("2d").drawImage(decoded.source,0,0,canvas.width,canvas.height); const toBlob=(type,q)=>new Promise(res=>canvas.toBlob(b=>res(b),type,q)); let out=await toBlob("image/webp",.68); if(!out||out.type!=="image/webp") out=await toBlob("image/jpeg",.8); if(!out) throw new Error("Thumbnail generation failed"); return out; } finally { decoded.release(); }
-  }
-  async function decodeImage(blob){if(typeof createImageBitmap==="function"){const bitmap=await createImageBitmap(blob,{imageOrientation:"from-image"});return{source:bitmap,width:bitmap.width,height:bitmap.height,release:()=>bitmap.close()};}const url=URL.createObjectURL(blob);try{const image=new Image();image.decoding="async";image.src=url;await image.decode();return{source:image,width:image.naturalWidth,height:image.naturalHeight,release:()=>URL.revokeObjectURL(url)};}catch(error){URL.revokeObjectURL(url);throw error;}}
-  async function sha256(blob){ const bytes=await blob.arrayBuffer(); const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)); return Array.from(hash,b=>b.toString(16).padStart(2,"0")).join(""); }
-  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-  function isTransientBackfillError(error){return error?.status===429||/too_many_connections|slowdown/i.test(`${error?.message||""} ${JSON.stringify(error?.data||{})}`);}
-  async function processBackfillPhoto(photo) {
-    for(let attempt=0;;attempt++) {
-      try {
-        const response=await fetch(photo.url,{cache:"no-store",referrerPolicy:"same-origin"});
-        if(!response.ok){const detail=await response.text().catch(()=>"");throw new ApiError(detail||`Download failed (${response.status})`,response.status,{detail});}
-        const original=await response.blob(); const [hash,thumbnail]=await Promise.all([sha256(original),makeThumbnail(original)]); const form=new FormData(); form.append("photoId",photo.id); form.append("sha256",hash); form.append("thumbnail",thumbnail,`${photo.id}.${thumbnail.type==="image/webp"?"webp":"jpg"}`); return await api("/api/index-buschgirl",{method:"POST",body:form});
-      } catch(error) {
-        if(attempt>=3||!isTransientBackfillError(error))throw error;
-        await delay(500*(2**attempt));
-      }
-    }
-  }
-  function paintProgress(message) { const job=state.backfill; if(!job)return; const done=job.completed+job.failed; const percentage=job.total?Math.min(100,Math.round(done/job.total*100)):0; $("maintenanceBar").value=percentage; $("maintenanceProgress").textContent=`${message} ${done} / ${job.total} (${percentage}%). Failed: ${job.failed}. ${job.paused?"Paused.":""}`; $("pauseBackfill").disabled=job.paused||job.stopped; $("resumeBackfill").disabled=!job.paused||job.stopped; $("stopBackfill").disabled=job.stopped; $("retryBackfill").disabled=!state.failures.length||!job.stopped; }
-  async function runBackfill(retryPhotos=null) {
-    while(!state.backfill.stopped) {
-      if(state.backfill.paused){paintProgress("Waiting.");return;}
-      let photos=retryPhotos; retryPhotos=null;
-      if(!photos){ const excluded=state.failures.map(item=>item.photo.id).slice(-50).join(","); const batch=await api(`/api/admin-buschgirls-backfill?limit=20&exclude=${encodeURIComponent(excluded)}`); state.backfill.remaining=batch.remaining+state.failures.length; if(!state.backfill.total)state.backfill.total=state.backfill.remaining+state.backfill.completed; photos=batch.photos; if(!photos.length){state.backfill.stopped=true;paintProgress(state.failures.length ? `Stopped with ${state.failures.length} remaining failure(s).` : "Complete.");return;} }
-      for(let i=0;i<photos.length&&!state.backfill.stopped&&!state.backfill.paused;i+=2){ const group=photos.slice(i,i+2); await Promise.all(group.map(async photo=>{ try{await processBackfillPhoto(photo);state.backfill.completed++;}catch(error){state.backfill.failed++;state.failures.push({photo,error:error.message||String(error)});state.failures=state.failures.slice(-50);if(error.status===401){state.backfill.stopped=true;showExpired();}} })); paintProgress("Indexing."); if(!state.backfill.stopped&&!state.backfill.paused)await delay(400); }
-      renderFailures();
-    }
-  }
-  function renderFailures(){ const box=$("failureList"); box.replaceChildren(); state.failures.slice(-10).forEach(item=>{const p=document.createElement("p");p.textContent=`${item.photo.folder}/${item.photo.filename}: ${item.error}`;box.append(p);}); }
-  async function repairThumbnails(){
-    try{
-      $("status").textContent="Checking storage for missing thumbnails...";
-      const report=await api("/api/admin-buschgirls-verify-thumbnails");
-      const note=report.truncated?" (listing hit its page cap; run again after this pass)":"";
-      if(!report.missing){
-        $("status").textContent=`All ${report.indexed} indexed thumbnails are present.${report.unindexed?` ${report.unindexed} photo(s) still need indexing \u2014 press Start.`:""}${note}`;
-        return;
-      }
-      if(!confirm(`${report.missing} of ${report.indexed} indexed photos have no thumbnail file in storage.\n\nSample: ${report.sample.join(", ")}\n\nRe-queue them so the backfill rebuilds their thumbnails?`))return;
-      const result=await api("/api/admin-buschgirls-verify-thumbnails",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm:true})});
-      await initializeBackfillState();
-      $("status").textContent=`Re-queued ${result.requeued} photo(s). Press "Start after confirmation" to rebuild them.${note}`;
-    }catch(error){handleError(error);}
-  }
-
-  async function initializeBackfillState(){try{const batch=await api("/api/admin-buschgirls-backfill?limit=1");state.backfill={completed:0,failed:0,total:batch.remaining,remaining:batch.remaining,paused:true,stopped:batch.remaining===0,duplicateGroups:new Set()};paintProgress(batch.remaining?"Ready to resume from database state.":"Complete.");}catch(error){handleError(error);}}
-  async function startBackfill(){ const allowed=Date.now()>=new Date("2026-08-09T00:00:00-04:00").getTime(); if(!allowed){alert("Do not run this production backfill before August 9, 2026.");return;} if(!confirm("Start the manual thumbnail and SHA-256 backfill? Approximately 2,605 originals / 683 MB will be downloaded once. Keep this tab open while a batch runs."))return; state.failures=[];state.backfill={completed:0,failed:0,total:0,paused:false,stopped:false,duplicateGroups:new Set()};paintProgress("Starting.");await runBackfill(); }
-  async function reviewDuplicates(){ try{const data=await api("/api/admin-buschgirls-duplicates");const box=$("duplicateList");box.replaceChildren();const title=document.createElement("p");title.textContent=`${data.totalGroups} exact duplicate hash group(s). No files were changed.`;box.append(title);data.groups.forEach(group=>{const p=document.createElement("p");p.textContent=group.photos.map(x=>`${x.folder}/${x.filename}`).join(" ↔ ");box.append(p);});}catch(error){handleError(error);} }
-
   function resetResultsAndLoad(){state.page=1;loadPage({scroll:true});}
   function commitPageInput(){const input=$("pageInput");const raw=String(input.value||"").trim();const number=Number(raw);if(!raw||!Number.isFinite(number)){input.value=String(state.page);return;}const target=Math.max(1,Math.min(state.totalPages,Math.trunc(number)));input.value=String(target);if(target===state.page)return;state.page=target;loadPage({scroll:true});}
   function setFilterPanel(open){$("filterPanel").hidden=!open;document.querySelectorAll(".filter-button").forEach(button=>button.setAttribute("aria-expanded",String(open)));if(open)$("activeState").focus();}
@@ -258,9 +207,8 @@
   $("viewerMove").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo)movePhoto(state.photos[state.viewerIndex],moveTo);});
   $("viewerClose").addEventListener("click",closeViewer); $("viewerPrevious").addEventListener("click",()=>moveViewer(-1)); $("viewerNext").addEventListener("click",()=>moveViewer(1)); $("viewerDelete").addEventListener("click",()=>{const photo=state.photos[state.viewerIndex];if(photo)permanentDelete(photo);});
   document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();if(!$("filterPanel").hidden&&!$("filterPanel").contains(event.target)&&!event.target.closest(".filter-button"))setFilterPanel(false);}); addEventListener("scroll",closeMenu,{passive:true,capture:true});
-  document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("filterPanel").hidden)setFilterPanel(false);else if($("toolbar").classList.contains("search-open")){$("toolbar").classList.remove("search-open");$("searchToggle").setAttribute("aria-expanded","false");$("searchToggle").focus();}else if(!$("viewer").hidden)closeViewer();else if(!$("maintenance").hidden)$("maintenance").hidden=true;else if(state.selectMode)setSelectMode(false);}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});
-  $("maintenanceBtn").addEventListener("click",()=>{$("maintenance").hidden=false;$("closeMaintenance").focus();}); $("closeMaintenance").addEventListener("click",()=>{$("maintenance").hidden=true;}); $("startBackfill").addEventListener("click",startBackfill); $("pauseBackfill").addEventListener("click",()=>{state.backfill.paused=true;paintProgress("Pausing after active batch.");}); $("resumeBackfill").addEventListener("click",()=>{state.backfill.paused=false;paintProgress("Resuming from database state.");runBackfill();}); $("stopBackfill").addEventListener("click",()=>{state.backfill.stopped=true;paintProgress("Stopped.");}); $("retryBackfill").addEventListener("click",async()=>{const photos=state.failures.map(x=>x.photo);state.failures=[];state.backfill={completed:0,failed:0,total:photos.length,paused:false,stopped:false,duplicateGroups:new Set()};await runBackfill(photos);state.backfill.stopped=true;paintProgress("Retry complete.");}); $("repairThumbnails").addEventListener("click",repairThumbnails); $("reviewDuplicates").addEventListener("click",reviewDuplicates);
-  $("exitSelect").addEventListener("click",()=>setSelectMode(false)); $("selectPage").addEventListener("click",toggleSelectPage); $("deleteSelected").addEventListener("click",deleteSelected);
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"){if(!$("contextMenu").hidden)closeMenu();else if(!$("filterPanel").hidden)setFilterPanel(false);else if($("toolbar").classList.contains("search-open")){$("toolbar").classList.remove("search-open");$("searchToggle").setAttribute("aria-expanded","false");$("searchToggle").focus();}else if(!$("viewer").hidden)closeViewer();else if(state.selectMode)setSelectMode(false);}else if(!$("viewer").hidden&&event.key==="ArrowLeft")moveViewer(-1);else if(!$("viewer").hidden&&event.key==="ArrowRight")moveViewer(1);else if(!$("viewer").hidden&&event.key==="Tab")trapViewerFocus(event);});
+  $("selectBtn").addEventListener("click",()=>setSelectMode(!state.selectMode)); $("exitSelect").addEventListener("click",()=>setSelectMode(false)); $("selectPage").addEventListener("click",toggleSelectPage); $("deleteSelected").addEventListener("click",deleteSelected);
   addEventListener("beforeunload",event=>{if(state.bulkDeleting){event.preventDefault();event.returnValue="";}});
-  initializeControls();resizeObserver.observe($("galleryGrid"));loadPage();initializeBackfillState();
+  initializeControls();resizeObserver.observe($("galleryGrid"));loadPage();
 })();
