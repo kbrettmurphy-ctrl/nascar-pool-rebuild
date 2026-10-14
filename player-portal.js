@@ -444,14 +444,17 @@ if (liveCard) {
     return data.token;
   }
 
+  // Show the sheet right away and fill it in as the admin session and data
+  // arrive, instead of keeping it hidden until every request has finished.
   async function openMemberAdmin_() {
     if (_adminUnlockInFlight) return;
     _adminUnlockInFlight = true;
+    openAdminOverlay_();
+    setAdminLoading_(true);
     try {
       if (getAdminToken_()) {
         try {
           await initAdminOverlay_();
-          openAdminOverlay_();
           return;
         } catch {
           clearAdminToken_();
@@ -460,14 +463,26 @@ if (liveCard) {
       }
       await createMemberAdminSession_();
       await initAdminOverlay_();
-      openAdminOverlay_();
     } catch (error) {
       clearAdminToken_();
       _adminContext = null;
+      closeAdminOverlay_();
       window.alert(error?.message || "Administrator access failed");
     } finally {
+      setAdminLoading_(false);
       _adminUnlockInFlight = false;
     }
+  }
+
+  // While loading, the race/tournament pickers and tab contents are inert so
+  // nothing can run against a race that hasn't been filled in yet.
+  function setAdminLoading_(loading) {
+    document.querySelector(".adminSheet")?.classList.toggle("adminLoading", loading);
+    if (!loading) return;
+    ["adminTournamentSelect", "adminRaceSelect"].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel && !sel.options.length) sel.innerHTML = `<option value="">Loading…</option>`;
+    });
   }
 
   async function adminFetch_(url, options = {}) {
@@ -585,6 +600,8 @@ if (liveCard) {
   }
 
   async function initAdminOverlay_() {
+    // The Venmo balance fills in on its own; the sheet doesn't wait for it.
+    loadVenmoBalance_();
     const ctx = await getAdminContext_();
     const tSel = document.getElementById("adminTournamentSelect");
     const rSel = document.getElementById("adminRaceSelect");
@@ -613,8 +630,6 @@ if (liveCard) {
     if (ctx.currentRaceId) {
       rSel.value = String(ctx.currentRaceId);
     }
-
-    await loadVenmoBalance_();
   }
 
   async function loadAdminMembers_() {
@@ -1474,6 +1489,8 @@ await refreshAfterAdminChange_();
   }
   
   async function loadVenmoBalance_() {
+    const pending = document.getElementById("venmoBalanceBtn");
+    if (pending && !/\$/.test(pending.textContent)) pending.textContent = "Venmo: …";
     try {
       const data = await adminFetch_("/api/venmo-balance", {
         method: "GET"

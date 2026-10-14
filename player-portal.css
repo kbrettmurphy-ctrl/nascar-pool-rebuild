@@ -2883,6 +2883,8 @@ a.newsCard:last-child{ border-bottom:none; }
 }
 
 .adminTabPane{ display:none; }
+/* Set by setAdminLoading_ while the admin session and race data load. */
+.adminSheet.adminLoading :is(.adminTabPane, #adminTournamentSelect, #adminRaceSelect){ pointer-events:none; opacity:.55; transition:opacity .15s; }
 .adminTabPane.active{ display:block; }
 
 .adminCardGrid{
