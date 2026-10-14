@@ -1418,7 +1418,9 @@ await refreshAfterAdminChange_();
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId, amount })
       });
-      setAdminStatus_("adminFundsStatus", data.message || "Funds added.");
+      setAdminStatus_("adminFundsStatus", `Added $${amount.toFixed(2)} for ${selectedFundsPlayerName_()}.`);
+      const report = document.getElementById("adminFundsReport");
+      if (report) report.hidden = true; // amounts changed; reopen for fresh numbers
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
       if (activeView === "mymatchup") loadDues();
@@ -1450,7 +1452,9 @@ await refreshAfterAdminChange_();
         body: JSON.stringify({ playerId, amount })
       });
 
-      setAdminStatus_("adminFundsStatus", data.message || "Payout marked.");
+      setAdminStatus_("adminFundsStatus", `Marked $${amount.toFixed(2)} paid out for ${selectedFundsPlayerName_()}.`);
+      const report = document.getElementById("adminFundsReport");
+      if (report) report.hidden = true; // amounts changed; reopen for fresh numbers
       document.getElementById("adminFundsAmount").value = "";
       _playerDues = null;
       if (activeView === "mymatchup") loadDues();
@@ -1460,34 +1464,96 @@ await refreshAfterAdminChange_();
     }  
   }
 
+  function selectedFundsPlayerName_() {
+    const sel = document.getElementById("adminFundsPlayer");
+    return sel?.selectedOptions?.[0]?.textContent?.trim() || "that player";
+  }
+
+  // Funds reports render inline under the buttons. Tapping a row fills in the
+  // player and amount, ready for Add Funds or Mark Paid Out.
+  function renderFundsReport_(title, hint, rows, emptyText) {
+    const box = document.getElementById("adminFundsReport");
+    const list = document.getElementById("adminFundsReportList");
+    if (!box || !list) return;
+    document.getElementById("adminFundsReportTitle").textContent = title;
+    document.getElementById("adminFundsReportHint").textContent = rows.length ? hint : "";
+    list.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "adminReportEmpty";
+      empty.textContent = emptyText;
+      list.append(empty);
+    }
+    for (const row of rows) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "adminReportRow";
+      const who = document.createElement("span");
+      who.className = "adminReportName";
+      who.textContent = row.name;
+      if (row.note) {
+        const note = document.createElement("small");
+        note.textContent = row.note;
+        who.append(note);
+      }
+      const amount = document.createElement("span");
+      amount.className = "adminReportAmount";
+      amount.textContent = `$${row.amount.toFixed(2)}`;
+      btn.append(who, amount);
+      btn.addEventListener("click", () => {
+        const sel = document.getElementById("adminFundsPlayer");
+        if (sel && row.playerId) sel.value = String(row.playerId);
+        const input = document.getElementById("adminFundsAmount");
+        if (input) input.value = row.amount.toFixed(2);
+        setAdminStatus_("adminFundsStatus", `Filled in ${row.name}, $${row.amount.toFixed(2)}.`);
+      });
+      list.append(btn);
+    }
+    box.hidden = false;
+  }
+
   async function showWhoIOwe_() {
     setAdminStatus_("adminFundsStatus", "Building payout report...");
-
     try {
-      const data = await adminFetch_("/api/payout-report", {
-        method: "GET"
-      });
-
-      const rows = Array.isArray(data.data) ? data.data : [];
-
-      if (!rows.length) {
-        setAdminStatus_("adminFundsStatus", "Nobody has a negative balance. Miracles do happen.");
-        alert("Nobody has a negative balance. You currently owe nobody.");
-        return;
-      }
-
-      const msg = rows.map((row) => {
-        const owed = Number(row.remainingToPayout || 0).toFixed(2);
-        return `${row.name} — $${owed}`;
-      }).join("\n");
-
-      setAdminStatus_("adminFundsStatus", `Found ${rows.length} player(s) with negative balance.`);
-      alert(`Players you owe:\n\n${msg}`);
+      const data = await adminFetch_("/api/payout-report", { method: "GET" });
+      const rows = (Array.isArray(data.data) ? data.data : []).map(row => ({
+        playerId: Number(row.playerId),
+        name: row.name,
+        amount: Number(row.remainingToPayout || 0)
+      }));
+      setAdminStatus_("adminFundsStatus", "");
+      renderFundsReport_("You owe", "Tap a player to fill in Mark Paid Out.", rows, "You owe nobody. Miracles do happen.");
     } catch (err) {
       setAdminStatus_("adminFundsStatus", err.message || String(err), true);
     }
   }
-  
+
+  // Everyone with season dues still outstanding ($180 less paid and winnings).
+  // Players with no payment record yet owe the full season.
+  async function showWhoOwesMe_() {
+    setAdminStatus_("adminFundsStatus", "Checking dues...");
+    try {
+      const res = await fetch("/api/player-dues", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Dues lookup failed");
+      const dues = data.data || {};
+      const ctx = await getAdminContext_();
+      const seasonTotal = 180;
+      const rows = (ctx.players || []).flatMap(player => {
+        const d = dues[player.name];
+        const amount = d ? Number(d.balance) || 0 : seasonTotal;
+        if (amount <= 0) return [];
+        const behind = d ? Number(d.currentBehind) || 0 : 0;
+        const note = !d ? "No payments yet" : behind > 0 ? `$${behind.toFixed(2)} behind so far` : "";
+        return [{ playerId: Number(player.id), name: player.name, amount, note }];
+      }).sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
+      setAdminStatus_("adminFundsStatus", "");
+      renderFundsReport_("Owes you", "Season dues still outstanding. Tap a player to fill in Add Funds.", rows, "Everyone is paid up for the season.");
+    } catch (err) {
+      setAdminStatus_("adminFundsStatus", err.message || String(err), true);
+    }
+  }
+
   async function loadVenmoBalance_() {
     const el = document.getElementById("adminVenmoBalance");
     // Keep the last known amount on refresh; only the first load shows "…".
@@ -5648,6 +5714,7 @@ function initAdminControls_() {
   document.getElementById("adminAddFundsBtn")?.addEventListener("click", addFunds_);
   document.getElementById("adminMarkPaidOutBtn")?.addEventListener("click", markPaidOut_);
   document.getElementById("adminWhoIOweBtn")?.addEventListener("click", showWhoIOwe_);
+  document.getElementById("adminWhoOwesMeBtn")?.addEventListener("click", showWhoOwesMe_);
   document.getElementById("adminClearSeedsBtn")?.addEventListener("click", clearSeeds_);
   document.getElementById("adminClearAssignmentsBtn")?.addEventListener("click", clearAssignments_);
   document.getElementById("buschUploadInput")?.addEventListener("change", updateBuschFileText_);

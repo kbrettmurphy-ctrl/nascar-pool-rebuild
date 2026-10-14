@@ -2779,7 +2779,6 @@ a.newsCard:last-child{ border-bottom:none; }
   background-position:right center;
 }
 .adminFieldRow select:focus,.adminFieldRow input:focus{ outline:none; }
-.adminFieldRow:focus-within{ background:var(--rowPress); }
 
 /* Tournament + race: side by side when there's room. */
 .adminContextBar{ margin:0 0 10px; }
@@ -2864,6 +2863,53 @@ a.newsCard:last-child{ border-bottom:none; }
 .adminStat{ margin:2px 4px 14px; }
 .adminStatLabel{ color:var(--muted); font-size:13px; font-weight:600; }
 .adminStatValue{ font-size:32px; font-weight:800; letter-spacing:-0.5px; font-variant-numeric:tabular-nums; }
+
+/* Number fields: no spinner arrows. */
+.adminFieldRow input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+.adminFieldRow input[type=number]::-webkit-inner-spin-button,
+.adminFieldRow input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+
+/* Slimmer on mouse/trackpad devices. Touch keeps 16px field text so iOS
+   doesn't zoom, with only slightly shorter rows. */
+@media (pointer:fine){
+  .adminFieldRow{ min-height:38px; }
+  .adminFieldRow > span:first-child,.adminListBtn{ font-size:14px; }
+  .adminFieldRow select,.adminFieldRow input{ height:36px; font-size:14px !important; }
+  .adminListBtn{ min-height:38px; }
+  .adminPrimaryBtn,.adminSecondaryBtn{ min-height:36px; border-radius:10px; font-size:14px; }
+  .adminGroupLabel{ margin-top:16px; }
+}
+@media (pointer:coarse){
+  .adminFieldRow,.adminListBtn{ min-height:42px; }
+  .adminFieldRow select,.adminFieldRow input{ height:40px; }
+  .adminPrimaryBtn,.adminSecondaryBtn{ min-height:42px; }
+}
+
+/* Funds report rows. */
+#adminFundsReport .adminGroupLabel{ margin-top:16px; }
+.adminReportRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  min-height:40px;
+  margin:0;
+  padding:7px 14px;
+  border:0;
+  border-bottom:1px solid var(--lineSoft);
+  border-radius:0;
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  font-weight:500;
+  text-align:left;
+}
+.adminReportRow:last-child{ border-bottom:0; }
+.adminReportRow:hover,.adminReportRow:active{ background:var(--rowPress); }
+.adminReportName{ display:grid; flex:1; min-width:0; }
+.adminReportName small{ color:var(--muted); font-size:12px; font-weight:500; }
+.adminReportAmount{ font-weight:700; font-variant-numeric:tabular-nums; }
+.adminReportEmpty{ padding:12px 14px; color:var(--muted); font-size:14px; }
 
 /* Lists filled in by JS live inside a group card. */
 /* Padding only for the "Loading…"/empty text; rows bring their own. */
