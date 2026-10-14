@@ -896,7 +896,7 @@ select, input{
   left:50%;
   transform:translate(-50%, -50%);
   width:auto;
-  max-width:min(92vw, 800px);
+  max-width:min(92vw, 1000px);
   max-height:88vh;
   padding:0;
   border-radius:16px;
@@ -909,7 +909,7 @@ select, input{
 .buschPopupImg{
   display:block;
   width:auto;
-  max-width:min(92vw, 800px);
+  max-width:min(92vw, 1000px);
   height:auto;
   max-height:calc(86vh - 44px);
   object-fit:contain;
