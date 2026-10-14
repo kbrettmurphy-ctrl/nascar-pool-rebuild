@@ -17,7 +17,7 @@
     if (!response.ok || !data.ok) throw new ApiError(data.error || `Request failed: ${response.status}`, response.status, data);
     return data;
   }
-  function formatDate(value) { const d=new Date(value); return Number.isNaN(d.valueOf()) ? "Unknown date" : d.toLocaleString(); }
+  function formatDate(value) { const d=new Date(value); return Number.isNaN(d.valueOf()) ? "Unknown date" : d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"}); }
   function showExpired() { $("galleryGrid").replaceChildren(); $("expired").hidden=false; $("status").textContent=""; }
   function handleError(error) { if (error.status===401) showExpired(); else $("status").textContent=error.message || String(error); }
 
@@ -94,7 +94,7 @@
   }
   function startLongPress(event,photo) { if(event.pointerType==="mouse"||state.selectMode)return; cancelLongPress(); const x=event.clientX,y=event.clientY; state.longPressTimer=setTimeout(()=>{state.suppressClick=true;openMenu(photo,x,y);},550); }
   function cancelLongPress(){ clearTimeout(state.longPressTimer); state.longPressTimer=null; }
-  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; markFolderChips("contextMove",photo.folder); $("contextPath").textContent=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
+  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; markFolderChips("contextMove",photo.folder); $("contextPath").textContent=photo.filename; $("contextPath").title=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
   function markFolderChips(containerId,folder){ const box=$(containerId); if(!box)return; box.querySelectorAll("button[data-move]").forEach(b=>{ const isCurrent=b.dataset.move===folder; b.classList.toggle("current",isCurrent); b.disabled=isCurrent; }); }
 
   async function movePhoto(photo,folder) {
