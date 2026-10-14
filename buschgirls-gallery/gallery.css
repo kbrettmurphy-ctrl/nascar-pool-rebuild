@@ -6,7 +6,7 @@ button { cursor:pointer; }
 button:disabled { opacity:.42; cursor:default; }
 button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 
-.toolbar { position:sticky; z-index:10; top:0; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.45rem; min-height:52px; padding:4px 6px; background:rgba(16,18,22,.97); border-bottom:1px solid #272c34; }
+.toolbar { --control-h:36px; position:sticky; z-index:10; top:0; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:.45rem; min-height:52px; padding:4px 8px; background:rgba(16,18,22,.82); -webkit-backdrop-filter:blur(16px) saturate(1.4); backdrop-filter:blur(16px) saturate(1.4); border-bottom:1px solid #ffffff12; }
 .toolbar-brand,.toolbar-controls { display:flex; align-items:center; min-width:0; }
 .toolbar-brand { gap:.35rem; }
 .toolbar-controls { justify-self:end; gap:.45rem; }
@@ -29,6 +29,15 @@ button:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visibl
 .pagination input { width:38px; height:36px; min-height:36px; padding:2px; border-color:#ffffff20; background:#0003; text-align:center; font-size:.84rem; appearance:textfield; }
 .pagination input::-webkit-inner-spin-button,.pagination input::-webkit-outer-spin-button { appearance:none; margin:0; }
 .pagination span { min-width:1rem; padding-inline:2px; font-size:.84rem; font-variant-numeric:tabular-nums; }
+/* One field style and height for every toolbar control. */
+.toolbar select,.toolbar .search-control input,.pagination,.select-button { height:var(--control-h); min-height:var(--control-h); border:1px solid #ffffff1a; border-radius:8px; background-color:#ffffff0a; }
+.toolbar select:hover,.toolbar .search-control input:hover { background-color:#ffffff12; }
+.toolbar .search-control input { padding-left:30px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23aeb5c0'%3E%3Cpath d='m20.5 19-4.4-4.4a7.5 7.5 0 1 0-1.5 1.5l4.4 4.4 1.5-1.5ZM5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:9px center; background-size:15px; }
+.toolbar-icon { border-radius:8px; }
+.pagination { grid-template-columns:34px 36px auto auto 34px; padding:0 1px; background-color:#ffffff0a; }
+.pagination button { width:34px; min-width:34px; height:calc(var(--control-h) - 2px); min-height:0; border-radius:7px; }
+.pagination input { width:36px; height:26px; min-height:26px; border-color:#ffffff1a; border-radius:6px; }
+.item-count { font-variant-numeric:tabular-nums; }
 .mobile-action { display:none; }
 .filter-badge { position:absolute; top:7px; right:7px; width:7px; height:7px; border-radius:50%; background:var(--focus); }
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; overflow:hidden!important; clip-path:inset(50%)!important; white-space:nowrap!important; }
@@ -50,7 +59,7 @@ main { width:100%; padding:6px; }
 .tile.broken img { display:none; }
 /* Without this, iOS opens its own image menu on long-press instead of the gallery menu. */
 .tile,.tile img { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
-.select-button { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; width:auto; padding:0 .8rem 0 .65rem; border-color:var(--line); background:#262c35; font-weight:600; }
+.select-button { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; width:auto; padding:0 .8rem 0 .65rem; font-weight:600; }
 .select-button[aria-pressed="true"] { border-color:var(--focus); background:#68a9ff26; color:var(--focus); }
 .select-button[aria-pressed="true"] svg { fill:var(--focus); }
 /* Selection circle: shown on hover (pointer devices) and on every tile while
@@ -81,24 +90,44 @@ body.selecting main { padding-bottom:76px; }
 .context-menu .context-item.danger:hover,.context-menu .context-item.danger:focus-visible { background:#ff4d5a24; }
 .context-section { margin:4px 0; padding:7px 10px 9px; border-block:1px solid #ffffff14; }
 .context-move-label { margin-bottom:6px; color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; }
-.context-menu .folder-move { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; margin:0; padding:2px; border-radius:8px; background:#0000004d; }
-.context-menu .folder-move button.folder-chip { min-height:30px; padding:0 4px; border:0; border-radius:6px; background:transparent; color:var(--text); }
-.context-menu .folder-move button.folder-chip:hover:not(:disabled) { background:#ffffff14; }
-.context-menu .folder-move button.folder-chip.current { opacity:1; background:#68a9ff2e; color:var(--focus); font-weight:650; }
-@media (pointer:coarse) { .context-menu .context-item { min-height:44px; } .context-menu .folder-move button.folder-chip { min-height:38px; } }
-.folder-move { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.3rem; }
-.folder-move button.folder-chip { width:auto; margin:0; padding:.3rem .55rem; text-align:center; text-transform:capitalize; font-size:.85rem; }
-.folder-move button.folder-chip.current { border-color:var(--accent,#60a5fa); color:var(--accent,#60a5fa); }
-.viewer-tools { grid-column:2; justify-self:center; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; }
+.context-menu .folder-move { display:grid; }
+.context-menu .folder-move button.folder-chip { padding:0 4px; }
+@media (pointer:coarse) { .context-menu .context-item { min-height:44px; } }
+/* Folder switch, shared by the menu and the viewer. The current folder is
+   highlighted rather than faded, although it is disabled. */
+.folder-move { display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:2px; padding:2px; border-radius:8px; background:#0000004d; }
+.folder-move button.folder-chip { min-height:30px; margin:0; padding:0 12px; border:0; border-radius:6px; background:transparent; color:var(--text); text-align:center; text-transform:capitalize; font-size:.85rem; }
+.folder-move button.folder-chip:hover:not(:disabled) { background:#ffffff14; }
+.folder-move button.folder-chip.current { opacity:1; background:#68a9ff2e; color:var(--focus); font-weight:650; }
+@media (pointer:coarse) { .folder-move button.folder-chip { min-height:38px; } }
 .danger { border-color:#85343a; color:#ffb9bd; }
-.viewer { position:fixed; z-index:30; inset:0; display:grid; grid-template-columns:auto minmax(0,1fr) auto; grid-template-rows:minmax(0,1fr) auto; padding:clamp(.5rem,2vw,1.5rem); background:#050608f7; }
-.viewer[hidden],.context-menu[hidden] { display:none; }
-.viewer figure { min-width:0; min-height:0; margin:0; display:grid; grid-template-rows:minmax(0,1fr) auto; }
+.viewer { position:fixed; z-index:30; inset:0; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:clamp(.25rem,1.5vw,1rem); padding:clamp(.5rem,2vw,1.5rem); background:#050608f7; }
+.viewer figure { min-width:0; min-height:0; height:100%; margin:0; display:grid; grid-template-rows:minmax(0,1fr) auto; justify-items:center; gap:12px; }
 .viewer img { width:100%; height:100%; min-height:0; object-fit:contain; }
-.viewer figcaption { display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem 1rem; padding:.5rem; }
-.viewer figcaption span { color:var(--muted); }
-.viewer-close { position:absolute; z-index:2; right:1rem; top:1rem; font-size:1.6rem; }
-.viewer-nav { align-self:center; font-size:2rem; }
+.viewer-round { display:grid; place-items:center; width:44px; height:44px; min-height:44px; padding:0; border:0; border-radius:50%; background:#ffffff14; color:var(--text); }
+.viewer-round:hover:not(:disabled) { background:#ffffff26; }
+.viewer-round svg { width:22px; height:22px; fill:currentColor; }
+.viewer-close { position:absolute; z-index:2; top:clamp(.5rem,2vw,1rem); right:clamp(.5rem,2vw,1rem); }
+.viewer-dock { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px 16px; max-width:100%; padding:8px 8px 8px 14px; border:1px solid #ffffff1f; border-radius:14px; background:#22262ded; -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); box-shadow:0 12px 36px #0009; }
+.viewer-info { display:grid; min-width:0; line-height:1.25; }
+.viewer-info strong { overflow:hidden; font-size:.92rem; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+.viewer-info span { color:var(--muted); font-size:.76rem; }
+.viewer-actions { display:flex; align-items:center; gap:8px; }
+.viewer-delete { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:0 12px 0 10px; border:0; border-radius:8px; background:#ff4d5a1f; color:#ff8a90; font-size:.85rem; font-weight:600; }
+.viewer-delete:hover { background:#ff4d5a33; }
+.viewer-delete svg { width:16px; height:16px; fill:currentColor; }
+@media (pointer:coarse) { .viewer-delete { min-height:42px; } }
+@media (max-width:600px) {
+  .viewer { grid-template-columns:minmax(0,1fr); padding:.5rem .5rem calc(.5rem + env(safe-area-inset-bottom)); }
+  .viewer-nav { position:absolute; z-index:2; top:50%; transform:translateY(-50%); background:#0000005c; }
+  .viewer-nav.previous { left:.5rem; } .viewer-nav.next { right:.5rem; }
+  .viewer figure { padding-top:52px; }
+  .viewer-dock { width:100%; justify-content:space-between; }
+  .viewer-info { flex:1 1 100%; }
+  .viewer-actions { flex:1 1 100%; }
+  .viewer-actions .folder-move { flex:1; }
+}
+.viewer[hidden],.context-menu[hidden] { display:none; }
 
 
 @media (max-width:1050px) {
@@ -107,7 +136,8 @@ body.selecting main { padding-bottom:76px; }
   .toolbar-controls { grid-area:controls; width:100%; justify-content:space-between; gap:4px; }
   .select-button { grid-area:select; }
   .select-button .select-label { display:none; }
-  .select-button,.select-button[aria-pressed="true"] { width:44px; padding:0; border-color:transparent; background:transparent; }
+  .toolbar { --control-h:38px; }
+  .select-button,.select-button[aria-pressed="true"] { width:44px; height:44px; padding:0; border-color:transparent; background:transparent; }
   .toolbar h1 { font-size:.98rem; }
   .mobile-action { display:block; }
   .desktop-filter,.search-control { display:none; }
