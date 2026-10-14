@@ -73,7 +73,7 @@ export async function onRequestGet(context) {
 
     const [votes, photos] = await Promise.all([
       getJson(`/rest/v1/buschgirl_votes?select=photo_id,player_name,vote`),
-      getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path&active=eq.true`)
+      getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path,thumbnail_path&active=eq.true`)
     ]);
 
     const tally = new Map();
@@ -99,6 +99,7 @@ export async function onRequestGet(context) {
         folder: p.folder,
         filename: p.filename,
         storagePath: p.storage_path || `${p.folder}/${p.filename}`,
+        thumbnailPath: p.thumbnail_path || "",
         likes: t.likes,
         dislikes: t.dislikes,
         likedBy: t.likedBy.sort((a, b) => a.localeCompare(b)),
@@ -109,10 +110,17 @@ export async function onRequestGet(context) {
 
     // Least popular first so the cut list is on top.
     rows.sort((a, b) => a.net - b.net || b.dislikes - a.dislikes);
-    const signed = await signStoragePaths(env, "buschgirls", rows.map(row => row.storagePath), 900);
+    // The list shows 44px icons, so it loads thumbnails; the full photo is only
+    // fetched if a thumbnail fails to load.
+    const [signed, signedThumbs] = await Promise.all([
+      signStoragePaths(env, "buschgirls", rows.map(row => row.storagePath), 900),
+      signStoragePaths(env, "buschgirls-thumbnails", rows.map(row => row.thumbnailPath), 900)
+    ]);
     rows.forEach(row => {
       row.url = signed.get(row.storagePath) || "";
+      row.thumbUrl = signedThumbs.get(row.thumbnailPath) || "";
       delete row.storagePath;
+      delete row.thumbnailPath;
     });
 
     return json({ ok: true, photos: rows, totalVotes: (votes || []).length });

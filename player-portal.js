@@ -1552,15 +1552,21 @@ await refreshAfterAdminChange_();
     const duplicateDetails = [];
     const failureDetails = [];
     try {
+      // Shrink photo N+1 while photo N uploads.
+      let nextPrepared = prepareBuschUpload_(files[0]);
       for (let i = 0; i < files.length; i++) {
+        const prepared = await nextPrepared;
+        nextPrepared = i + 1 < files.length ? prepareBuschUpload_(files[i + 1]) : null;
         const form = new FormData();
         form.append("folder", folder);
-        form.append("file", files[i]);
+        form.append("file", prepared.file);
+        if (prepared.sourceSha256) form.append("sourceSha256", prepared.sourceSha256);
 
         try {
-          const thumbnail = await createBuschThumbnail_(files[i]);
-          const thumbExt = thumbnail.type === "image/webp" ? "webp" : "jpg";
-          form.append("thumbnail", thumbnail, `${files[i].name}.${thumbExt}`);
+          if (prepared.thumbnail) {
+            const thumbExt = prepared.thumbnail.type === "image/webp" ? "webp" : "jpg";
+            form.append("thumbnail", prepared.thumbnail, `${prepared.file.name}.${thumbExt}`);
+          }
           await adminFetch_("/api/upload-buschgirl", { method: "POST", body: form });
           uploaded++;
         } catch (err) {
@@ -1600,26 +1606,101 @@ await refreshAfterAdminChange_();
     return new Promise(resolve => canvas.toBlob(blob => resolve(blob), type, quality));
   }
 
-  async function createBuschThumbnail_(file) {
-    const decoded = await decodeBuschImage_(file);
+  // Uploads are shrunk in the browser to keep Supabase storage under the Free
+  // plan. Canvas JPEG 0.8 matched the approved look of the Oct 2026 in-place
+  // shrink; 0.7 visibly smoothed skin texture.
+  const BUSCH_FULL_MAX_EDGE = 1600;
+  const BUSCH_FULL_QUALITY = 0.8;
+  const BUSCH_FULL_RETRY_QUALITY = 0.6;
+  const BUSCH_FULL_BUDGET_BYTES = 450_000; // Safari encodes larger than Chrome at the same quality.
+  const BUSCH_THUMB_MAX_EDGE = 460;
+  const BUSCH_THUMB_QUALITY = 0.8;
+
+  async function sha256Hex_(blob) {
+    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  // Never rejects: anything that can't be decoded is uploaded untouched, and the
+  // gallery backfill makes its thumbnail later.
+  async function prepareBuschUpload_(file) {
+    const sourceSha256 = await sha256Hex_(file).catch(() => "");
+    let decoded;
     try {
-      const scale = Math.min(1, 460 / Math.max(decoded.width, decoded.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(decoded.width * scale));
-      canvas.height = Math.max(1, Math.round(decoded.height * scale));
-      canvas.getContext("2d").drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
+      decoded = await decodeBuschImage_(file);
+    } catch {
+      return { file, thumbnail: null, sourceSha256 };
+    }
+    let full = null;
+    let thumb = null;
+    try {
+      full = drawBuschScaled_(decoded.source, decoded.width, decoded.height, BUSCH_FULL_MAX_EDGE);
+      let blob = await canvasToBlob_(full, "image/jpeg", BUSCH_FULL_QUALITY);
+      if (blob && blob.size > BUSCH_FULL_BUDGET_BYTES) {
+        blob = (await canvasToBlob_(full, "image/jpeg", BUSCH_FULL_RETRY_QUALITY)) || blob;
+      }
+      // Keep the original when re-encoding wouldn't make it smaller.
+      const upload = blob && blob.size < file.size
+        ? new File([blob], buschJpegName_(file), { type: "image/jpeg" })
+        : file;
+
+      thumb = drawBuschScaled_(full, full.width, full.height, BUSCH_THUMB_MAX_EDGE);
       // Prefer WebP, but Safari's canvas can't encode it — it silently returns a
       // PNG, which the server rejects. Detect that and fall back to JPEG, which
       // every browser can produce and the server also accepts.
-      let blob = await canvasToBlob_(canvas, "image/webp", 0.68);
-      if (!blob || blob.type !== "image/webp") {
-        blob = await canvasToBlob_(canvas, "image/jpeg", 0.82);
+      let thumbnail = await canvasToBlob_(thumb, "image/webp", 0.68);
+      if (!thumbnail || thumbnail.type !== "image/webp") {
+        thumbnail = await canvasToBlob_(thumb, "image/jpeg", BUSCH_THUMB_QUALITY);
       }
-      if (!blob) throw new Error("Thumbnail generation failed");
-      return blob;
+      return { file: upload, thumbnail: thumbnail || null, sourceSha256 };
+    } catch {
+      return { file, thumbnail: null, sourceSha256 };
     } finally {
       decoded.release();
+      // Free canvas memory right away; iOS Safari has a tight total canvas budget.
+      [full, thumb].forEach(canvas => { if (canvas) canvas.width = canvas.height = 0; });
     }
+  }
+
+  function buschJpegName_(file) {
+    if (file.type === "image/jpeg") return file.name;
+    return `${String(file.name || "upload").replace(/\.[^.]*$/, "")}.jpg`;
+  }
+
+  // Downscale in halving steps: a single large drawImage downscale looks jagged,
+  // especially in Safari. White-fills the result so transparent PNGs don't turn
+  // black as JPEG.
+  function drawBuschScaled_(source, width, height, maxEdge) {
+    const scale = Math.min(1, maxEdge / Math.max(width, height));
+    const targetW = Math.max(1, Math.round(width * scale));
+    const targetH = Math.max(1, Math.round(height * scale));
+    let current = source;
+    let w = width;
+    let h = height;
+    while (w / 2 >= targetW && h / 2 >= targetH) {
+      const step = document.createElement("canvas");
+      step.width = Math.round(w / 2);
+      step.height = Math.round(h / 2);
+      const ctx = step.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(current, 0, 0, step.width, step.height);
+      if (current !== source) current.width = current.height = 0;
+      current = step;
+      w = step.width;
+      h = step.height;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(current, 0, 0, targetW, targetH);
+    if (current !== source) current.width = current.height = 0;
+    return canvas;
   }
 
   async function decodeBuschImage_(blob) {
@@ -4556,6 +4637,24 @@ async function adminSendPushForm_() {
   }
 }
 
+// Supabase returns 429 on bursts of uncached images: retry the same URL twice
+// with jittered delays, then fall back to the full photo.
+function retryThumbThenFull_(img) {
+  const tries = Number(img.dataset.retries || 0);
+  const src = img.getAttribute("src");
+  const full = img.dataset.full || "";
+  if (tries < 2) {
+    img.dataset.retries = String(tries + 1);
+    const delay = (tries === 0 ? 700 : 1500) * (0.75 + Math.random() * 0.5);
+    setTimeout(() => {
+      img.removeAttribute("src");
+      img.setAttribute("src", src);
+    }, delay);
+  } else if (full && src !== full) {
+    img.setAttribute("src", full);
+  }
+}
+
 async function loadBuschRatings_() {
   const box = document.getElementById("buschRatingsList");
   if (!box) return;
@@ -4575,7 +4674,7 @@ async function loadBuschRatings_() {
       `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} voted photo${rows.length === 1 ? "" : "s"}</div>` +
       rows.map(p => `
         <div class="bgRateRow" data-id="${escapeAttr(String(p.id))}">
-          <img src="${escapeAttr(p.url)}" loading="lazy" alt="">
+          <img src="${escapeAttr(p.thumbUrl || p.url)}" data-full="${escapeAttr(p.url)}" loading="lazy" alt="">
           <div class="bgRateInfo">
             <div class="bgRateName">${escapeHtml(p.folder)}/${escapeHtml(p.filename)}</div>
             <div class="bgRateVotes">
@@ -4590,8 +4689,9 @@ async function loadBuschRatings_() {
       `).join("");
 
     box.querySelectorAll(".bgRateRow img").forEach(img => {
+      img.addEventListener("error", () => retryThumbThenFull_(img));
       img.addEventListener("click", () => {
-        showAdminPhotoLightbox_(img.getAttribute("src"));
+        showAdminPhotoLightbox_(img.dataset.full || img.getAttribute("src"));
       });
     });
 
