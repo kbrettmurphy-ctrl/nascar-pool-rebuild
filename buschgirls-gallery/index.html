@@ -26,7 +26,7 @@
         <button id="clearSearch" type="button" aria-label="Clear filename search" hidden>×</button>
       </div>
       <label class="folder-control"><span>Folder</span><select id="folderFilter" aria-label="Folder"><option value="all">All</option><option>soft</option><option>spicy</option><option>spicier</option></select></label>
-      <label class="sort-control"><span>Sort</span><select id="sortSelect" aria-label="Sort photos"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="filename_asc">Filename A–Z</option><option value="filename_desc">Filename Z–A</option></select></label>
+      <label class="sort-control"><span>Sort</span><select id="sortSelect" aria-label="Sort photos"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="filename_asc">Filename A–Z</option><option value="filename_desc">Filename Z–A</option><optgroup label="Ratings"><option value="least_liked">Least liked</option><option value="most_liked">Most liked</option></optgroup></select></label>
       <button class="toolbar-icon filter-button desktop-filter" type="button" aria-label="Open filters" aria-expanded="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3V5Zm3 6h12v2H6v-2Zm4 6h4v2h-4v-2Z"/></svg><span class="filter-badge" hidden></span>
       </button>
@@ -64,6 +64,7 @@
     <div class="context-head"><div id="contextPath" class="context-path"></div><div id="contextDate" class="context-date"></div></div>
     <button type="button" class="context-item" data-action="view" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 4v-4h2v6h-6v-2h4Z"/></svg>View Full Size</button>
     <button type="button" class="context-item" data-action="select" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm-1.5-4.6-3.2-3.2 1.4-1.4 1.8 1.8 4.6-4.6 1.4 1.4-6 6Z"/></svg>Select Multiple</button>
+    <button type="button" class="context-item" data-action="rotation" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 9 4.5 10 7-1 2.5-5 7-10 7S3 14.5 2 12c1-2.5 5-7 10-7Zm0 2.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg><span id="contextRotationLabel">Remove from Rotation</span></button>
     <div class="context-section">
       <div class="context-move-label">Move to</div>
       <div id="contextMove" class="folder-move"><button type="button" class="folder-chip" data-move="soft" role="menuitem">soft</button><button type="button" class="folder-chip" data-move="spicy" role="menuitem">spicy</button><button type="button" class="folder-chip" data-move="spicier" role="menuitem">spicier</button></div>
@@ -84,7 +85,7 @@
     <figure>
       <img id="viewerImage" alt="">
       <figcaption class="viewer-dock">
-        <div class="viewer-info"><strong id="viewerTitle"></strong><span id="viewerMeta"></span></div>
+        <div class="viewer-info"><strong id="viewerTitle"></strong><span id="viewerMeta"></span><span id="viewerVotes" class="viewer-votes" hidden></span></div>
         <div class="viewer-actions">
           <div id="viewerMove" class="folder-move" role="group" aria-label="Move to folder"><button type="button" class="folder-chip" data-move="soft">soft</button><button type="button" class="folder-chip" data-move="spicy">spicy</button><button type="button" class="folder-chip" data-move="spicier">spicier</button></div>
           <button id="viewerDelete" class="viewer-delete" type="button" title="Permanently delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2ZM6 9h12l-.9 11.1A2 2 0 0 1 15.1 22H8.9a2 2 0 0 1-2-1.9L6 9Zm4 3v7h1.5v-7H10Zm2.5 0v7H14v-7h-1.5Z"/></svg>Delete</button>

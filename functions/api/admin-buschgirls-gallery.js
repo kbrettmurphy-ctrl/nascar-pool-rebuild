@@ -1,5 +1,5 @@
-import { verifyAdminRequest } from "./_admin-auth";
-import { BUSCH_FOLDERS, privateJson, serviceHeaders, signStoragePaths } from "./_buschgirls-admin";
+import { verifyAdminRequest } from "./_admin-auth.js";
+import { BUSCH_FOLDERS, privateJson, serviceHeaders, signStoragePaths } from "./_buschgirls-admin.js";
 
 const SORTS = {
   newest: "uploaded_at.desc.nullslast,id.desc",
@@ -7,6 +7,8 @@ const SORTS = {
   filename_asc: "filename.asc,id.asc",
   filename_desc: "filename.desc,id.desc"
 };
+// Ratings sorts show only photos with at least one vote, ranked by net votes.
+const RATING_SORTS = new Set(["least_liked", "most_liked"]);
 const ACTIVE_STATES = new Set(["all", "active", "inactive"]);
 const INDEXING_STATES = new Set(["all", "ready", "needs_indexing"]);
 const DUPLICATE_STATES = new Set(["all", "exact"]);
@@ -39,6 +41,43 @@ async function duplicateHashes(env) {
   return Array.from(hashes, ([hash, count]) => count > 1 ? hash : null).filter(Boolean);
 }
 
+// Pages through every vote (PostgREST caps a response at 1000 rows).
+async function voteTally(env) {
+  const tally = new Map();
+  for (let start = 0; ; start += 1000) {
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/buschgirl_votes?select=photo_id,player_name,vote&order=photo_id.asc,player_name.asc`,
+      { headers: serviceHeaders(env, { Range: `${start}-${start + 999}` }) }
+    );
+    if (!response.ok) throw new Error("Vote query failed");
+    const rows = await response.json().catch(() => []);
+    for (const row of rows) {
+      const id = String(row.photo_id);
+      if (!tally.has(id)) tally.set(id, { likes: 0, dislikes: 0, likedBy: [], dislikedBy: [] });
+      const entry = tally.get(id);
+      const name = String(row.player_name || "").trim();
+      if (Number(row.vote) === 1) { entry.likes++; if (name) entry.likedBy.push(name); }
+      else if (Number(row.vote) === -1) { entry.dislikes++; if (name) entry.dislikedBy.push(name); }
+    }
+    if (rows.length < 1000) break;
+  }
+  return tally;
+}
+
+async function matchingIds(env, filters) {
+  const ids = [];
+  for (let start = 0; ; start += 1000) {
+    const response = await fetch(`${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id${filters}&order=id.asc`, {
+      headers: serviceHeaders(env, { Range: `${start}-${start + 999}` })
+    });
+    if (!response.ok) throw new Error("Gallery id query failed");
+    const rows = await response.json().catch(() => []);
+    ids.push(...rows.map(row => String(row.id)));
+    if (rows.length < 1000) break;
+  }
+  return ids;
+}
+
 function buildBaseFilters({ folder, search, activeState, indexingState }) {
   let filters = folder === "all" ? "" : `&folder=eq.${encodeURIComponent(folder)}`;
   if (search) filters += `&filename=ilike.${encodeURIComponent(`*${search}*`)}`;
@@ -65,7 +104,7 @@ export async function onRequestGet({ request, env }) {
     if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) return privateJson({ ok: false, error: "Invalid pageSize" }, 400);
     if (folder !== "all" && !BUSCH_FOLDERS.has(folder)) return privateJson({ ok: false, error: "Invalid folder" }, 400);
     if (search.length > 100 || /[\u0000-\u001f]/.test(search)) return privateJson({ ok: false, error: "Invalid search" }, 400);
-    if (!SORTS[sort]) return privateJson({ ok: false, error: "Invalid sort" }, 400);
+    if (!SORTS[sort] && !RATING_SORTS.has(sort)) return privateJson({ ok: false, error: "Invalid sort" }, 400);
     if (!ACTIVE_STATES.has(activeState)) return privateJson({ ok: false, error: "Invalid activeState" }, 400);
     if (!INDEXING_STATES.has(indexingState)) return privateJson({ ok: false, error: "Invalid indexingState" }, 400);
     if (!DUPLICATE_STATES.has(duplicateState)) return privateJson({ ok: false, error: "Invalid duplicateState" }, 400);
@@ -81,16 +120,41 @@ export async function onRequestGet({ request, env }) {
       filters += duplicates.length ? `&sha256=in.(${duplicates.join(",")})` : "&sha256=eq.__no_duplicate_hash__";
     }
 
-    const total = await exactCount(env, filters);
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const safePage = Math.min(page, totalPages);
-    const rangeStart = (safePage - 1) * pageSize;
-    const listResponse = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path,uploaded_at,active,thumbnail_path${filters}&order=${SORTS[sort]}`,
-      { headers: serviceHeaders(env, { Range: `${rangeStart}-${rangeStart + pageSize - 1}` }) }
-    );
-    if (!listResponse.ok) throw new Error("Gallery list query failed");
-    const rows = await listResponse.json().catch(() => []);
+    const select = "id,folder,filename,storage_path,uploaded_at,active,thumbnail_path";
+    let rows, total, safePage, totalPages, tally = null;
+    if (RATING_SORTS.has(sort)) {
+      const [votes, ids] = await Promise.all([voteTally(env), matchingIds(env, filters)]);
+      tally = votes;
+      const ranked = ids.filter(id => tally.has(id)).map(id => {
+        const t = tally.get(id);
+        return { id, likes: t.likes, dislikes: t.dislikes, net: t.likes - t.dislikes };
+      });
+      ranked.sort(sort === "least_liked"
+        ? (a, b) => a.net - b.net || b.dislikes - a.dislikes || a.id.localeCompare(b.id)
+        : (a, b) => b.net - a.net || b.likes - a.likes || a.id.localeCompare(b.id));
+      total = ranked.length;
+      totalPages = Math.max(1, Math.ceil(total / pageSize));
+      safePage = Math.min(page, totalPages);
+      const pageIds = ranked.slice((safePage - 1) * pageSize, safePage * pageSize).map(row => row.id);
+      rows = [];
+      if (pageIds.length) {
+        const response = await fetch(`${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=${select}&id=in.(${pageIds.join(",")})`, { headers: serviceHeaders(env) });
+        if (!response.ok) throw new Error("Gallery list query failed");
+        const byId = new Map((await response.json().catch(() => [])).map(row => [String(row.id), row]));
+        rows = pageIds.map(id => byId.get(id)).filter(Boolean);
+      }
+    } else {
+      total = await exactCount(env, filters);
+      totalPages = Math.max(1, Math.ceil(total / pageSize));
+      safePage = Math.min(page, totalPages);
+      const rangeStart = (safePage - 1) * pageSize;
+      const listResponse = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/buschgirls_photos?select=${select}${filters}&order=${SORTS[sort]}`,
+        { headers: serviceHeaders(env, { Range: `${rangeStart}-${rangeStart + pageSize - 1}` }) }
+      );
+      if (!listResponse.ok) throw new Error("Gallery list query failed");
+      rows = await listResponse.json().catch(() => []);
+    }
     const thumbnailPaths = rows.map(row => row.thumbnail_path).filter(Boolean);
     const originalPaths = rows.map(row => row.storage_path || `${row.folder}/${row.filename}`);
     const [signedThumbnails, signedOriginals] = await Promise.all([
@@ -104,7 +168,8 @@ export async function onRequestGet({ request, env }) {
         id: row.id, folder: row.folder, filename: row.filename, url: signedOriginals.get(storagePath) || thumbnailUrl,
         uploaded_at: row.uploaded_at, active: row.active,
         thumbnailUrl: thumbnailUrl || signedOriginals.get(storagePath) || null,
-        thumbnailReady: Boolean(thumbnailUrl)
+        thumbnailReady: Boolean(thumbnailUrl),
+        ...(tally?.has(String(row.id)) ? { votes: tally.get(String(row.id)) } : {})
       };
     });
     return privateJson({

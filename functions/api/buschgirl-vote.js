@@ -1,6 +1,5 @@
-import { verifyAdminRequest, json } from "./_admin-auth.js";
+import { json } from "./_admin-auth.js";
 import { memberAuthResponse, requirePoolMember } from "./_member-auth.js";
-import { signStoragePaths } from "./_buschgirls-admin.js";
 
 // POST: an authenticated member votes. Player identity is server-derived.
 export async function onRequestPost(context) {
@@ -46,85 +45,6 @@ export async function onRequestPost(context) {
     return json({ ok: true });
   } catch (err) {
     if (err?.name === "MemberAuthError") return memberAuthResponse(err);
-    return json({ ok: false, error: err.message || String(err) }, 500);
-  }
-}
-
-// GET (admin): photo popularity report, least popular first.
-export async function onRequestGet(context) {
-  try {
-    const { request, env } = context;
-
-    const ok = await verifyAdminRequest(request, env);
-    if (!ok) return json({ ok: false, error: "Unauthorized" }, 401);
-
-    const headers = {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-    };
-
-    async function getJson(path) {
-      const res = await fetch(`${env.SUPABASE_URL}${path}`, { headers });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : [];
-      if (!res.ok) throw new Error(text || "Supabase read failed");
-      return data;
-    }
-
-    const [votes, photos] = await Promise.all([
-      getJson(`/rest/v1/buschgirl_votes?select=photo_id,player_name,vote`),
-      getJson(`/rest/v1/buschgirls_photos?select=id,folder,filename,storage_path,thumbnail_path&active=eq.true`)
-    ]);
-
-    const tally = new Map();
-    for (const v of votes || []) {
-      const id = String(v.photo_id);
-      if (!tally.has(id)) tally.set(id, { likes: 0, dislikes: 0, likedBy: [], dislikedBy: [] });
-      const t = tally.get(id);
-      const playerName = String(v.player_name || "").trim();
-      if (Number(v.vote) === 1) {
-        t.likes++;
-        if (playerName) t.likedBy.push(playerName);
-      } else if (Number(v.vote) === -1) {
-        t.dislikes++;
-        if (playerName) t.dislikedBy.push(playerName);
-      }
-    }
-
-    const rows = (photos || []).flatMap(p => {
-      const t = tally.get(String(p.id));
-      if (!t || (t.likes + t.dislikes) < 1) return [];
-      return {
-        id: p.id,
-        folder: p.folder,
-        filename: p.filename,
-        storagePath: p.storage_path || `${p.folder}/${p.filename}`,
-        thumbnailPath: p.thumbnail_path || "",
-        likes: t.likes,
-        dislikes: t.dislikes,
-        likedBy: t.likedBy.sort((a, b) => a.localeCompare(b)),
-        dislikedBy: t.dislikedBy.sort((a, b) => a.localeCompare(b)),
-        net: t.likes - t.dislikes
-      };
-    });
-
-    // Least popular first so the cut list is on top.
-    rows.sort((a, b) => a.net - b.net || b.dislikes - a.dislikes);
-    // The list shows 44px icons, so it loads thumbnails; the full photo is only
-    // fetched if a thumbnail fails to load.
-    const [signed, signedThumbs] = await Promise.all([
-      signStoragePaths(env, "buschgirls", rows.map(row => row.storagePath), 900),
-      signStoragePaths(env, "buschgirls-thumbnails", rows.map(row => row.thumbnailPath), 900)
-    ]);
-    rows.forEach(row => {
-      row.url = signed.get(row.storagePath) || "";
-      row.thumbUrl = signedThumbs.get(row.thumbnailPath) || "";
-      delete row.storagePath;
-      delete row.thumbnailPath;
-    });
-
-    return json({ ok: true, photos: rows, totalVotes: (votes || []).length });
-  } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }
 }

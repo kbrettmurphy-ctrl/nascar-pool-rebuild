@@ -2218,83 +2218,6 @@ a.newsCard:last-child{ border-bottom:none; }
   background: var(--chip);
 }
 
-.buschRatingsList{ margin-top:10px; }
-.bgRateRow{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:6px 0;
-  border-bottom:1px solid var(--lineSoft);
-}
-.bgRateRow img{
-  width:44px;
-  height:44px;
-  object-fit:cover;
-  border-radius:8px;
-  flex:0 0 auto;
-  cursor:pointer;
-}
-.bgRateInfo{ min-width:0; flex:1 1 auto; }
-.bgRateName{
-  font-size:12px;
-  font-weight:600;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.bgRateVotes{
-  display:flex;
-  align-items:center;
-  flex-wrap:wrap;
-  gap:5px;
-  margin-top:3px;
-  font-size:12px;
-  color: var(--muted);
-}
-.bgVoteChip{
-  min-height:24px;
-  padding:2px 7px;
-  border-radius:999px;
-  background:var(--chip);
-  border:1px solid var(--chipBorder);
-  color:var(--text);
-  font-size:12px;
-  font-weight:700;
-  line-height:1;
-}
-.bgVoteChip.active{
-  background:var(--glassBlue42);
-  border-color:var(--glassBlue55);
-}
-.bgVoterList{
-  display:flex;
-  flex-wrap:wrap;
-  gap:5px;
-  margin-top:6px;
-}
-.bgVoterList[hidden]{
-  display:none;
-}
-.bgVoterList span{
-  max-width:100%;
-  padding:2px 7px;
-  border-radius:999px;
-  background:var(--chip);
-  border:1px solid var(--lineSoft);
-  color:var(--muted);
-  font-size:11px;
-  font-weight:650;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.bgRemoveBtn{
-  flex:0 0 auto;
-  background: rgba(228,0,43,.16);
-  border:1px solid rgba(228,0,43,.40);
-  color: var(--redText);
-}
-
 /* ==========================================================
    Sponsor footer
    ========================================================== */
@@ -2527,26 +2450,6 @@ a.newsCard:last-child{ border-bottom:none; }
 .netLine.down{ color:var(--redText); }
 
 /* Enlarge-only lightbox for ratings thumbnails */
-.adminLightbox{
-  position:fixed;
-  inset:0;
-  z-index:10050;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(0,0,0,.85);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
-  cursor:zoom-out;
-}
-.adminLightbox img{
-  max-width:100%;
-  max-height:100%;
-  object-fit:contain;
-  border-radius:12px;
-  box-shadow:0 18px 52px rgba(0,0,0,.5);
-}
 
 
 

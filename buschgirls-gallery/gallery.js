@@ -4,7 +4,7 @@
   const state = { page:1, pageSize:80, columns:0, folder:"all", search:"", sort:"newest", activeState:"all", duplicateState:"all", total:0, totalPages:1, photos:[], selected:null, viewerIndex:-1, origin:null, longPressTimer:null, suppressClick:false, requestId:0, selectMode:false, selection:new Map(), lastSelectedIndex:-1, bulkDeleting:false };
   const $ = id => document.getElementById(id);
   const validFolders = new Set(["all","soft","spicy","spicier"]);
-  const validSorts = new Set(["newest","oldest","filename_asc","filename_desc"]);
+  const validSorts = new Set(["newest","oldest","filename_asc","filename_desc","least_liked","most_liked"]);
   const validActiveStates = new Set(["all","active","inactive"]);
 
   class ApiError extends Error { constructor(message,status,data){ super(message); this.status=status; this.data=data; } }
@@ -80,6 +80,8 @@
         img.addEventListener("error",()=>button.classList.add("broken")); button.append(img);
       }
       const dot=document.createElement("span"); dot.className="select-dot"; dot.setAttribute("aria-hidden","true"); button.append(dot);
+      if(!photo.active){ const tag=document.createElement("span"); tag.className="removed-tag"; tag.textContent="Removed"; button.append(tag); }
+      if(photo.votes){ const badge=document.createElement("span"); badge.className="vote-badge"; badge.textContent=`👍 ${photo.votes.likes}  👎 ${photo.votes.dislikes}`; button.append(badge); }
       button.addEventListener("click",event=>{ if(state.suppressClick){state.suppressClick=false;return;} if(state.selectMode||event.target.closest(".select-dot")){ if(!state.selectMode)setSelectMode(true); toggleSelection(index,event.shiftKey); return; } openViewer(index,button); });
       button.addEventListener("contextmenu",event=>{ event.preventDefault(); if(state.selectMode)return; openMenu(photo,event.clientX,event.clientY); });
       button.addEventListener("pointerdown",event=>startLongPress(event,photo));
@@ -90,7 +92,7 @@
   }
   function startLongPress(event,photo) { if(event.pointerType==="mouse"||state.selectMode)return; cancelLongPress(); const x=event.clientX,y=event.clientY; state.longPressTimer=setTimeout(()=>{state.suppressClick=true;openMenu(photo,x,y);},550); }
   function cancelLongPress(){ clearTimeout(state.longPressTimer); state.longPressTimer=null; }
-  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; markFolderChips("contextMove",photo.folder); $("contextPath").textContent=photo.filename; $("contextPath").title=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
+  function openMenu(photo,x,y) { closeViewer(); state.selected=photo; markFolderChips("contextMove",photo.folder); $("contextPath").textContent=photo.filename; $("contextPath").title=`${photo.folder}/${photo.filename}`; $("contextDate").textContent=formatDate(photo.uploaded_at); $("contextRotationLabel").textContent=photo.active?"Remove from Rotation":"Return to Rotation"; const menu=$("contextMenu"); menu.hidden=false; const rect=menu.getBoundingClientRect(); menu.style.left=`${Math.max(8,Math.min(x,innerWidth-rect.width-8))}px`; menu.style.top=`${Math.max(8,Math.min(y,innerHeight-rect.height-8))}px`; menu.querySelector("button")?.focus(); }
   function markFolderChips(containerId,folder){ const box=$(containerId); if(!box)return; box.querySelectorAll("button[data-move]").forEach(b=>{ const isCurrent=b.dataset.move===folder; b.classList.toggle("current",isCurrent); b.disabled=isCurrent; }); }
 
   async function movePhoto(photo,folder) {
@@ -109,9 +111,15 @@
     } catch(error){ handleError(error); }
   }
 
+  // Rotation = which photos members see. Removing keeps the photo and its votes.
+  async function setRotation(photo,active) {
+    const label=`${photo.folder}/${photo.filename}`;
+    try { await api("/api/remove-buschgirl",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({photoId:photo.id,active})}); closeMenu(); await loadPage(); $("status").textContent=active?`Returned ${label} to rotation.`:`Removed ${label} from rotation.`; } catch(error){ handleError(error); }
+  }
+
   function closeMenu(){ $("contextMenu").hidden=true; state.selected=null; }
 
-  function openViewer(index,origin) { closeMenu(); const photo=state.photos[index]; if(!photo)return; state.viewerIndex=index; state.origin=origin || document.activeElement; $("viewerImage").src=photo.url; $("viewerImage").alt=photo.filename; $("viewerTitle").textContent=photo.filename; $("viewerMeta").textContent=formatDate(photo.uploaded_at); markFolderChips("viewerMove",photo.folder); $("viewerPrevious").disabled=index===0; $("viewerNext").disabled=index===state.photos.length-1; $("viewer").hidden=false; document.body.style.overflow="hidden"; $("viewerClose").focus(); }
+  function openViewer(index,origin) { closeMenu(); const photo=state.photos[index]; if(!photo)return; state.viewerIndex=index; state.origin=origin || document.activeElement; $("viewerImage").src=photo.url; $("viewerImage").alt=photo.filename; $("viewerTitle").textContent=photo.filename; $("viewerMeta").textContent=formatDate(photo.uploaded_at)+(photo.active?"":" · Removed from rotation"); const votes=photo.votes; $("viewerVotes").hidden=!votes; $("viewerVotes").textContent=votes?[`👍 ${votes.likes}${votes.likedBy.length?` ${votes.likedBy.join(", ")}`:""}`,`👎 ${votes.dislikes}${votes.dislikedBy.length?` ${votes.dislikedBy.join(", ")}`:""}`].join("  ·  "):""; markFolderChips("viewerMove",photo.folder); $("viewerPrevious").disabled=index===0; $("viewerNext").disabled=index===state.photos.length-1; $("viewer").hidden=false; document.body.style.overflow="hidden"; $("viewerClose").focus(); }
   function closeViewer(){ if($("viewer").hidden)return; $("viewer").hidden=true; $("viewerImage").removeAttribute("src"); document.body.style.overflow=""; const origin=state.origin; state.viewerIndex=-1; state.origin=null; origin?.focus?.(); }
   function moveViewer(delta){ const next=state.viewerIndex+delta; if(next>=0&&next<state.photos.length)openViewer(next,state.origin); }
   function trapViewerFocus(event){ const controls=Array.from($("viewer").querySelectorAll("button:not(:disabled)")); if(!controls.length)return; const first=controls[0],last=controls.at(-1); if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();} }
@@ -199,7 +207,7 @@
   document.querySelectorAll(".filter-button").forEach(button=>button.addEventListener("click",()=>setFilterPanel($("filterPanel").hidden)));
   ["activeState","duplicateState"].forEach(id=>$(id).addEventListener("change",event=>{state[id]=event.target.value;resetResultsAndLoad();}));
   $("clearFilters").addEventListener("click",()=>{state.activeState="all";state.duplicateState="all";$("activeState").value="all";$("duplicateState").value="all";resetResultsAndLoad();});$("closeFilters").addEventListener("click",()=>setFilterPanel(false));
-  $("contextMenu").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo){movePhoto(state.selected,moveTo);return;}const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="select"&&state.selected){const photo=state.selected;setSelectMode(true);state.selection.set(photo.id,photo);state.lastSelectedIndex=state.photos.findIndex(x=>x.id===photo.id);paintSelection();}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
+  $("contextMenu").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo){movePhoto(state.selected,moveTo);return;}const action=event.target.closest("button")?.dataset.action;if(action==="view"){const index=state.photos.findIndex(x=>x.id===state.selected?.id);openViewer(index);}else if(action==="rotation"&&state.selected)setRotation(state.selected,!state.selected.active);else if(action==="select"&&state.selected){const photo=state.selected;setSelectMode(true);state.selection.set(photo.id,photo);state.lastSelectedIndex=state.photos.findIndex(x=>x.id===photo.id);paintSelection();}else if(action==="delete"&&state.selected)permanentDelete(state.selected);});
   $("viewerMove").addEventListener("click",event=>{const moveTo=event.target.closest("button[data-move]")?.dataset.move;if(moveTo)movePhoto(state.photos[state.viewerIndex],moveTo);});
   $("viewerClose").addEventListener("click",closeViewer); $("viewerPrevious").addEventListener("click",()=>moveViewer(-1)); $("viewerNext").addEventListener("click",()=>moveViewer(1)); $("viewerDelete").addEventListener("click",()=>{const photo=state.photos[state.viewerIndex];if(photo)permanentDelete(photo);});
   document.addEventListener("pointerdown",event=>{if(!$("contextMenu").hidden&&!$("contextMenu").contains(event.target))closeMenu();if(!$("filterPanel").hidden&&!$("filterPanel").contains(event.target)&&!event.target.closest(".filter-button"))setFilterPanel(false);}); addEventListener("scroll",closeMenu,{passive:true,capture:true});

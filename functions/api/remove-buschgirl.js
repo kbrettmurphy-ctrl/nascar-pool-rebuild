@@ -1,7 +1,7 @@
 import { verifyAdminRequest, json } from "./_admin-auth";
 
-// POST (admin): soft-remove a photo by flagging it inactive.
-// The gallery API only serves active=true, so it disappears everywhere.
+// POST (admin): take a photo out of the member rotation by flagging it
+// inactive, or put it back with { active: true }. Nothing is deleted.
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
@@ -11,6 +11,7 @@ export async function onRequestPost(context) {
 
     const body = await request.json().catch(() => ({}));
     const photoId = String(body?.photoId || "").trim();
+    const active = body?.active === true;
 
     if (!photoId || photoId.length > 64) {
       return json({ ok: false, error: "photoId is required" }, 400);
@@ -26,7 +27,7 @@ export async function onRequestPost(context) {
           Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
           Prefer: "return=minimal"
         },
-        body: JSON.stringify({ active: false })
+        body: JSON.stringify({ active })
       }
     );
 
@@ -35,7 +36,7 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: text || "Remove failed" }, 500);
     }
 
-    return json({ ok: true, photoId });
+    return json({ ok: true, photoId, active });
   } catch (err) {
     return json({ ok: false, error: err.message || String(err) }, 500);
   }

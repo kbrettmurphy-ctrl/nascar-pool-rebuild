@@ -4591,25 +4591,6 @@ function initBuschVotes_() {
 
 // Plain enlarge-only lightbox for admin ratings thumbnails:
 // tap anywhere (or Esc) to dismiss. No nav, zoom, or votes.
-function showAdminPhotoLightbox_(src) {
-  if (!src) return;
-
-  const box = document.createElement("div");
-  box.className = "adminLightbox";
-  box.innerHTML = `<img src="${escapeAttr(src)}" alt="">`;
-
-  function close_() {
-    box.remove();
-    document.removeEventListener("keydown", onKey_);
-  }
-  function onKey_(e) {
-    if (e.key === "Escape") close_();
-  }
-
-  box.addEventListener("click", close_);
-  document.addEventListener("keydown", onKey_);
-  document.body.appendChild(box);
-}
 
 /* ==========================================================
    Admin: Push tab (composer + per-player notification toggles)
@@ -4714,121 +4695,6 @@ async function adminSendPushForm_() {
   }
 }
 
-// Supabase returns 429 on bursts of uncached images: retry the same URL twice
-// with jittered delays, then fall back to the full photo.
-function retryThumbThenFull_(img) {
-  const tries = Number(img.dataset.retries || 0);
-  const src = img.getAttribute("src");
-  const full = img.dataset.full || "";
-  if (tries < 2) {
-    img.dataset.retries = String(tries + 1);
-    const delay = (tries === 0 ? 700 : 1500) * (0.75 + Math.random() * 0.5);
-    setTimeout(() => {
-      img.removeAttribute("src");
-      img.setAttribute("src", src);
-    }, delay);
-  } else if (full && src !== full) {
-    img.setAttribute("src", full);
-  }
-}
-
-async function loadBuschRatings_() {
-  const box = document.getElementById("buschRatingsList");
-  if (!box) return;
-
-  box.innerHTML = `<div class="muted">Loading ratings…</div>`;
-
-  try {
-    const data = await adminFetch_("/api/buschgirl-vote", { cache: "no-store" });
-    const rows = Array.isArray(data?.photos) ? data.photos : [];
-
-    if (!rows.length) {
-      box.innerHTML = `<div class="muted">No photos found.</div>`;
-      return;
-    }
-
-    box.innerHTML =
-      `<div class="muted" style="margin:8px 0 4px;">Least popular first · ${rows.length} voted photo${rows.length === 1 ? "" : "s"}</div>` +
-      rows.map(p => `
-        <div class="bgRateRow" data-id="${escapeAttr(String(p.id))}">
-          <img src="${escapeAttr(p.thumbUrl || p.url)}" data-full="${escapeAttr(p.url)}" loading="lazy" alt="">
-          <div class="bgRateInfo">
-            <div class="bgRateName">${escapeHtml(p.folder)}/${escapeHtml(p.filename)}</div>
-            <div class="bgRateVotes">
-              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.likedBy || []).join("|"))}" aria-label="Show likes">👍 ${Number(p.likes) || 0}</button>
-              <button class="bgVoteChip" type="button" data-voters="${escapeAttr((p.dislikedBy || []).join("|"))}" aria-label="Show dislikes">👎 ${Number(p.dislikes) || 0}</button>
-              <span>net ${p.net > 0 ? "+" : ""}${Number(p.net) || 0}</span>
-            </div>
-            <div class="bgVoterList" hidden></div>
-          </div>
-          <button class="bgRemoveBtn" type="button">Remove</button>
-        </div>
-      `).join("");
-
-    box.querySelectorAll(".bgRateRow img").forEach(img => {
-      img.addEventListener("error", () => retryThumbThenFull_(img));
-      img.addEventListener("click", () => {
-        showAdminPhotoLightbox_(img.dataset.full || img.getAttribute("src"));
-      });
-    });
-
-    box.querySelectorAll(".bgVoteChip").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const row = btn.closest(".bgRateRow");
-        const list = row?.querySelector(".bgVoterList");
-        if (!list) return;
-
-        const voters = String(btn.dataset.voters || "")
-          .split("|")
-          .map(v => v.trim())
-          .filter(Boolean);
-
-        const wasOpen = !list.hidden && btn.classList.contains("active");
-
-        row.querySelectorAll(".bgVoteChip").forEach(chip => chip.classList.remove("active"));
-        if (wasOpen) {
-          list.hidden = true;
-          list.innerHTML = "";
-          return;
-        }
-
-        btn.classList.add("active");
-        list.hidden = false;
-        list.innerHTML = voters.length
-          ? voters.map(v => `<span>${escapeHtml(v)}</span>`).join("")
-          : `<span class="muted">No votes yet</span>`;
-      });
-    });
-
-    box.querySelectorAll(".bgRemoveBtn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const row = btn.closest(".bgRateRow");
-        const photoId = String(row?.dataset?.id || "");
-        if (!photoId) return;
-        if (!confirm("Remove this photo from the rotation?")) return;
-
-        btn.disabled = true;
-        try {
-          const res = await adminFetch_("/api/remove-buschgirl", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ photoId })
-          });
-          if (res?.ok) row.remove();
-          else {
-            alert(res?.error || "Remove failed");
-            btn.disabled = false;
-          }
-        } catch (e) {
-          alert(e.message || String(e));
-          btn.disabled = false;
-        }
-      });
-    });
-  } catch (e) {
-    box.innerHTML = `<div class="muted">Error: ${escapeHtml(e.message || String(e))}</div>`;
-  }
-}
 
 function preloadBuschImage_(src) {
   if (!src) return;
@@ -5720,7 +5586,7 @@ function initAdminControls_() {
   document.getElementById("buschUploadInput")?.addEventListener("change", updateBuschFileText_);
   document.getElementById("buschUploadBtn")?.addEventListener("click", uploadBuschGirls_);
   document.getElementById("buschGalleryBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/"));
-  document.getElementById("buschRatingsBtn")?.addEventListener("click", loadBuschRatings_);
+  document.getElementById("buschRatingsBtn")?.addEventListener("click", () => location.assign("/buschgirls-gallery/?sort=least_liked&activeState=active"));
   document.getElementById("adminPushSendBtn")?.addEventListener("click", adminSendPushForm_);
 }
 
